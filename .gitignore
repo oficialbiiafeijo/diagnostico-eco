@@ -1,0 +1,9 @@
+# dados e anexos dos clientes: nunca vao para o repositorio
+data/
+
+# arquivo gerado com usuario, senha e chave de acesso
+PRIMEIRO-ACESSO.txt
+
+__pycache__/
+*.pyc
+.DS_Store

@@ -173,7 +173,20 @@ def _regras():
 PILARES = {"E": "Estratégia", "C": "Condução", "O": "Operação"}
 
 
+def aplicavel(ans):
+    """O score foi escrito sobre as perguntas do Dia 0.
+
+    Nos acompanhamentos mensais as perguntas sao outras, entao as regras nao
+    encontrariam nada e devolveriam zero por cento com gargalos inventados.
+    Antes de pontuar, conferimos se as respostas sao mesmo do diagnostico.
+    """
+    marcadores = ("e_meta_definida", "c_script", "o_crm", "e_icp", "c_followup_existe")
+    return any(m in ans for m in marcadores)
+
+
 def score(ans):
+    if not aplicavel(ans):
+        return None
     regras = _regras()
     res = {}
     gargalos = []
@@ -204,19 +217,19 @@ def score(ans):
 
 def _classificar(g):
     if g < 30:
-        return "Operação informal — a estrutura precisa ser construída"
+        return "Operação informal. A estrutura precisa ser construída"
     if g < 50:
-        return "Operação em formação — existe base, falta padrão"
+        return "Operação em formação. Existe base, falta padrão"
     if g < 70:
-        return "Operação organizada — falta gestão por indicador"
+        return "Operação organizada. Falta gestão por indicador"
     if g < 85:
-        return "Operação madura — ajuste fino e escala"
-    return "Operação consolidada — foco em previsibilidade"
+        return "Operação madura. Hora do ajuste fino e da escala"
+    return "Operação consolidada. Foco em previsibilidade"
 
 
-def nao_informados(ans):
+def nao_informados(ans, ciclo=None):
     """Perguntas em que a empresa declarou nao acompanhar o dado."""
-    qm = question_map()
+    qm = question_map(ciclo)
     out = []
     for qid, a in ans.items():
         if a and a.get("na"):

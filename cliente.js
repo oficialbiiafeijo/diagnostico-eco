@@ -149,12 +149,18 @@
     palco.innerHTML = "";
     palco.appendChild(el(
       '<div class="hero">' +
-      '<div class="eyebrow">Método ECO · Estratégia · Condução · Operação</div>' +
-      '<h1>Diagnóstico<br><em class="grifo">Comercial</em></h1>' +
+      '<div class="eyebrow">' + esc(d.titulo_ciclo || "Método ECO · Estratégia · Condução · Operação") + '</div>' +
+      (d.eh_acompanhamento
+        ? '<h1>Acompanhamento<br><em class="grifo">do mês</em></h1>'
+        : '<h1>Diagnóstico<br><em class="grifo">Comercial</em></h1>') +
       '<p class="sub">Olá' + (d.responsavel ? ", <strong>" + esc(d.responsavel.split(" ")[0]) + "</strong>" : "") +
-      '. Este diagnóstico foi preparado exclusivamente para <strong>' + esc(d.empresa) + '</strong>. ' +
-      'Ele existe para que a gente entenda o momento real da sua operação comercial — ' +
-      'não para julgar, e sim para enxergar com clareza onde está a oportunidade.</p>' +
+      '. ' + (d.eh_acompanhamento
+        ? esc(d.abertura || "") + ' Responda pensando na <strong>' + esc(d.empresa) +
+          '</strong> e no que aconteceu de verdade nos últimos 30 dias.'
+        : 'Este diagnóstico foi preparado exclusivamente para <strong>' + esc(d.empresa) + '</strong>. ' +
+          'Ele existe para que a gente entenda o momento real da sua operação comercial, ' +
+          'não para julgar, e sim para enxergar com clareza onde está a oportunidade.') +
+      '</p>' +
       '<div class="pilares">' +
       '<div class="pilar"><div class="letra">E</div><h3>Estratégia</h3><p>Onde estamos, onde queremos chegar e o que atacar primeiro.</p></div>' +
       '<div class="pilar"><div class="letra">C</div><h3>Condução</h3><p>Como cada oportunidade é recebida, conduzida e levada à decisão.</p></div>' +
@@ -164,7 +170,7 @@
       '<h3 class="serif" style="font-size:23px;color:var(--ameixa-900);margin-bottom:12px">Antes de começar</h3>' +
       '<ul style="margin:0;padding-left:20px;color:var(--texto-2);font-size:14px;line-height:1.85">' +
       '<li><strong>Suas respostas salvam sozinhas.</strong> Pode fechar e voltar depois pelo mesmo link.</li>' +
-      '<li><strong>Prefira o número exato.</strong> Se não acompanhar algum dado, existe a opção de dizer isso — e essa informação também conta.</li>' +
+      '<li><strong>Prefira o número exato.</strong> Se não acompanhar algum dado, existe a opção de dizer isso, e essa informação também conta.</li>' +
       '<li><strong>Responda com sinceridade.</strong> O diagnóstico só funciona com o retrato real da empresa.</li>' +
       '<li>Reserve cerca de <strong>25 a 35 minutos</strong>. São ' + totalPerguntas() + ' perguntas em ' + S.blocos.length + ' blocos.</li>' +
       '</ul></div>' +
@@ -305,9 +311,13 @@
       corpo.appendChild(opcoes(q, a, ops2, "check", wrap));
 
     } else if (t === "scale") {
-      var esc10 = el('<div><div class="escala"></div><div class="escala-legenda"><span>1 · são estimativas</span><span>10 · dados conferidos</span></div></div>');
+      var topo = (q.options && q.options.length) ? q.options.length : 10;
+      var legenda = q.help
+        ? '<div class="escala-legenda"><span>' + esc(q.help) + '</span></div>'
+        : '<div class="escala-legenda"><span>1 · são estimativas</span><span>' + topo + ' · dados conferidos</span></div>';
+      var esc10 = el('<div><div class="escala"></div>' + legenda + '</div>');
       var box = esc10.querySelector(".escala");
-      for (var i = 1; i <= 10; i++) (function (i) {
+      for (var i = 1; i <= topo; i++) (function (i) {
         var b = el('<button type="button" class="' + (String(a.v) === String(i) ? "sel" : "") + '">' + i + '</button>');
         b.onclick = function () {
           a.v = i; marcar(q.id);
@@ -394,6 +404,68 @@
 
     } else if (t === "files") {
       corpo.appendChild(areaAnexos());
+
+    } else if (t === "acoes_status") {
+      var acoes = Array.isArray(a.v) ? a.v : [];
+      var base = q.options || [];
+      if (!acoes.length && base.length) {
+        acoes = base.map(function (x) { return { titulo: x, status: "" }; });
+        a.v = acoes;
+      }
+      var lista = el('<div class="acoes-lista"></div>');
+      function desenhaAcoes() {
+        lista.innerHTML = "";
+        if (!acoes.length) {
+          lista.appendChild(el('<p class="small muted">Nenhuma ação registrada ainda. ' +
+            'Use o botão abaixo para acrescentar o que foi combinado.</p>'));
+        }
+        acoes.forEach(function (item, idx) {
+          var linha = el('<div class="acao-item"></div>');
+          var tit = document.createElement("input");
+          tit.type = "text"; tit.value = item.titulo || "";
+          tit.placeholder = "O que foi combinado";
+          tit.oninput = function () { item.titulo = tit.value; marcar(q.id); };
+          var sel = document.createElement("select");
+          ["", "Concluída", "Em andamento", "Não iniciada", "Bloqueada",
+           "Cancelada", "Não se aplica"].forEach(function (o) {
+            var op = document.createElement("option");
+            op.value = o; op.textContent = o || "Como está?";
+            if (item.status === o) op.selected = true;
+            sel.appendChild(op);
+          });
+          sel.onchange = function () { item.status = sel.value; marcar(q.id); };
+          var rem = el('<button type="button" class="acao-x" title="Remover">×</button>');
+          rem.onclick = function () { acoes.splice(idx, 1); a.v = acoes; marcar(q.id); desenhaAcoes(); };
+          linha.appendChild(tit); linha.appendChild(sel); linha.appendChild(rem);
+          lista.appendChild(linha);
+        });
+        var add = el('<button type="button" class="acao-add">+ Acrescentar ação</button>');
+        add.onclick = function () {
+          acoes.push({ titulo: "", status: "" }); a.v = acoes; marcar(q.id); desenhaAcoes();
+        };
+        lista.appendChild(add);
+      }
+      desenhaAcoes();
+      corpo.appendChild(lista);
+
+    } else if (t === "prioridades_prev" || t === "indicador_ref") {
+      var itens = (q.options || []).slice();
+      if (!itens.length) {
+        corpo.appendChild(el('<p class="small muted">Ainda não há itens registrados do ciclo ' +
+          'anterior. Você pode escrever abaixo.</p>'));
+        var livre = document.createElement("textarea");
+        livre.rows = 3; livre.value = a.v || "";
+        livre.oninput = function () { a.v = livre.value; marcar(q.id); };
+        corpo.appendChild(livre);
+      } else {
+        if (q.other) itens.push("Outro");
+        corpo.appendChild(opcoes(q, a, itens, q.multi ? "check" : "radio", wrap));
+      }
+
+    } else {
+      corpo.appendChild(el('<p class="small muted">Este campo não pôde ser exibido. ' +
+        'Avise a B3 Sales.</p>'));
+      console.warn("Tipo de pergunta sem desenho:", q.id, t);
     }
 
     wrap.appendChild(corpo);
@@ -456,6 +528,10 @@
 
   function opcoes(q, a, lista, modo, wrap) {
     var box = el('<div class="opcoes' + (lista.length > 4 && modo === "check" ? " duas" : "") + '"></div>');
+    if (q.max && wrap && !wrap.querySelector(".aviso-max")) {
+      wrap.appendChild(el('<div class="aviso-max">Você já escolheu ' + q.max +
+        '. Desmarque uma para trocar.</div>'));
+    }
     var multi = modo === "check";
     if (multi && !Array.isArray(a.v)) a.v = a.v ? [a.v] : [];
     lista.forEach(function (op) {
@@ -466,7 +542,16 @@
         e.preventDefault();
         if (multi) {
           var i = a.v.indexOf(op);
-          if (i >= 0) a.v.splice(i, 1); else a.v.push(op);
+          if (i >= 0) {
+            a.v.splice(i, 1);
+          } else if (q.max && a.v.length >= q.max) {
+            var av = wrap && wrap.querySelector(".aviso-max");
+            if (av) { av.style.display = "block"; clearTimeout(av._t);
+              av._t = setTimeout(function () { av.style.display = "none"; }, 2600); }
+            return;
+          } else {
+            a.v.push(op);
+          }
         } else {
           a.v = (a.v === op) ? "" : op;
         }

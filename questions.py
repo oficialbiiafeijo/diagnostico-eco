@@ -21,7 +21,25 @@ remove essas chaves antes de entregar o formulario ao navegador dele.
 #   show_if   -> {"q": "id_da_pergunta", "in": [valores]}
 #   followup  -> {"label": "...", "type": "textarea"} campo complementar sempre visivel
 
+import ciclos
+
 NAO_SEI = ["Não acompanho esse dado", "Não sei informar", "Não se aplica"]
+
+# Vocabulario da equipe do cliente. Usado nas perguntas de estrutura e
+# tambem na ficha interna que a B3 Sales preenche com nome e contato.
+AREAS_EQUIPE = ["Marketing", "Comercial", "Gestão e administrativo",
+                "Operação e atendimento"]
+
+FUNCOES_EQUIPE = ["Proprietária ou proprietário", "Sócia ou sócio", "Gestor comercial",
+                  "Líder de equipe", "SDR", "BDR", "Closer", "Social seller",
+                  "Recepcionista ou atendente", "Vendedora ou vendedor",
+                  "Sucesso do cliente", "Gestor de tráfego", "Social media",
+                  "Designer", "Financeiro", "Administrativo",
+                  "Profissional que executa o serviço", "Acumula mais de uma função"]
+
+NIVEIS_EQUIPE = ["Estratégico: decide a direção",
+                 "Tático: organiza e acompanha",
+                 "Operacional: executa no dia a dia"]
 
 BLOCKS = [
     # ------------------------------------------------------------------ 1
@@ -528,7 +546,7 @@ BLOCKS = [
         "id": "numeros",
         "eyebrow": "Bloco 7",
         "title": "Números e indicadores",
-        "intro": "Este bloco constrói o retrato real da operação. Prefira o número exato. Se a empresa não acompanha algum dado, marque a opção correspondente — essa informação também é importante.",
+        "intro": "Este bloco constrói o retrato real da operação. Prefira o número exato. Se a empresa não acompanha algum dado, marque a opção correspondente. Essa informação também é importante.",
         "questions": [
             {"id": "n_periodo", "type": "select", "required": True,
              "label": "Os números abaixo se referem a qual período?",
@@ -667,10 +685,25 @@ STATUS = ["Não iniciado", "Em preenchimento", "Aguardando conclusão",
           "Enviado pelo cliente", "Em análise pela B3 Sales", "Diagnóstico concluído"]
 
 
-def client_blocks():
+def blocos_do_ciclo(ciclo=None):
+    """O Dia 0 registra o cenario. Os demais ciclos medem a transformacao."""
+    return ciclos.MENSAIS.get(ciclo, BLOCKS)
+
+
+def titulo_do_ciclo(ciclo=None):
+    return ciclos.TITULOS.get(ciclo, "Diagnóstico Comercial ECO")
+
+
+def abertura_do_ciclo(ciclo=None):
+    return ciclos.ABERTURA.get(
+        ciclo, "Vamos entender o momento atual da sua empresa para identificar "
+               "gargalos, oportunidades e prioridades comerciais.")
+
+
+def client_blocks(ciclo=None):
     """Copia do banco de perguntas sem nenhum campo interno da B3 Sales."""
     out = []
-    for b in BLOCKS:
+    for b in blocos_do_ciclo(ciclo):
         qs = []
         for q in b["questions"]:
             qs.append({k: v for k, v in q.items() if k != "admin"})
@@ -678,15 +711,15 @@ def client_blocks():
     return out
 
 
-def all_questions():
-    for b in BLOCKS:
+def all_questions(ciclo=None):
+    for b in blocos_do_ciclo(ciclo):
         for q in b["questions"]:
             yield b, q
 
 
-def question_map():
-    return {q["id"]: (b, q) for b, q in all_questions()}
+def question_map(ciclo=None):
+    return {q["id"]: (b, q) for b, q in all_questions(ciclo)}
 
 
-def required_ids():
-    return [q["id"] for _, q in all_questions() if q.get("required")]
+def required_ids(ciclo=None):
+    return [q["id"] for _, q in all_questions(ciclo) if q.get("required")]

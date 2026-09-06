@@ -26,11 +26,14 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 import analise
+import forms
 import questions
+import rota
+import workspace
 
 BASE_DIR = Path(__file__).resolve().parent
 DATA_DIR = Path(os.getenv("ECO_DATA_DIR") or (BASE_DIR / "data"))
-WEB_DIR = BASE_DIR
+WEB_DIR = BASE_DIR          # neste repositorio as telas ficam na raiz
 UPLOAD_DIR = DATA_DIR / "uploads"
 DB_PATH = DATA_DIR / "eco.db"
 
@@ -126,13 +129,99 @@ CREATE TABLE IF NOT EXISTS analises (
   gargalos TEXT DEFAULT '', prioridades TEXT DEFAULT '', proximo_foco TEXT DEFAULT '',
   atualizado_em TEXT, PRIMARY KEY(cliente_id, ciclo),
   FOREIGN KEY(cliente_id) REFERENCES clientes(id) ON DELETE CASCADE);
+
+CREATE TABLE IF NOT EXISTS usuarios (
+  id TEXT PRIMARY KEY, usuario TEXT UNIQUE NOT NULL, nome TEXT DEFAULT '',
+  email TEXT DEFAULT '', senha_hash TEXT NOT NULL, papel TEXT DEFAULT 'admin',
+  ativo INTEGER DEFAULT 1, criado_em TEXT, ultimo_acesso TEXT);
+
+CREATE TABLE IF NOT EXISTS perguntas_lib (
+  id TEXT PRIMARY KEY, ciclo TEXT NOT NULL, bloco_id TEXT, qid TEXT NOT NULL,
+  patch TEXT DEFAULT '{}', ordem INTEGER, removida INTEGER DEFAULT 0,
+  atualizado_em TEXT, UNIQUE(ciclo, qid));
+
+CREATE TABLE IF NOT EXISTS perguntas_cliente (
+  cliente_id TEXT NOT NULL, ciclo TEXT NOT NULL, qid TEXT NOT NULL,
+  bloco_id TEXT, patch TEXT DEFAULT '{}', ordem INTEGER, removida INTEGER DEFAULT 0,
+  atualizado_em TEXT, PRIMARY KEY(cliente_id, ciclo, qid),
+  FOREIGN KEY(cliente_id) REFERENCES clientes(id) ON DELETE CASCADE);
+
+CREATE TABLE IF NOT EXISTS form_snapshots (
+  id TEXT PRIMARY KEY, cliente_id TEXT NOT NULL, ciclo TEXT NOT NULL,
+  json TEXT NOT NULL, criado_em TEXT,
+  FOREIGN KEY(cliente_id) REFERENCES clientes(id) ON DELETE CASCADE);
+
+CREATE TABLE IF NOT EXISTS acoes (
+  id TEXT PRIMARY KEY, cliente_id TEXT NOT NULL, ciclo TEXT NOT NULL,
+  pilar TEXT, regra TEXT, titulo TEXT NOT NULL, detalhe TEXT DEFAULT '',
+  responsavel TEXT DEFAULT '', status TEXT DEFAULT 'Não iniciada',
+  ordem INTEGER DEFAULT 0, origem TEXT DEFAULT 'auto',
+  criado_em TEXT, atualizado_em TEXT,
+  FOREIGN KEY(cliente_id) REFERENCES clientes(id) ON DELETE CASCADE);
+
+CREATE TABLE IF NOT EXISTS equipe (
+  id TEXT PRIMARY KEY, cliente_id TEXT NOT NULL, nome TEXT NOT NULL,
+  email TEXT DEFAULT '', telefone TEXT DEFAULT '', funcao TEXT DEFAULT '',
+  area TEXT DEFAULT '', nivel TEXT DEFAULT '', obs TEXT DEFAULT '',
+  ativo INTEGER DEFAULT 1, ordem INTEGER DEFAULT 0, criado_em TEXT,
+  FOREIGN KEY(cliente_id) REFERENCES clientes(id) ON DELETE CASCADE);
+
+CREATE TABLE IF NOT EXISTS ws_paginas (
+  id TEXT PRIMARY KEY, cliente_id TEXT, titulo TEXT DEFAULT 'Nova página',
+  capa TEXT DEFAULT '', icone TEXT DEFAULT '', pai_id TEXT,
+  ordem INTEGER DEFAULT 0, visivel_cliente INTEGER DEFAULT 0,
+  criado_em TEXT, atualizado_em TEXT);
+
+CREATE TABLE IF NOT EXISTS ws_blocos (
+  id TEXT PRIMARY KEY, pagina_id TEXT NOT NULL, tipo TEXT NOT NULL,
+  ordem INTEGER DEFAULT 0, conteudo TEXT DEFAULT '{}', atualizado_em TEXT,
+  FOREIGN KEY(pagina_id) REFERENCES ws_paginas(id) ON DELETE CASCADE);
+
+CREATE TABLE IF NOT EXISTS ws_versoes (
+  id INTEGER PRIMARY KEY AUTOINCREMENT, pagina_id TEXT NOT NULL,
+  snapshot TEXT, em TEXT, usuario TEXT);
+
+CREATE TABLE IF NOT EXISTS relatorios (
+  id TEXT PRIMARY KEY, cliente_id TEXT NOT NULL, ciclo TEXT,
+  tipo TEXT DEFAULT 'ciclo', titulo TEXT DEFAULT '', conteudo TEXT DEFAULT '',
+  publicado INTEGER DEFAULT 0, gerado_em TEXT, gerado_por TEXT,
+  FOREIGN KEY(cliente_id) REFERENCES clientes(id) ON DELETE CASCADE);
+
+CREATE INDEX IF NOT EXISTS ix_acoes_cli ON acoes(cliente_id, ciclo);
+CREATE INDEX IF NOT EXISTS ix_equipe_cli ON equipe(cliente_id);
+CREATE INDEX IF NOT EXISTS ix_ws_blocos_pag ON ws_blocos(pagina_id, ordem);
+CREATE INDEX IF NOT EXISTS ix_ws_paginas_cli ON ws_paginas(cliente_id, ordem);
+CREATE INDEX IF NOT EXISTS ix_snap_cli ON form_snapshots(cliente_id, ciclo);
 """
+
+# Colunas acrescentadas depois da primeira versao do sistema.
+# (tabela, coluna, definicao) — aplicadas so quando faltam.
+COLUNAS_NOVAS = [
+    ("links", "snapshot_id", "TEXT"),
+    ("ciclos", "snapshot_id", "TEXT"),
+    ("ciclos", "publicado_em", "TEXT"),
+    ("ciclos", "objetivo", "TEXT DEFAULT ''"),
+    ("clientes", "token_portal", "TEXT"),
+    ("clientes", "portal_ativo", "INTEGER DEFAULT 0"),
+]
+
+
+def migrar(conn):
+    """Acrescenta colunas que faltam. Roda a cada boot, sem quebrar nada."""
+    for tabela, coluna, ddl in COLUNAS_NOVAS:
+        cols = {r["name"] for r in conn.execute(f"PRAGMA table_info({tabela})")}
+        if not cols:
+            continue
+        if coluna not in cols:
+            conn.execute(f"ALTER TABLE {tabela} ADD COLUMN {coluna} {ddl}")
+    conn.commit()
 
 
 def init_db():
     conn = db()
     conn.executescript(SCHEMA)
     conn.commit()
+    migrar(conn)
     if not cfg_get("admin_hash"):
         senha = os.getenv("ECO_ADMIN_SENHA") or "B3Sales@2026"
         cfg_set("admin_hash", hash_password(senha))
@@ -154,6 +243,14 @@ def init_db():
         cfg_set("secret", secrets.token_hex(32))
     if not cfg_get("api_key"):
         cfg_set("api_key", secrets.token_urlsafe(24))
+    # o admin que sempre existiu passa a ser o primeiro usuario da tabela
+    vazia = conn.execute("SELECT COUNT(*) n FROM usuarios").fetchone()["n"] == 0
+    if vazia and cfg_get("admin_hash"):
+        conn.execute("INSERT OR IGNORE INTO usuarios(id,usuario,nome,senha_hash,papel,"
+                     "criado_em) VALUES(?,?,?,?,?,?)",
+                     (secrets.token_hex(8), cfg_get("admin_usuario") or "b3sales",
+                      "Administradora", cfg_get("admin_hash"), "dona", now()))
+        conn.commit()
 
 
 # ------------------------------------------------------------------- sessao
@@ -236,9 +333,33 @@ def visivel(q, ans) -> bool:
     return True
 
 
+def form_do(cliente_id: str, ciclo: str) -> list:
+    """O formulario daquele cliente naquele ciclo, ja congelado se publicado."""
+    return forms.do_ciclo(db(), cliente_id, ciclo)
+
+
+def mapa_do(cliente_id: str, ciclo: str) -> dict:
+    return {q["id"]: (b, q) for b in form_do(cliente_id, ciclo) for q in b["questions"]}
+
+
+def perguntas_do(cliente_id: str, ciclo: str):
+    for b in form_do(cliente_id, ciclo):
+        for q in b["questions"]:
+            yield b, q
+
+
+def form_cliente(cliente_id: str, ciclo: str) -> list:
+    """A mesma coisa, sem nenhum campo interno da B3 Sales."""
+    out = []
+    for b in form_do(cliente_id, ciclo):
+        qs = [{k: v for k, v in q.items() if k != "admin"} for q in b["questions"]]
+        out.append({**b, "questions": qs})
+    return out
+
+
 def calcular_progresso(cliente_id: str, ciclo: str) -> int:
     ans = respostas_de(cliente_id, ciclo)
-    todas = [q for _, q in questions.all_questions()
+    todas = [q for _, q in perguntas_do(cliente_id, ciclo)
              if q["type"] != "files" and visivel(q, ans)]
     feitas = sum(1 for q in todas if preenchida(ans.get(q["id"])))
     p = round(feitas / len(todas) * 100) if todas else 0
@@ -250,9 +371,9 @@ def calcular_progresso(cliente_id: str, ciclo: str) -> int:
 
 def faltando(cliente_id: str, ciclo: str):
     ans = respostas_de(cliente_id, ciclo)
-    qm = questions.question_map()
+    qm = mapa_do(cliente_id, ciclo)
     out = []
-    for qid in questions.required_ids():
+    for qid in [q["id"] for _, q in perguntas_do(cliente_id, ciclo) if q.get("required")]:
         b, q = qm[qid]
         if not visivel(q, ans):
             continue
@@ -286,14 +407,14 @@ def dump_cliente(cid: str) -> dict:
     c = cliente_dict(cid)
     if not c:
         return {}
-    qm = questions.question_map()
     ciclos = []
     for row in db().execute("SELECT * FROM ciclos WHERE cliente_id=? ORDER BY rowid",
                             (cid,)).fetchall():
         ciclo = row["ciclo"]
+        qm = mapa_do(cid, ciclo)
         ans = respostas_de(cid, ciclo)
         legivel = []
-        for b, q in questions.all_questions():
+        for b, q in perguntas_do(cid, ciclo):
             a = ans.get(q["id"])
             if not preenchida(a):
                 continue
@@ -310,7 +431,7 @@ def dump_cliente(cid: str) -> dict:
             "enviado_em": row["enviado_em"], "respostas": legivel,
             "score_eco": analise.score(ans),
             "indicadores_calculados": analise.indicadores(ans),
-            "dados_nao_acompanhados": analise.nao_informados(ans),
+            "dados_nao_acompanhados": analise.nao_informados(ans, ciclo),
             "analise_b3sales": dict(an) if an else {},
             "anexos": anexos_de(cid, ciclo),
         })
@@ -416,10 +537,12 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(200, (WEB_DIR / "admin.html").read_bytes())
         if p.startswith("/d/"):
             return self._send(200, (WEB_DIR / "cliente.html").read_bytes())
+        if p.startswith("/c/"):
+            return self._send(200, (WEB_DIR / "portal.html").read_bytes())
         if p.startswith("/static/"):
             return self.static(p[len("/static/"):])
         if p == "/saude":
-            return self.health_check()
+            return self.json({"ok": True, "em": now()})
 
         # -------- API do cliente
         m = re.fullmatch(r"/api/d/([\w\-]+)", p)
@@ -464,6 +587,40 @@ class Handler(BaseHTTPRequestHandler):
                 return
             return self.json({"api_key": cfg_get("api_key"),
                               "usuario": cfg_get("admin_usuario")})
+        m = re.fullmatch(r"/api/c/([\w\-]+)", p)
+        if m:
+            return self.api_portal(m.group(1))
+        m = re.fullmatch(r"/api/c/([\w\-]+)/pagina/([\w\-]+)", p)
+        if m:
+            return self.api_portal_pagina(m.group(1), m.group(2))
+        m = re.fullmatch(r"/api/admin/ws/([\w\-]+)", p)
+        if m:
+            if not self.exige_admin():
+                return
+            return self.api_ws(m.group(1))
+        m = re.fullmatch(r"/api/admin/ws-pagina/([\w\-]+)", p)
+        if m:
+            if not self.exige_admin():
+                return
+            return self.api_ws_pagina(m.group(1))
+        if p == "/api/admin/painel":
+            if not self.exige_admin():
+                return
+            return self.api_painel()
+        if p == "/api/admin/usuarios":
+            if not self.exige_admin():
+                return
+            return self.api_usuarios()
+        m = re.fullmatch(r"/api/admin/rota/([\w\-]+)", p)
+        if m:
+            if not self.exige_admin():
+                return
+            return self.api_rota(m.group(1))
+        m = re.fullmatch(r"/api/admin/equipe/([\w\-]+)", p)
+        if m:
+            if not self.exige_admin():
+                return
+            return self.api_equipe(m.group(1))
 
         # -------- anexos
         m = re.fullmatch(r"/api/anexo/([\w\-]+)", p)
@@ -521,6 +678,36 @@ class Handler(BaseHTTPRequestHandler):
             return self.api_nota_anexo()
         if p == "/api/admin/cliente-excluir":
             return self.api_excluir_cliente()
+        if p == "/api/admin/usuario-salvar":
+            return self.api_usuario_salvar()
+        if p == "/api/admin/usuario-excluir":
+            return self.api_usuario_excluir()
+        if p == "/api/admin/portal":
+            return self.api_portal_config()
+        if p == "/api/admin/ws-pagina":
+            return self.api_ws_pagina_salvar()
+        if p == "/api/admin/ws-pagina-excluir":
+            return self.api_ws_pagina_excluir()
+        if p == "/api/admin/ws-modelo":
+            return self.api_ws_modelo()
+        if p == "/api/admin/ws-bloco-novo":
+            return self.api_ws_bloco_novo()
+        if p == "/api/admin/ws-bloco":
+            return self.api_ws_bloco_salvar()
+        if p == "/api/admin/ws-bloco-mover":
+            return self.api_ws_bloco_mover()
+        if p == "/api/admin/ws-bloco-excluir":
+            return self.api_ws_bloco_excluir()
+        if p == "/api/admin/rota-gerar":
+            return self.api_rota_gerar()
+        if p == "/api/admin/acao-salvar":
+            return self.api_acao_salvar()
+        if p == "/api/admin/acao-excluir":
+            return self.api_acao_excluir()
+        if p == "/api/admin/equipe-salvar":
+            return self.api_equipe_salvar()
+        if p == "/api/admin/equipe-excluir":
+            return self.api_equipe_excluir()
         self.erro("Rota não encontrada.", 404)
 
     # ------------------------------------------------------------ estaticos
@@ -532,16 +719,6 @@ class Handler(BaseHTTPRequestHandler):
         if ctype.startswith("text/") or "javascript" in ctype:
             ctype += "; charset=utf-8"
         self._send(200, f.read_bytes(), ctype, {"Cache-Control": "no-cache"})
-
-    # ---------------------------------------------------------- health check
-    def health_check(self):
-        """Verifica se o servidor e o banco de dados estao funcionando."""
-        try:
-            db().execute("SELECT 1").fetchone()
-            return self.json({"ok": True, "em": now()})
-        except Exception as e:
-            return self.json({"ok": False, "erro": f"Banco de dados inacessível: {str(e)}"},
-                           500)
 
     # -------------------------------------------------------------- cliente
     def link_valido(self, token):
@@ -576,7 +753,10 @@ class Handler(BaseHTTPRequestHandler):
             "ciclo": ciclo, "status": row["status"],
             "enviado": bool(row["enviado_em"]), "enviado_em": row["enviado_em"],
             "progresso": calcular_progresso(cid, ciclo),
-            "blocos": questions.client_blocks(),
+            "titulo_ciclo": questions.titulo_do_ciclo(ciclo),
+            "abertura": questions.abertura_do_ciclo(ciclo),
+            "eh_acompanhamento": ciclo != questions.CICLOS[0],
+            "blocos": form_cliente(cid, ciclo),
             "respostas": respostas_de(cid, ciclo),
             "anexos": anexos_de(cid, ciclo),
             "faltando": faltando(cid, ciclo),
@@ -593,7 +773,7 @@ class Handler(BaseHTTPRequestHandler):
             return self.erro("Este diagnóstico já foi enviado e não pode mais ser alterado.", 403)
         payload = self.body()
         itens = payload.get("itens") or []
-        qm = questions.question_map()
+        qm = mapa_do(cid, ciclo)
         conn = db()
         for it in itens:
             qid = it.get("qid")
@@ -708,7 +888,14 @@ class Handler(BaseHTTPRequestHandler):
         u = (b.get("usuario") or "").strip()
         s = b.get("senha") or ""
         time.sleep(0.35)
-        if u != cfg_get("admin_usuario") or not verify_password(s, cfg_get("admin_hash")):
+        row = db().execute("SELECT * FROM usuarios WHERE usuario=? AND ativo=1",
+                           (u,)).fetchone()
+        if row and verify_password(s, row["senha_hash"]):
+            db().execute("UPDATE usuarios SET ultimo_acesso=? WHERE id=?", (now(), row["id"]))
+            db().commit()
+        elif u == cfg_get("admin_usuario") and verify_password(s, cfg_get("admin_hash")):
+            pass  # conta antiga, de antes da tabela de usuarios
+        else:
             return self.erro("Usuário ou senha inválidos.", 401)
         return self.json({"ok": True}, 200, {
             "Set-Cookie": f"eco_sess={sign_session(u)}; Path=/; Max-Age={SESSION_HOURS*3600};"
@@ -716,14 +903,479 @@ class Handler(BaseHTTPRequestHandler):
 
     def api_trocar_senha(self):
         b = self.body()
-        if not verify_password(b.get("atual") or "", cfg_get("admin_hash")):
+        eu = self.admin_user()
+        row = db().execute("SELECT * FROM usuarios WHERE usuario=?", (eu,)).fetchone()
+        hash_atual = row["senha_hash"] if row else cfg_get("admin_hash")
+        if not verify_password(b.get("atual") or "", hash_atual):
             return self.erro("Senha atual incorreta.", 403)
         nova = b.get("nova") or ""
         if len(nova) < 8:
             return self.erro("A nova senha precisa ter ao menos 8 caracteres.")
-        cfg_set("admin_hash", hash_password(nova))
+        novo_hash = hash_password(nova)
+        novo_user = (b.get("usuario") or "").strip() or eu
+        if row:
+            db().execute("UPDATE usuarios SET senha_hash=?, usuario=? WHERE id=?",
+                         (novo_hash, novo_user, row["id"]))
+        cfg_set("admin_hash", novo_hash)
         if b.get("usuario"):
-            cfg_set("admin_usuario", b["usuario"].strip())
+            cfg_set("admin_usuario", novo_user)
+        db().commit()
+        return self.json({"ok": True, "usuario": novo_user})
+
+    # ------------------------------------------------------------ usuarios
+    def api_usuarios(self):
+        rows = db().execute(
+            "SELECT id,usuario,nome,email,papel,ativo,criado_em,ultimo_acesso "
+            "FROM usuarios ORDER BY criado_em").fetchall()
+        return self.json({"usuarios": [dict(r) for r in rows],
+                          "eu": self.admin_user()})
+
+    def api_usuario_salvar(self):
+        b = self.body()
+        uid = b.get("id")
+        usuario = (b.get("usuario") or "").strip()
+        if not usuario:
+            return self.erro("Informe o nome de acesso.")
+        if uid:
+            sets = ["usuario=?", "nome=?", "email=?", "papel=?", "ativo=?"]
+            vals = [usuario, b.get("nome", ""), b.get("email", ""),
+                    b.get("papel") or "admin", 1 if b.get("ativo", 1) else 0]
+            if b.get("senha"):
+                if len(b["senha"]) < 8:
+                    return self.erro("A senha precisa ter ao menos 8 caracteres.")
+                sets.append("senha_hash=?")
+                vals.append(hash_password(b["senha"]))
+            vals.append(uid)
+            db().execute(f"UPDATE usuarios SET {', '.join(sets)} WHERE id=?", vals)
+        else:
+            if len(b.get("senha") or "") < 8:
+                return self.erro("A senha precisa ter ao menos 8 caracteres.")
+            ja = db().execute("SELECT 1 FROM usuarios WHERE usuario=?", (usuario,)).fetchone()
+            if ja:
+                return self.erro("Já existe alguém com esse nome de acesso.")
+            db().execute("INSERT INTO usuarios(id,usuario,nome,email,senha_hash,papel,"
+                         "criado_em) VALUES(?,?,?,?,?,?,?)",
+                         (secrets.token_hex(8), usuario, b.get("nome", ""),
+                          b.get("email", ""), hash_password(b["senha"]),
+                          b.get("papel") or "admin", now()))
+        db().commit()
+        return self.json({"ok": True})
+
+    # ------------------------------------------------------- modo cliente
+    def api_portal_config(self):
+        """Liga ou desliga o portal do cliente e devolve o endereço."""
+        b = self.body()
+        cid = b.get("cliente_id")
+        c = cliente_dict(cid)
+        if not c:
+            return self.erro("Cliente não encontrado.", 404)
+        token = c.get("token_portal")
+        if b.get("acao") == "novo" or not token:
+            token = novo_token()
+            db().execute("UPDATE clientes SET token_portal=? WHERE id=?", (token, cid))
+        ativo = 1 if b.get("ativo", True) else 0
+        db().execute("UPDATE clientes SET portal_ativo=? WHERE id=?", (ativo, cid))
+        db().commit()
+        return self.json({"ok": True, "token": token, "ativo": ativo})
+
+    def portal_dados(self, token):
+        """O que o cliente vê. Nada de score, gargalo ou observação interna."""
+        c = db().execute("SELECT * FROM clientes WHERE token_portal=? AND portal_ativo=1",
+                         (token,)).fetchone()
+        if not c:
+            return None
+        cid = c["id"]
+        ciclos = []
+        for r in db().execute("SELECT * FROM ciclos WHERE cliente_id=? ORDER BY rowid",
+                              (cid,)):
+            ciclo = r["ciclo"]
+            feitas = [dict(x) for x in db().execute(
+                "SELECT titulo, pilar, status FROM acoes WHERE cliente_id=? AND ciclo=? "
+                "ORDER BY ordem", (cid, ciclo))]
+            docs = db().execute("SELECT COUNT(*) n FROM anexos WHERE cliente_id=? AND ciclo=?",
+                                (cid, ciclo)).fetchone()["n"]
+            ciclos.append({
+                "ciclo": ciclo,
+                "titulo": questions.titulo_do_ciclo(ciclo),
+                "objetivo": r["objetivo"] or "",
+                "enviado_em": r["enviado_em"],
+                "concluido": bool(r["enviado_em"]),
+                "progresso": r["progresso"] or 0,
+                "entregas": [{"titulo": a["titulo"],
+                              "pilar": analise.PILARES.get(a["pilar"] or "", ""),
+                              "feito": a["status"] == "Concluída"}
+                             for a in feitas if a["status"] != "Cancelada"],
+                "documentos": docs,
+            })
+        paginas = [dict(r) for r in db().execute(
+            "SELECT id, titulo, capa, ordem FROM ws_paginas WHERE cliente_id=? "
+            "AND visivel_cliente=1 ORDER BY ordem", (cid,))]
+        total_acoes = db().execute(
+            "SELECT COUNT(*) n FROM acoes WHERE cliente_id=? AND status!='Cancelada'",
+            (cid,)).fetchone()["n"]
+        feitas = db().execute(
+            "SELECT COUNT(*) n FROM acoes WHERE cliente_id=? AND status='Concluída'",
+            (cid,)).fetchone()["n"]
+        return {
+            "empresa": c["empresa"], "responsavel": c["responsavel"] or "",
+            "ciclos": ciclos, "paginas": paginas,
+            "resumo": {"entregas": total_acoes, "concluidas": feitas,
+                       "documentos": db().execute(
+                           "SELECT COUNT(*) n FROM anexos WHERE cliente_id=?",
+                           (cid,)).fetchone()["n"],
+                       "materiais": len(paginas),
+                       "ciclos_feitos": len([x for x in ciclos if x["concluido"]])},
+            "evolucao": self.portal_evolucao(cid),
+        }
+
+    def portal_evolucao(self, cid):
+        """Compara os números do Dia 0 com o ciclo mais recente que tenha número."""
+        base = respostas_de(cid, questions.CICLOS[0])
+        ini = {x["nome"]: x for x in analise.indicadores(base)}
+        if not ini:
+            return []
+        saida = []
+        for nome, x in ini.items():
+            saida.append({"nome": nome, "inicio": x["valor"], "ref": x.get("ref") or ""})
+        return saida[:6]
+
+    def api_portal(self, token):
+        d = self.portal_dados(token)
+        if not d:
+            return self.erro("Este acompanhamento não está disponível.", 404)
+        return self.json(d)
+
+    def api_portal_pagina(self, token, pid):
+        d = db().execute(
+            "SELECT p.* FROM ws_paginas p JOIN clientes c ON c.id = p.cliente_id "
+            "WHERE c.token_portal=? AND c.portal_ativo=1 AND p.id=? AND p.visivel_cliente=1",
+            (token, pid)).fetchone()
+        if not d:
+            return self.erro("Página não disponível.", 404)
+        pag = workspace.ler_pagina(db(), pid)
+        pag["anexos"] = [dict(r) for r in db().execute(
+            "SELECT id, nome, tipo FROM anexos WHERE cliente_id=?", (d["cliente_id"],))]
+        pag.pop("cliente_id", None)
+        return self.json(pag)
+
+    # ------------------------------------------------- espaço de materiais
+    def api_ws(self, cid):
+        if not cliente_dict(cid):
+            return self.erro("Cliente não encontrado.", 404)
+        return self.json({
+            "paginas": workspace.listar_paginas(db(), cid),
+            "tipos": [{"id": k, "nome": v[0], "icone": v[1]}
+                      for k, v in workspace.TIPOS.items()],
+            "capas": workspace.CAPAS,
+        })
+
+    def api_ws_pagina(self, pid):
+        p = workspace.ler_pagina(db(), pid)
+        if not p:
+            return self.erro("Página não encontrada.", 404)
+        # no espaço de materiais valem todos os arquivos do cliente, de qualquer ciclo
+        p["anexos"] = [dict(r) for r in db().execute(
+            "SELECT id, nome, tipo, tamanho, ciclo, origem FROM anexos WHERE cliente_id=? "
+            "ORDER BY enviado_em DESC", (p["cliente_id"],))] if p["cliente_id"] else []
+        return self.json(p)
+
+    def api_ws_pagina_salvar(self):
+        b = self.body()
+        conn = db()
+        if b.get("id"):
+            sets, vals = [], []
+            for k in ("titulo", "capa", "icone", "visivel_cliente", "ordem"):
+                if k in b:
+                    sets.append(f"{k}=?")
+                    vals.append(int(b[k]) if k in ("visivel_cliente", "ordem") else b[k])
+            if sets:
+                sets.append("atualizado_em=?")
+                vals += [now(), b["id"]]
+                conn.execute(f"UPDATE ws_paginas SET {', '.join(sets)} WHERE id=?", vals)
+                conn.commit()
+            return self.json({"ok": True, "id": b["id"]})
+        cid = b.get("cliente_id")
+        if not cliente_dict(cid):
+            return self.erro("Cliente não encontrado.", 404)
+        pid = workspace.criar_pagina(conn, cid, (b.get("titulo") or "Nova página").strip(),
+                                     now(), b.get("capa", ""))
+        return self.json({"ok": True, "id": pid})
+
+    def api_ws_modelo(self):
+        b = self.body()
+        cid = b.get("cliente_id")
+        if not cliente_dict(cid):
+            return self.erro("Cliente não encontrado.", 404)
+        criadas = workspace.montar_modelo(db(), cid, now())
+        return self.json({"ok": True, "criadas": len(criadas)})
+
+    def api_ws_pagina_excluir(self):
+        b = self.body()
+        conn = db()
+        conn.execute("DELETE FROM ws_blocos WHERE pagina_id=?", (b.get("id"),))
+        conn.execute("DELETE FROM ws_versoes WHERE pagina_id=?", (b.get("id"),))
+        conn.execute("DELETE FROM ws_paginas WHERE id=?", (b.get("id"),))
+        conn.commit()
+        return self.json({"ok": True})
+
+    def api_ws_bloco_novo(self):
+        b = self.body()
+        bid = workspace.novo_bloco(db(), b.get("pagina_id"), b.get("tipo"), now(),
+                                   b.get("depois_de"))
+        if not bid:
+            return self.erro("Tipo de bloco desconhecido.")
+        return self.json({"ok": True, "id": bid})
+
+    def api_ws_bloco_salvar(self):
+        b = self.body()
+        conn = db()
+        conn.execute("UPDATE ws_blocos SET conteudo=?, atualizado_em=? WHERE id=?",
+                     (json.dumps(b.get("conteudo") or {}, ensure_ascii=False),
+                      now(), b.get("id")))
+        r = conn.execute("SELECT pagina_id FROM ws_blocos WHERE id=?", (b.get("id"),)).fetchone()
+        if r:
+            workspace._tocar(conn, r["pagina_id"], now())
+        conn.commit()
+        return self.json({"ok": True})
+
+    def api_ws_bloco_mover(self):
+        b = self.body()
+        ok = workspace.mover_bloco(db(), b.get("id"), b.get("direcao"), now())
+        return self.json({"ok": ok})
+
+    def api_ws_bloco_excluir(self):
+        b = self.body()
+        conn = db()
+        r = conn.execute("SELECT pagina_id FROM ws_blocos WHERE id=?", (b.get("id"),)).fetchone()
+        conn.execute("DELETE FROM ws_blocos WHERE id=?", (b.get("id"),))
+        if r:
+            workspace._tocar(conn, r["pagina_id"], now())
+        conn.commit()
+        return self.json({"ok": True})
+
+    # ------------------------------------------------------ painel geral
+    def api_painel(self):
+        """Retrato da carteira. Mede processo implantado, não só faturamento."""
+        conn = db()
+        clientes = [dict(r) for r in conn.execute(
+            "SELECT * FROM clientes ORDER BY criado_em DESC")]
+        ativos = [c for c in clientes if not c["arquivado"]]
+        ids = [c["id"] for c in ativos]
+
+        por_ciclo = {c: 0 for c in questions.CICLOS}
+        por_status = {}
+        pilares = {"E": [], "C": [], "O": []}
+        geral = []
+        atrasados, sem_contato, jornada = [], [], []
+        total_acoes = concluidas = 0
+        hoje = datetime.now()
+
+        for c in ativos:
+            cid = c["id"]
+            ciclos = [dict(r) for r in conn.execute(
+                "SELECT * FROM ciclos WHERE cliente_id=? ORDER BY rowid", (cid,))]
+            atual = ciclos[-1] if ciclos else None
+            if atual:
+                por_ciclo[atual["ciclo"]] = por_ciclo.get(atual["ciclo"], 0) + 1
+                por_status[atual["status"]] = por_status.get(atual["status"], 0) + 1
+
+            ans = respostas_de(cid, questions.CICLOS[0])
+            sc = analise.score(ans)
+            if sc:
+                for k in ("E", "C", "O"):
+                    pilares[k].append(sc["pilares"][k]["score"])
+                geral.append(sc["geral"])
+
+            acoes = [dict(r) for r in conn.execute(
+                "SELECT status FROM acoes WHERE cliente_id=?", (cid,))]
+            total_acoes += len(acoes)
+            feitas = len([a for a in acoes if a["status"] == "Concluída"])
+            concluidas += feitas
+
+            docs = conn.execute("SELECT COUNT(*) n FROM anexos WHERE cliente_id=?",
+                                (cid,)).fetchone()["n"]
+            paginas = conn.execute("SELECT COUNT(*) n FROM ws_paginas WHERE cliente_id=?",
+                                   (cid,)).fetchone()["n"]
+
+            ultimo = conn.execute(
+                "SELECT MAX(ultimo_acesso) u FROM links WHERE cliente_id=?",
+                (cid,)).fetchone()["u"]
+            dias = None
+            if ultimo:
+                try:
+                    dias = (hoje - datetime.fromisoformat(ultimo)).days
+                except ValueError:
+                    dias = None
+            if dias is not None and dias > 7:
+                sem_contato.append({"id": cid, "empresa": c["empresa"], "dias": dias})
+
+            if atual and atual["status"] in ("Não iniciado", "Em preenchimento"):
+                criado = atual["criado_em"] or c["criado_em"]
+                try:
+                    parado = (hoje - datetime.fromisoformat(criado)).days
+                except (ValueError, TypeError):
+                    parado = 0
+                if parado > 14:
+                    atrasados.append({"id": cid, "empresa": c["empresa"],
+                                      "ciclo": atual["ciclo"], "dias": parado})
+
+            jornada.append({
+                "id": cid, "empresa": c["empresa"], "segmento": c["segmento"] or "",
+                "ciclo": atual["ciclo"] if atual else questions.CICLOS[0],
+                "status": atual["status"] if atual else "Não iniciado",
+                "progresso": atual["progresso"] if atual else 0,
+                "score": sc["geral"] if sc else None,
+                "entrada": sc["entrada_nome"] if sc else None,
+                "ciclos_feitos": len([x for x in ciclos if x["enviado_em"]]),
+                "acoes": len(acoes), "acoes_feitas": feitas,
+                "documentos": docs, "paginas": paginas,
+                "dias_sem_contato": dias,
+            })
+
+        def media(v):
+            return round(sum(v) / len(v)) if v else 0
+
+        return self.json({
+            "total": len(ativos),
+            "arquivados": len([c for c in clientes if c["arquivado"]]),
+            "por_ciclo": por_ciclo,
+            "por_status": por_status,
+            "pilares": {"E": media(pilares["E"]), "C": media(pilares["C"]),
+                        "O": media(pilares["O"])},
+            "score_medio": media(geral),
+            "acoes": {"total": total_acoes, "concluidas": concluidas,
+                      "pct": round(concluidas / total_acoes * 100) if total_acoes else 0},
+            "documentos": conn.execute(
+                "SELECT COUNT(*) n FROM anexos WHERE cliente_id IN "
+                "(%s)" % (",".join("?" * len(ids)) or "''"), ids).fetchone()["n"] if ids else 0,
+            "paginas": conn.execute(
+                "SELECT COUNT(*) n FROM ws_paginas WHERE cliente_id IN "
+                "(%s)" % (",".join("?" * len(ids)) or "''"), ids).fetchone()["n"] if ids else 0,
+            "diagnosticos_enviados": conn.execute(
+                "SELECT COUNT(*) n FROM ciclos WHERE enviado_em IS NOT NULL").fetchone()["n"],
+            "atrasados": sorted(atrasados, key=lambda x: -x["dias"])[:8],
+            "sem_contato": sorted(sem_contato, key=lambda x: -x["dias"])[:8],
+            "jornada": jornada,
+            "ciclos": questions.CICLOS,
+        })
+
+    # ---------------------------------------------- rota de implementação
+    def api_rota(self, cid):
+        ciclo = self.q1("ciclo") or questions.CICLOS[0]
+        if not cliente_dict(cid):
+            return self.erro("Cliente não encontrado.", 404)
+        ans = respostas_de(cid, ciclo)
+        return self.json({"ciclo": ciclo, "acoes": rota.listar(db(), cid, ciclo),
+                          "sugestoes": rota.sugerir(ans),
+                          "status_possiveis": ["Não iniciada", "Em andamento",
+                                               "Concluída", "Bloqueada", "Cancelada"],
+                          "equipe": [dict(r) for r in db().execute(
+                              "SELECT id,nome,funcao FROM equipe WHERE cliente_id=? "
+                              "AND ativo=1 ORDER BY ordem", (cid,))]})
+
+    def api_rota_gerar(self):
+        b = self.body()
+        cid, ciclo = b.get("cliente_id"), b.get("ciclo")
+        if not cliente_dict(cid):
+            return self.erro("Cliente não encontrado.", 404)
+        ans = respostas_de(cid, ciclo)
+        if not analise.score(ans):
+            return self.erro("A rota nasce do diagnóstico do Dia 0. "
+                             "Gere a rota a partir do ciclo inicial.")
+        r = rota.gerar(db(), cid, ciclo, ans, now(), bool(b.get("substituir")))
+        return self.json({"ok": True, **r, "acoes": rota.listar(db(), cid, ciclo)})
+
+    def api_acao_salvar(self):
+        b = self.body()
+        cid = b.get("cliente_id")
+        if not cliente_dict(cid):
+            return self.erro("Cliente não encontrado.", 404)
+        titulo = (b.get("titulo") or "").strip()
+        if not titulo:
+            return self.erro("Escreva o que precisa ser feito.")
+        if b.get("id"):
+            db().execute("UPDATE acoes SET titulo=?, detalhe=?, responsavel=?, status=?, "
+                         "pilar=?, ordem=?, atualizado_em=? WHERE id=? AND cliente_id=?",
+                         (titulo, b.get("detalhe", ""), b.get("responsavel", ""),
+                          b.get("status") or "Não iniciada", b.get("pilar", ""),
+                          int(b.get("ordem") or 0), now(), b["id"], cid))
+        else:
+            prox = db().execute("SELECT COALESCE(MAX(ordem),0)+1 n FROM acoes "
+                                "WHERE cliente_id=? AND ciclo=?",
+                                (cid, b.get("ciclo"))).fetchone()["n"]
+            db().execute(
+                "INSERT INTO acoes(id,cliente_id,ciclo,pilar,titulo,detalhe,responsavel,"
+                "status,ordem,origem,criado_em,atualizado_em) "
+                "VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
+                (secrets.token_hex(8), cid, b.get("ciclo"), b.get("pilar", ""), titulo,
+                 b.get("detalhe", ""), b.get("responsavel", ""),
+                 b.get("status") or "Não iniciada", prox, "manual", now(), now()))
+        db().commit()
+        return self.json({"ok": True})
+
+    def api_acao_excluir(self):
+        b = self.body()
+        db().execute("DELETE FROM acoes WHERE id=?", (b.get("id"),))
+        db().commit()
+        return self.json({"ok": True})
+
+    # -------------------------------------------------- equipe do cliente
+    def api_equipe(self, cid):
+        if not cliente_dict(cid):
+            return self.erro("Cliente não encontrado.", 404)
+        rows = db().execute(
+            "SELECT * FROM equipe WHERE cliente_id=? ORDER BY ordem, criado_em",
+            (cid,)).fetchall()
+        return self.json({"equipe": [dict(r) for r in rows],
+                          "areas": questions.AREAS_EQUIPE, "funcoes": questions.FUNCOES_EQUIPE,
+                          "niveis": questions.NIVEIS_EQUIPE})
+
+    def api_equipe_salvar(self):
+        b = self.body()
+        cid = b.get("cliente_id")
+        if not cliente_dict(cid):
+            return self.erro("Cliente não encontrado.", 404)
+        nome = (b.get("nome") or "").strip()
+        if not nome:
+            return self.erro("Informe o nome da pessoa.")
+        campos = ("nome", "email", "telefone", "funcao", "area", "nivel", "obs")
+        if b.get("id"):
+            sets = [f"{k}=?" for k in campos] + ["ativo=?", "ordem=?"]
+            vals = [b.get(k, "") for k in campos]
+            vals += [1 if b.get("ativo", 1) else 0, int(b.get("ordem") or 0), b["id"], cid]
+            db().execute(f"UPDATE equipe SET {', '.join(sets)} WHERE id=? AND cliente_id=?",
+                         vals)
+        else:
+            prox = db().execute("SELECT COALESCE(MAX(ordem),0)+1 n FROM equipe "
+                                "WHERE cliente_id=?", (cid,)).fetchone()["n"]
+            db().execute(
+                "INSERT INTO equipe(id,cliente_id,nome,email,telefone,funcao,area,nivel,obs,"
+                "ordem,criado_em) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+                (secrets.token_hex(8), cid, nome, b.get("email", ""), b.get("telefone", ""),
+                 b.get("funcao", ""), b.get("area", ""), b.get("nivel", ""),
+                 b.get("obs", ""), prox, now()))
+        db().commit()
+        return self.json({"ok": True})
+
+    def api_equipe_excluir(self):
+        b = self.body()
+        db().execute("DELETE FROM equipe WHERE id=?", (b.get("id"),))
+        db().commit()
+        return self.json({"ok": True})
+
+    def api_usuario_excluir(self):
+        b = self.body()
+        eu = self.admin_user()
+        row = db().execute("SELECT * FROM usuarios WHERE id=?", (b.get("id"),)).fetchone()
+        if not row:
+            return self.erro("Usuário não encontrado.", 404)
+        if row["usuario"] == eu:
+            return self.erro("Você não pode excluir a própria conta.")
+        n = db().execute("SELECT COUNT(*) n FROM usuarios WHERE ativo=1").fetchone()["n"]
+        if n <= 1:
+            return self.erro("Precisa existir ao menos uma pessoa com acesso.")
+        db().execute("DELETE FROM usuarios WHERE id=?", (b["id"],))
+        db().commit()
         return self.json({"ok": True})
 
     def api_lista_clientes(self):
@@ -782,6 +1434,7 @@ class Handler(BaseHTTPRequestHandler):
                              "atualizado_em) VALUES(?,?,?,?,?)",
                              (cid, ciclo, qid, json.dumps({"v": val}, ensure_ascii=False), now()))
         conn.commit()
+        forms.congelar(conn, cid, ciclo, now())
         calcular_progresso(cid, ciclo)
         return self.json({"ok": True, "id": cid, "token": token})
 
@@ -827,7 +1480,11 @@ class Handler(BaseHTTPRequestHandler):
             except OSError:
                 pass
         conn = db()
-        for tabela in ("respostas", "historico", "anexos", "analises", "ciclos", "links"):
+        conn.execute("DELETE FROM ws_blocos WHERE pagina_id IN "
+                     "(SELECT id FROM ws_paginas WHERE cliente_id=?)", (cid,))
+        for tabela in ("respostas", "historico", "anexos", "analises", "ciclos", "links",
+                       "acoes", "equipe", "perguntas_cliente", "form_snapshots",
+                       "relatorios", "ws_paginas"):
             conn.execute(f"DELETE FROM {tabela} WHERE cliente_id=?", (cid,))
         conn.execute("DELETE FROM clientes WHERE id=?", (cid,))
         conn.commit()
@@ -845,10 +1502,15 @@ class Handler(BaseHTTPRequestHandler):
             db().execute("UPDATE links SET ativo=0 WHERE cliente_id=? AND ciclo=?", (cid, ciclo))
             t = novo_token()
             dias = int(b.get("validade_dias") or 0)
-            expira = (datetime.now() + timedelta(dias=dias)).isoformat(timespec="seconds") if dias else None
+            expira = (datetime.now() + timedelta(days=dias)).isoformat(timespec="seconds") if dias else None
             db().execute("INSERT INTO links(token,cliente_id,ciclo,criado_em,expira_em) "
                          "VALUES(?,?,?,?,?)", (t, cid, ciclo, now(), expira))
             db().commit()
+            ja = db().execute("SELECT enviado_em FROM ciclos WHERE cliente_id=? AND ciclo=?",
+                              (cid, ciclo)).fetchone()
+            # so refaz a versao congelada enquanto o cliente ainda nao enviou
+            if not (ja and ja["enviado_em"]):
+                forms.congelar(db(), cid, ciclo, now())
             return self.json({"ok": True, "token": t})
         if acao in ("desativar", "ativar"):
             db().execute("UPDATE links SET ativo=? WHERE token=?",
@@ -885,6 +1547,7 @@ class Handler(BaseHTTPRequestHandler):
         db().execute("INSERT INTO links(token,cliente_id,ciclo,criado_em) VALUES(?,?,?,?)",
                      (t, cid, ciclo, now()))
         db().commit()
+        forms.congelar(db(), cid, ciclo, now())
         calcular_progresso(cid, ciclo)
         return self.json({"ok": True, "token": t})
 
@@ -915,12 +1578,12 @@ class Handler(BaseHTTPRequestHandler):
         return self.json({
             "cliente": c, "ciclo": ciclo, "ciclos": ciclos,
             "ciclos_possiveis": questions.CICLOS, "status_possiveis": questions.STATUS,
-            "blocos": questions.BLOCKS, "respostas": ans,
+            "blocos": form_do(cid, ciclo), "respostas": ans,
             "anexos": anexos_de(cid, ciclo), "links": links,
             "analise": dict(an) if an else {"notas": "", "gargalos": "", "prioridades": "",
                                             "proximo_foco": ""},
             "score": analise.score(ans), "indicadores": analise.indicadores(ans),
-            "nao_informados": analise.nao_informados(ans),
+            "nao_informados": analise.nao_informados(ans, ciclo),
             "faltando": faltando(cid, ciclo), "historico": hist,
         })
 
@@ -959,8 +1622,12 @@ class Handler(BaseHTTPRequestHandler):
         ia = {x["nome"]: x for x in analise.indicadores(ra)}
         ib = {x["nome"]: x for x in analise.indicadores(rb)}
         linhas = []
-        qm = questions.question_map()
-        for _, q in questions.all_questions():
+        vistos = set()
+        pares = list(perguntas_do(cid, a)) + list(perguntas_do(cid, b))
+        for _, q in pares:
+            if q["id"] in vistos:
+                continue
+            vistos.add(q["id"])
             if q["type"] not in ("number", "currency", "percent", "scale"):
                 continue
             va = (ra.get(q["id"]) or {}).get("v")
