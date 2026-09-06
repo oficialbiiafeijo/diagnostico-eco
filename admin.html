@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Área interna · Diagnóstico ECO · Grupo B3 Sales</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/style.css">
+<style>
+  body{background:var(--creme)}
+  .barra{background:linear-gradient(120deg,var(--ameixa-900),var(--ameixa-700));
+    color:#fff;position:sticky;top:0;z-index:70}
+  .barra-in{max-width:1280px;margin:0 auto;padding:14px 26px;display:flex;
+    align-items:center;justify-content:space-between;gap:18px}
+  .barra .marca-txt{color:#fff} .barra .marca-sub{color:var(--ouro-300)}
+  .barra .marca-b{background:linear-gradient(140deg,var(--ouro-500),var(--ouro-800));
+    color:#2A1733}
+  .barra-tag{font-size:10px;letter-spacing:.2em;text-transform:uppercase;
+    color:var(--ouro-300);border-left:1px solid rgba(230,203,152,.35);padding-left:16px}
+  .barra .btn-fantasma{color:rgba(255,255,255,.78)}
+  .barra .btn-fantasma:hover{color:#fff;background:rgba(255,255,255,.12)}
+  .palco{max-width:1280px;margin:0 auto;padding:30px 26px 90px}
+
+  .painel-topo{display:flex;justify-content:space-between;align-items:flex-end;
+    gap:18px;flex-wrap:wrap;margin-bottom:24px}
+  .painel-topo h1{font-size:38px;color:var(--ameixa-900)}
+  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:13px;
+    margin-bottom:26px}
+  .kpi{background:var(--branco);border:1px solid var(--linha);border-radius:var(--r);
+    padding:16px 18px}
+  .kpi b{display:block;font-family:var(--serif);font-size:34px;color:var(--ameixa-900);
+    font-weight:500;line-height:1.1}
+  .kpi span{font-size:10.5px;letter-spacing:.15em;text-transform:uppercase;color:var(--muted)}
+
+  table.lista{width:100%;border-collapse:collapse;font-size:13.5px;background:var(--branco)}
+  table.lista th{font-size:10px;letter-spacing:.16em;text-transform:uppercase;
+    color:var(--muted);text-align:left;padding:13px 11px;border-bottom:1px solid var(--linha-2);
+    font-weight:500}
+  table.lista td{padding:13px 11px;border-bottom:1px solid var(--linha);vertical-align:middle}
+  table.lista tr:last-child td{border-bottom:0}
+  table.lista tbody tr:hover{background:rgba(243,233,225,.5)}
+  table.lista{min-width:980px}
+  table.lista td:nth-child(1){min-width:190px}
+  table.lista td:nth-child(2){min-width:170px}
+  table.lista td:nth-child(3),table.lista th:nth-child(3),
+  table.lista td:nth-child(4),table.lista td:nth-child(5),
+  table.lista td:nth-child(6),table.lista th:nth-child(6){white-space:nowrap}
+  table.lista td .small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+    max-width:180px}
+  .emp{font-family:var(--serif);font-size:19px;color:var(--ameixa-900);cursor:pointer}
+  .emp:hover{color:var(--ouro-700)}
+  .mini-prog{width:90px;height:5px;background:rgba(36,16,48,.1);border-radius:999px;
+    overflow:hidden;display:inline-block;vertical-align:middle;margin-right:8px}
+  .mini-prog i{display:block;height:100%;background:linear-gradient(90deg,var(--ouro-600),
+    var(--ouro-300))}
+  .link-cel{display:flex;align-items:center;gap:6px}
+  .link-cel code{font-size:11px;color:var(--muted);background:var(--creme-2);
+    padding:3px 7px;border-radius:5px;max-width:104px;overflow:hidden;
+    text-overflow:ellipsis;white-space:nowrap}
+
+  .grade{display:grid;grid-template-columns:1fr 350px;gap:22px;align-items:start}
+  @media (max-width:1080px){.grade{grid-template-columns:1fr}}
+  .abas{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:22px}
+  .abas button{font-size:12px;letter-spacing:.08em;text-transform:uppercase;padding:9px 16px;
+    border-radius:999px;border:1px solid var(--linha-2);cursor:pointer;
+    background:rgba(255,255,255,.6);color:var(--muted);font-family:var(--sans)}
+  .abas button.at{background:var(--ameixa-900);color:#fff;border-color:transparent}
+
+  .score-cartao{background:linear-gradient(140deg,var(--ameixa-800),var(--ameixa-900));
+    color:#fff;border-radius:var(--r);padding:24px;box-shadow:var(--sombra-lg)}
+  .score-geral{font-family:var(--serif);font-size:62px;line-height:1;color:var(--ouro-300)}
+  .score-pil{display:flex;align-items:center;gap:11px;margin-top:13px}
+  .score-pil .l{font-family:var(--serif);font-size:19px;color:var(--ouro-300);width:20px}
+  .score-pil .n{font-size:12px;color:rgba(255,255,255,.72);width:74px}
+  .score-pil .t{flex:1;height:6px;background:rgba(255,255,255,.16);border-radius:999px;
+    overflow:hidden}
+  .score-pil .t i{display:block;height:100%;background:linear-gradient(90deg,
+    var(--ouro-600),var(--ouro-300))}
+  .score-pil .p{font-size:13px;width:38px;text-align:right;color:#fff}
+
+  .garg{display:flex;gap:10px;padding:10px 0;border-top:1px solid var(--linha)}
+  .garg:first-child{border-top:0}
+  .garg .peso{font-family:var(--serif);font-size:13px;width:30px;flex:none;
+    color:var(--ouro-700);text-align:center;padding-top:2px}
+  .ind{display:flex;justify-content:space-between;gap:12px;padding:11px 0;
+    border-top:1px solid var(--linha);font-size:13.5px}
+  .ind:first-child{border-top:0}
+  .ind .v{font-family:var(--serif);font-size:19px;white-space:nowrap}
+
+  .resp-item{padding:16px 0;border-top:1px solid var(--linha)}
+  .resp-item:first-child{border-top:0}
+  .resp-p{font-size:14px;color:var(--ameixa-900);font-weight:500;margin-bottom:4px}
+  .resp-v{font-size:14.5px;white-space:pre-wrap;color:var(--texto)}
+  .resp-v.vazio{color:#C0B2C6;font-style:italic}
+  .resp-adm{margin-top:9px;padding:10px 13px;background:rgba(90,58,110,.055);
+    border-left:2px solid var(--ameixa-400);border-radius:0 8px 8px 0;font-size:12.5px;
+    color:var(--texto-2)}
+  .resp-adm b{color:var(--ameixa-700);font-weight:500}
+  .interno-tag{font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;
+    color:var(--ameixa-400);display:block;margin-bottom:5px}
+
+  .cmp{width:100%;border-collapse:collapse;font-size:13.5px}
+  .cmp th{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);
+    text-align:left;padding:10px;border-bottom:1px solid var(--linha-2);font-weight:500}
+  .cmp td{padding:11px 10px;border-bottom:1px solid var(--linha)}
+  .cmp .num{font-family:var(--serif);font-size:17px;text-align:right}
+  .sobe{color:var(--ok)} .desce{color:var(--critico)}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div class="toast" id="toast"><span class="pt"></span><span id="toastTxt">Salvo</span></div>
+<script src="/static/admin.js"></script>
+</body>
+</html>

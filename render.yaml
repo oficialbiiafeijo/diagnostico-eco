@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: diagnostico-eco-b3sales
+    env: docker
+    plan: starter
+    healthCheckPath: /saude
+    envVars:
+      - key: ECO_DATA_DIR
+        value: /var/data
+      - key: ECO_ADMIN_USUARIO
+        value: b3sales
+      - key: ECO_ADMIN_SENHA
+        sync: false          # defina no painel do Render, em Environment
+    disk:
+      name: dados-eco
+      mountPath: /var/data   # banco de dados e anexos ficam aqui e sobrevivem aos deploys
+      sizeGB: 5
