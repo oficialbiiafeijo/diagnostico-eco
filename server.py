@@ -29,7 +29,7 @@ import analise
 import questions
 
 BASE_DIR = Path(__file__).resolve().parent
-DATA_DIR = Path(os.getenv("ECO_DATA_DIR", BASE_DIR / "data"))
+DATA_DIR = Path(os.getenv("ECO_DATA_DIR") or (BASE_DIR / "data"))
 WEB_DIR = BASE_DIR
 UPLOAD_DIR = DATA_DIR / "uploads"
 DB_PATH = DATA_DIR / "eco.db"
@@ -419,7 +419,7 @@ class Handler(BaseHTTPRequestHandler):
         if p.startswith("/static/"):
             return self.static(p[len("/static/"):])
         if p == "/saude":
-            return self.json({"ok": True, "em": now()})
+            return self.health_check()
 
         # -------- API do cliente
         m = re.fullmatch(r"/api/d/([\w\-]+)", p)
@@ -532,6 +532,16 @@ class Handler(BaseHTTPRequestHandler):
         if ctype.startswith("text/") or "javascript" in ctype:
             ctype += "; charset=utf-8"
         self._send(200, f.read_bytes(), ctype, {"Cache-Control": "no-cache"})
+
+    # ---------------------------------------------------------- health check
+    def health_check(self):
+        """Verifica se o servidor e o banco de dados estao funcionando."""
+        try:
+            db().execute("SELECT 1").fetchone()
+            return self.json({"ok": True, "em": now()})
+        except Exception as e:
+            return self.json({"ok": False, "erro": f"Banco de dados inacessível: {str(e)}"},
+                           500)
 
     # -------------------------------------------------------------- cliente
     def link_valido(self, token):
