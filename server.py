@@ -40,8 +40,9 @@ DB_PATH = DATA_DIR / "eco.db"
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
-MAX_UPLOAD = 20 * 1024 * 1024          # 20 MB por arquivo
-MAX_BODY = 28 * 1024 * 1024            # margem para o base64
+MAX_UPLOAD = 20 * 1024 * 1024          # 20 MB por arquivo do cliente
+MAX_UPLOAD_ADMIN = 120 * 1024 * 1024   # 120 MB quando quem envia e a B3 Sales
+MAX_BODY = 170 * 1024 * 1024           # margem para o base64
 SESSION_HOURS = 12
 _local = threading.local()
 
@@ -187,6 +188,12 @@ CREATE TABLE IF NOT EXISTS relatorios (
   publicado INTEGER DEFAULT 0, gerado_em TEXT, gerado_por TEXT,
   FOREIGN KEY(cliente_id) REFERENCES clientes(id) ON DELETE CASCADE);
 
+CREATE TABLE IF NOT EXISTS midia (
+  id TEXT PRIMARY KEY, cliente_id TEXT, nome TEXT, tipo TEXT, categoria TEXT,
+  tamanho INTEGER, arquivo TEXT, titulo TEXT DEFAULT '', descricao TEXT DEFAULT '',
+  enviado_em TEXT, enviado_por TEXT);
+
+CREATE INDEX IF NOT EXISTS ix_midia_cli ON midia(cliente_id);
 CREATE INDEX IF NOT EXISTS ix_acoes_cli ON acoes(cliente_id, ciclo);
 CREATE INDEX IF NOT EXISTS ix_equipe_cli ON equipe(cliente_id);
 CREATE INDEX IF NOT EXISTS ix_ws_blocos_pag ON ws_blocos(pagina_id, ordem);
@@ -202,6 +209,11 @@ COLUNAS_NOVAS = [
     ("ciclos", "publicado_em", "TEXT"),
     ("ciclos", "objetivo", "TEXT DEFAULT ''"),
     ("clientes", "token_portal", "TEXT"),
+    ("clientes", "tipo_servico", "TEXT DEFAULT ''"),
+    ("clientes", "contrato_inicio", "TEXT"),
+    ("clientes", "contrato_fim", "TEXT"),
+    ("clientes", "contrato_midia_id", "TEXT"),
+    ("clientes", "valor_contrato", "TEXT DEFAULT ''"),
     ("clientes", "portal_ativo", "INTEGER DEFAULT 0"),
 ]
 
@@ -593,6 +605,10 @@ class Handler(BaseHTTPRequestHandler):
         m = re.fullmatch(r"/api/c/([\w\-]+)/pagina/([\w\-]+)", p)
         if m:
             return self.api_portal_pagina(m.group(1), m.group(2))
+        if p == "/api/admin/midia":
+            if not self.exige_admin():
+                return
+            return self.api_midia()
         if p == "/api/admin/metodologia":
             if not self.exige_admin():
                 return
@@ -627,6 +643,9 @@ class Handler(BaseHTTPRequestHandler):
             return self.api_equipe(m.group(1))
 
         # -------- anexos
+        m = re.fullmatch(r"/api/midia/([\w\-]+)", p)
+        if m:
+            return self.api_baixar_midia(m.group(1))
         m = re.fullmatch(r"/api/anexo/([\w\-]+)", p)
         if m:
             return self.api_baixar_anexo(m.group(1))
@@ -688,6 +707,10 @@ class Handler(BaseHTTPRequestHandler):
             return self.api_usuario_excluir()
         if p == "/api/admin/portal":
             return self.api_portal_config()
+        if p == "/api/admin/midia-enviar":
+            return self.api_midia_enviar()
+        if p == "/api/admin/midia-excluir":
+            return self.api_midia_excluir()
         if p == "/api/admin/metodologia-modelo":
             return self.api_metodologia_modelo()
         if p == "/api/admin/ws-copiar":
@@ -1066,6 +1089,97 @@ class Handler(BaseHTTPRequestHandler):
         pag.pop("cliente_id", None)
         return self.json(pag)
 
+    # ------------------------------------------------- biblioteca de mídia
+    def api_midia(self):
+        """Arquivos enviados pela B3 Sales. Sem cliente = biblioteca geral."""
+        cid = self.q1("cliente")
+        cat = self.q1("categoria")
+        sql = "SELECT * FROM midia WHERE 1=1"
+        args = []
+        if cid:
+            # dentro de um cliente valem os dele e os da biblioteca geral
+            sql += " AND (cliente_id=? OR cliente_id IS NULL)"
+            args.append(cid)
+        else:
+            sql += " AND cliente_id IS NULL"
+        if cat:
+            sql += " AND categoria=?"
+            args.append(cat)
+        sql += " ORDER BY enviado_em DESC LIMIT 300"
+        arquivos = [dict(r) for r in db().execute(sql, args)]
+        if cid:
+            # e tambem o que o proprio cliente mandou no diagnostico
+            for r in db().execute("SELECT id, nome, tipo, tamanho, ciclo FROM anexos "
+                                  "WHERE cliente_id=? ORDER BY enviado_em DESC", (cid,)):
+                d = dict(r)
+                d["categoria"] = "diagnostico"
+                d["origem_tabela"] = "anexos"
+                arquivos.append(d)
+        return self.json({"arquivos": arquivos})
+
+    def api_midia_enviar(self):
+        b = self.body()
+        nome = (b.get("nome") or "arquivo")[:180]
+        dados = b.get("dados") or ""
+        if "," in dados[:200]:
+            dados = dados.split(",", 1)[1]
+        try:
+            bin_ = base64.b64decode(dados)
+        except Exception:
+            return self.erro("Arquivo inválido.")
+        if not bin_:
+            return self.erro("Arquivo vazio.")
+        if len(bin_) > MAX_UPLOAD_ADMIN:
+            return self.erro("O arquivo passa de 120 MB. Para vídeo longo, use o bloco "
+                             "de vídeo com o link do Panda, YouTube ou Vimeo: fica mais "
+                             "leve e carrega melhor para quem assiste.")
+        cid = b.get("cliente_id") or None
+        if cid and not cliente_dict(cid):
+            return self.erro("Cliente não encontrado.", 404)
+        mid = secrets.token_urlsafe(12)
+        pasta = UPLOAD_DIR / (cid or "_biblioteca")
+        pasta.mkdir(parents=True, exist_ok=True)
+        seguro = re.sub(r"[^\w\.\- ]", "_", nome)[:120]
+        destino = pasta / f"{mid}__{seguro}"
+        destino.write_bytes(bin_)
+        db().execute("INSERT INTO midia(id,cliente_id,nome,tipo,categoria,tamanho,arquivo,"
+                     "titulo,descricao,enviado_em,enviado_por) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+                     (mid, cid, nome, b.get("tipo") or "", b.get("categoria") or "material",
+                      len(bin_), str(destino.relative_to(DATA_DIR)),
+                      b.get("titulo", ""), b.get("descricao", ""), now(),
+                      self.admin_user() or ""))
+        db().commit()
+        return self.json({"ok": True, "id": mid, "nome": nome,
+                          "tipo": b.get("tipo") or "", "tamanho": len(bin_)})
+
+    def api_midia_excluir(self):
+        b = self.body()
+        r = db().execute("SELECT * FROM midia WHERE id=?", (b.get("id"),)).fetchone()
+        if not r:
+            return self.erro("Arquivo não encontrado.", 404)
+        try:
+            (DATA_DIR / r["arquivo"]).unlink(missing_ok=True)
+        except Exception:
+            pass
+        db().execute("DELETE FROM midia WHERE id=?", (b["id"],))
+        db().commit()
+        return self.json({"ok": True})
+
+    def api_baixar_midia(self, mid):
+        r = db().execute("SELECT * FROM midia WHERE id=?", (mid,)).fetchone()
+        if not r:
+            return self.erro("Arquivo não encontrado.", 404)
+        f = DATA_DIR / r["arquivo"]
+        if not f.is_file():
+            return self.erro("Arquivo não está mais no servidor.", 404)
+        tipo = r["tipo"] or mimetypes.guess_type(r["nome"])[0] or "application/octet-stream"
+        # imagem, audio e video abrem na propria pagina; o resto baixa
+        inline = tipo.split("/")[0] in ("image", "audio", "video") or tipo == "application/pdf"
+        disp = "inline" if inline else "attachment"
+        return self._send(200, f.read_bytes(), tipo, {
+            "Content-Disposition": f'{disp}; filename="{r["nome"]}"',
+            "Cache-Control": "private, max-age=86400"})
+
     # ------------------------------------------------------ metodologia
     def api_metodologia(self):
         """A base reutilizável da B3 Sales. Páginas sem dono."""
@@ -1106,16 +1220,28 @@ class Handler(BaseHTTPRequestHandler):
         p = workspace.ler_pagina(db(), pid)
         if not p:
             return self.erro("Página não encontrada.", 404)
-        # no espaço de materiais valem todos os arquivos do cliente, de qualquer ciclo.
-        # na metodologia, que não tem dono, valem todos os arquivos do sistema.
+        # o que da para inserir na pagina: a biblioteca da casa, o que a B3 Sales
+        # enviou para este cliente, e o que o proprio cliente anexou no diagnostico.
+        arquivos = []
         if p["cliente_id"]:
-            p["anexos"] = [dict(r) for r in db().execute(
-                "SELECT id, nome, tipo, tamanho, ciclo, origem FROM anexos WHERE cliente_id=? "
-                "ORDER BY enviado_em DESC", (p["cliente_id"],))]
+            for r in db().execute(
+                    "SELECT id,nome,tipo,tamanho,categoria FROM midia "
+                    "WHERE cliente_id=? OR cliente_id IS NULL ORDER BY enviado_em DESC",
+                    (p["cliente_id"],)):
+                arquivos.append({**dict(r), "origem_tabela": "midia"})
+            for r in db().execute(
+                    "SELECT id,nome,tipo,tamanho,ciclo FROM anexos WHERE cliente_id=? "
+                    "ORDER BY enviado_em DESC", (p["cliente_id"],)):
+                arquivos.append({**dict(r), "categoria": "diagnóstico",
+                                 "origem_tabela": "anexos"})
         else:
-            p["anexos"] = [dict(r) for r in db().execute(
-                "SELECT id, nome, tipo, tamanho, ciclo, origem FROM anexos "
-                "ORDER BY enviado_em DESC LIMIT 200")]
+            for r in db().execute("SELECT id,nome,tipo,tamanho,categoria FROM midia "
+                                  "WHERE cliente_id IS NULL ORDER BY enviado_em DESC"):
+                arquivos.append({**dict(r), "origem_tabela": "midia"})
+        p["arquivos"] = arquivos
+        p["subpaginas"] = [dict(r) for r in db().execute(
+            "SELECT id, titulo, capa FROM ws_paginas WHERE pai_id=? ORDER BY ordem",
+            (pid,))]
         return self.json(p)
 
     def api_ws_pagina_salvar(self):
@@ -1123,7 +1249,7 @@ class Handler(BaseHTTPRequestHandler):
         conn = db()
         if b.get("id"):
             sets, vals = [], []
-            for k in ("titulo", "capa", "icone", "visivel_cliente", "ordem"):
+            for k in ("titulo", "capa", "icone", "visivel_cliente", "ordem", "pai_id"):
                 if k in b:
                     sets.append(f"{k}=?")
                     vals.append(int(b[k]) if k in ("visivel_cliente", "ordem") else b[k])
@@ -1139,6 +1265,9 @@ class Handler(BaseHTTPRequestHandler):
             return self.erro("Cliente não encontrado.", 404)
         pid = workspace.criar_pagina(conn, cid, (b.get("titulo") or "Nova página").strip(),
                                      now(), b.get("capa", ""))
+        if b.get("pai_id"):
+            conn.execute("UPDATE ws_paginas SET pai_id=? WHERE id=?", (b["pai_id"], pid))
+            conn.commit()
         return self.json({"ok": True, "id": pid})
 
     def api_ws_modelo(self):
@@ -1443,7 +1572,8 @@ class Handler(BaseHTTPRequestHandler):
                         "enviado_em": atual["enviado_em"] if atual else None,
                         "anexos": nanexos})
         return self.json({"clientes": out, "ciclos": questions.CICLOS,
-                          "status_possiveis": questions.STATUS})
+                          "status_possiveis": questions.STATUS,
+                          "tipos_servico": questions.TIPOS_SERVICO})
 
     def api_criar_cliente(self):
         b = self.body()
@@ -1484,7 +1614,8 @@ class Handler(BaseHTTPRequestHandler):
         if not cliente_dict(cid):
             return self.erro("Cliente não encontrado.", 404)
         campos = ["empresa", "responsavel", "cargo", "segmento", "contato", "email",
-                  "obs_internas"]
+                  "obs_internas", "tipo_servico", "contrato_inicio", "contrato_fim",
+                  "contrato_midia_id", "valor_contrato"]
         sets, vals = [], []
         for k in campos:
             if k in b:

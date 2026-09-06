@@ -27,6 +27,10 @@ TIPOS = {
     "imagem":   ("Imagem", "▣", {"anexo_id": "", "legenda": ""}),
     "arquivo":  ("Arquivo", "⇩", {"anexo_id": "", "titulo": ""}),
     "link":     ("Link", "↗", {"url": "", "titulo": "", "descricao": ""}),
+    "video":    ("Vídeo", "▶", {"url": "", "midia_id": "", "titulo": "",
+                                 "descricao": "", "capa_id": "", "duracao": ""}),
+    "audio":    ("Áudio", "♪", {"midia_id": "", "titulo": ""}),
+    "subpagina": ("Subpágina", "⤷", {"pagina_id": "", "titulo": ""}),
     "divisor":  ("Divisor", "—", {}),
 }
 
@@ -129,7 +133,7 @@ def montar_metodologia(conn, agora):
 def listar_metodologia(conn):
     saida = []
     for r in conn.execute("SELECT * FROM ws_paginas WHERE cliente_id IS NULL "
-                          "ORDER BY ordem, criado_em"):
+                          "AND pai_id IS NULL ORDER BY ordem, criado_em"):
         d = dict(r)
         d["blocos"] = conn.execute(
             "SELECT COUNT(*) n FROM ws_blocos WHERE pagina_id=?", (r["id"],)).fetchone()["n"]
@@ -158,8 +162,8 @@ def copiar_para_cliente(conn, pagina_id, cliente_id, agora):
 def listar_paginas(conn, cliente_id):
     saida = []
     for r in conn.execute(
-            "SELECT * FROM ws_paginas WHERE cliente_id=? ORDER BY ordem, criado_em",
-            (cliente_id,)):
+            "SELECT * FROM ws_paginas WHERE cliente_id=? AND pai_id IS NULL "
+            "ORDER BY ordem, criado_em", (cliente_id,)):
         d = dict(r)
         d["blocos"] = conn.execute(
             "SELECT COUNT(*) n FROM ws_blocos WHERE pagina_id=?", (r["id"],)).fetchone()["n"]

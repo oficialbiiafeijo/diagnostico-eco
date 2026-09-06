@@ -37,6 +37,15 @@ FUNCOES_EQUIPE = ["Proprietária ou proprietário", "Sócia ou sócio", "Gestor 
                   "Designer", "Financeiro", "Administrativo",
                   "Profissional que executa o serviço", "Acumula mais de uma função"]
 
+
+# O que a B3 Sales vende. "Outro" abre campo livre no cadastro do cliente.
+TIPOS_SERVICO = ["Implementação",
+                 "Implementação e ferramenta",
+                 "Implementação, ferramenta e time comercial",
+                 "Somente ferramenta",
+                 "Consultoria pontual",
+                 "Outro"]
+
 NIVEIS_EQUIPE = ["Estratégico: decide a direção",
                  "Tático: organiza e acompanha",
                  "Operacional: executa no dia a dia"]

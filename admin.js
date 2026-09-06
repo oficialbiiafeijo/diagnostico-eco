@@ -205,12 +205,28 @@
       '<div class="campo" style="margin-bottom:14px"><label class="small" ' +
       'style="color:var(--ameixa-700);margin-bottom:5px;display:block">Detalhe</label>' +
       '<textarea id="ac_det" style="min-height:80px">' + esc(a.detalhe || "") + '</textarea></div>' +
-      campoTexto("ac_resp", "Quem é o responsável", "Nome da pessoa", a.responsavel) +
+      '<div class="campo" style="margin-bottom:14px"><label class="small" ' +
+      'style="color:var(--ameixa-700);margin-bottom:5px;display:block">Quem é o responsável</label>' +
+      '<select id="ac_resp"></select></div>' +
       '</div>');
-    if ((equipe || []).length) {
-      var dica = el('<p class="small muted" style="margin:-8px 0 14px">Equipe: ' +
-        equipe.map(function (p) { return esc(p.nome); }).join(" · ") + '</p>');
-      corpo.appendChild(dica);
+    var selR = corpo.querySelector("#ac_resp");
+    selR.appendChild(el('<option value="">Escolher uma pessoa</option>'));
+    (equipe || []).forEach(function (pes) {
+      var o = document.createElement("option");
+      o.value = pes.nome;
+      o.textContent = pes.nome + (pes.funcao ? "  ·  " + pes.funcao : "");
+      if (a.responsavel === pes.nome) o.selected = true;
+      selR.appendChild(o);
+    });
+    selR.appendChild(el('<option value="__b3__">Alguém da B3 Sales</option>'));
+    if (a.responsavel && !(equipe || []).some(function (p) { return p.nome === a.responsavel; })) {
+      var extra = document.createElement("option");
+      extra.value = a.responsavel; extra.textContent = a.responsavel; extra.selected = true;
+      selR.appendChild(extra);
+    }
+    if (!(equipe || []).length) {
+      corpo.appendChild(el('<p class="small muted" style="margin:-8px 0 14px">' +
+        'Cadastre o time em <strong>Equipe do cliente</strong> para escolher aqui pelo nome.</p>'));
     }
     var bs = el('<button class="btn btn-ouro">Salvar</button>');
     var f = modal(a.id ? "Editar ação" : "Nova ação", "Rota do " + ciclo, corpo, [bs]);
@@ -218,7 +234,9 @@
       var t = f.querySelector("#ac_tit").value.trim();
       if (!t) return toast("Escreva o que precisa ser feito");
       api("/api/admin/acao-salvar", { cliente_id: cid, ciclo: ciclo, id: a.id, titulo: t,
-        detalhe: f.querySelector("#ac_det").value, responsavel: f.querySelector("#ac_resp").value,
+        detalhe: f.querySelector("#ac_det").value,
+        responsavel: f.querySelector("#ac_resp").value === "__b3__"
+          ? "Equipe B3 Sales" : f.querySelector("#ac_resp").value,
         status: a.status || "Não iniciada", pilar: a.pilar || "", ordem: a.ordem || 0 })
         .then(function (r) {
           if (r.erro) return toast(r.erro);
@@ -378,6 +396,64 @@
     modal("Acompanhamento do cliente", "O que ele vê", corpo);
   }
 
+
+  /* ------------------------------------------------- envio de arquivos */
+  var TIPOS_ACEITOS = "image/*,video/*,audio/*,application/pdf,.doc,.docx,.xls,.xlsx," +
+    ".ppt,.pptx,.csv,.txt,.zip";
+
+  function tamanhoBonito(b) {
+    if (!b) return "";
+    if (b < 1024) return b + " B";
+    if (b < 1048576) return (b / 1024).toFixed(0) + " KB";
+    return (b / 1048576).toFixed(1) + " MB";
+  }
+
+  function enviarArquivo(file, cid, categoria) {
+    return new Promise(function (ok, falha) {
+      if (file.size > 120 * 1024 * 1024) {
+        return falha(new Error("Passa de 120 MB. Para vídeo longo, use o bloco de " +
+          "Vídeo com o link do Panda, YouTube ou Vimeo."));
+      }
+      var fr = new FileReader();
+      fr.onerror = function () { falha(new Error("Não consegui ler o arquivo.")); };
+      fr.onload = function () {
+        api("/api/admin/midia-enviar", {
+          cliente_id: cid || null, nome: file.name, tipo: file.type,
+          categoria: categoria || "material", dados: fr.result
+        }).then(function (r) { r.erro ? falha(new Error(r.erro)) : ok(r); });
+      };
+      fr.readAsDataURL(file);
+    });
+  }
+
+  /* botao de enviar que vira barra de progresso */
+  function botaoEnviar(rotulo, cid, categoria, aoTerminar, aceita) {
+    var cx = el('<div class="env"></div>');
+    var inp = document.createElement("input");
+    inp.type = "file"; inp.accept = aceita || TIPOS_ACEITOS; inp.style.display = "none";
+    var b = el('<button type="button" class="btn btn-ouro btn-sm">' + rotulo + '</button>');
+    var st = el('<span class="env-st"></span>');
+    b.onclick = function () { inp.click(); };
+    inp.onchange = function () {
+      var f = inp.files[0];
+      if (!f) return;
+      b.disabled = true;
+      st.textContent = "Enviando " + f.name + " (" + tamanhoBonito(f.size) + ")…";
+      st.className = "env-st on";
+      enviarArquivo(f, cid, categoria)
+        .then(function (r) {
+          st.textContent = "Enviado"; b.disabled = false; inp.value = "";
+          setTimeout(function () { st.className = "env-st"; }, 1600);
+          aoTerminar(r);
+        })
+        .catch(function (e) {
+          st.textContent = e.message; st.className = "env-st erro"; b.disabled = false;
+        });
+    };
+    cx.appendChild(b); cx.appendChild(st); cx.appendChild(inp);
+    return cx;
+  }
+
   /* --------------------------------------------- espaço de materiais */
   var CAPA_CSS = {};
 
@@ -412,6 +488,27 @@
     t.oninput = function () { b.conteudo.texto = t.value; autoAltura(t); salvarBloco(b); };
     setTimeout(function () { autoAltura(t); }, 0);
     return t;
+  }
+
+
+  function embutirVideo(ct) {
+    if (ct.midia_id) {
+      return el('<video controls class="ws-video" src="/api/midia/' + esc(ct.midia_id) + '"></video>');
+    }
+    var u = (ct.url || "").trim();
+    if (!u) return null;
+    var yt = u.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([\w-]{6,})/);
+    if (yt) return el('<div class="ws-emb"><iframe src="https://www.youtube.com/embed/' +
+      esc(yt[1]) + '" allowfullscreen loading="lazy"></iframe></div>');
+    var vm = u.match(/vimeo\.com\/(?:video\/)?(\d+)/);
+    if (vm) return el('<div class="ws-emb"><iframe src="https://player.vimeo.com/video/' +
+      esc(vm[1]) + '" allowfullscreen loading="lazy"></iframe></div>');
+    /* Panda e outros players entregam a propria url de embed */
+    if (/^https?:\/\//.test(u)) {
+      return el('<div class="ws-emb"><iframe src="' + esc(u) +
+        '" allowfullscreen loading="lazy"></iframe></div>');
+    }
+    return null;
   }
 
   function desenharBloco(b, pag, redesenhar) {
@@ -505,24 +602,37 @@
     } else if (b.tipo === "imagem" || b.tipo === "arquivo") {
       var ehImg = b.tipo === "imagem";
       var cx = el('<div class="ws-anexo"></div>');
-      var atual = (pag.anexos || []).filter(function (a) { return a.id === b.conteudo.anexo_id; })[0];
-      if (atual && ehImg) {
-        cx.appendChild(el('<img class="ws-img" src="/api/anexo/' + esc(atual.id) + '" alt="">'));
-      } else if (atual) {
-        cx.appendChild(el('<a class="ws-arq" href="/api/anexo/' + esc(atual.id) + '" target="_blank">' +
-          '<span class="ws-arq-i">⇩</span><span>' + esc(atual.nome) + '</span></a>'));
+      var ref = b.conteudo.midia_id || b.conteudo.anexo_id;
+      var base = b.conteudo.midia_id ? "/api/midia/" : "/api/anexo/";
+      if (ref && ehImg) {
+        cx.appendChild(el('<img class="ws-img" src="' + base + esc(ref) + '" alt="">'));
+      } else if (ref) {
+        cx.appendChild(el('<a class="ws-arq" href="' + base + esc(ref) + '" target="_blank">' +
+          '<span class="ws-arq-i">⇩</span><span>' +
+          esc(b.conteudo.titulo || "Abrir arquivo") + '</span></a>'));
       }
+      cx.appendChild(botaoEnviar(
+        ehImg ? "↑ Enviar imagem do computador" : "↑ Enviar arquivo do computador",
+        pag.cliente_id, ehImg ? "imagem" : "arquivo",
+        function (r) {
+          b.conteudo.midia_id = r.id; b.conteudo.anexo_id = "";
+          if (!b.conteudo.titulo) b.conteudo.titulo = r.nome;
+          api("/api/admin/ws-bloco", { id: b.id, conteudo: b.conteudo }).then(redesenhar);
+        }, ehImg ? "image/*" : TIPOS_ACEITOS));
       var sel = document.createElement("select");
-      sel.appendChild(el('<option value="">Escolher um arquivo já enviado</option>'));
-      (pag.anexos || []).forEach(function (a) {
+      sel.appendChild(el('<option value="">Ou escolher um arquivo já no sistema</option>'));
+      (pag.arquivos || []).forEach(function (a) {
         if (ehImg && !/^image\//.test(a.tipo || "")) return;
         var o = document.createElement("option");
-        o.value = a.id; o.textContent = a.nome;
-        if (a.id === b.conteudo.anexo_id) o.selected = true;
+        o.value = (a.origem_tabela === "anexos" ? "a:" : "m:") + a.id;
+        o.textContent = a.nome + (a.tamanho ? "  ·  " + tamanhoBonito(a.tamanho) : "");
+        if (a.id === ref) o.selected = true;
         sel.appendChild(o);
       });
       sel.onchange = function () {
-        b.conteudo.anexo_id = sel.value;
+        var v = sel.value;
+        b.conteudo.midia_id = v.indexOf("m:") === 0 ? v.slice(2) : "";
+        b.conteudo.anexo_id = v.indexOf("a:") === 0 ? v.slice(2) : "";
         api("/api/admin/ws-bloco", { id: b.id, conteudo: b.conteudo }).then(redesenhar);
       };
       cx.appendChild(sel);
@@ -535,11 +645,79 @@
         salvarBloco(b);
       };
       cx.appendChild(leg);
-      if (!(pag.anexos || []).length) {
-        cx.appendChild(el('<p class="small muted">Nenhum arquivo enviado ainda para este cliente. ' +
-          'Os anexos que o cliente mandar no diagnóstico aparecem aqui.</p>'));
-      }
       corpo.appendChild(cx);
+
+    } else if (b.tipo === "video") {
+      var vx = el('<div class="ws-anexo"></div>');
+      var emb = embutirVideo(b.conteudo);
+      if (emb) vx.appendChild(emb);
+      var uv = document.createElement("input");
+      uv.type = "text"; uv.placeholder = "Link do Panda, YouTube ou Vimeo";
+      uv.value = b.conteudo.url || "";
+      uv.oninput = function () { b.conteudo.url = uv.value; salvarBloco(b); };
+      uv.onblur = function () { if (uv.value) redesenhar(); };
+      vx.appendChild(uv);
+      vx.appendChild(el('<p class="small muted" style="margin:2px 0 0">Para aula longa, ' +
+        'o link é melhor que o arquivo: carrega mais rápido e não pesa no servidor.</p>'));
+      vx.appendChild(botaoEnviar("↑ Ou enviar um vídeo curto", pag.cliente_id, "video",
+        function (r) {
+          b.conteudo.midia_id = r.id; b.conteudo.url = "";
+          if (!b.conteudo.titulo) b.conteudo.titulo = r.nome;
+          api("/api/admin/ws-bloco", { id: b.id, conteudo: b.conteudo }).then(redesenhar);
+        }, "video/*"));
+      ["titulo", "descricao", "duracao"].forEach(function (campo) {
+        var i = document.createElement("input");
+        i.type = "text";
+        i.placeholder = campo === "titulo" ? "Nome da aula" :
+          campo === "duracao" ? "Duração, ex: 42 min" : "Sobre o que é";
+        i.value = b.conteudo[campo] || "";
+        i.oninput = function () { b.conteudo[campo] = i.value; salvarBloco(b); };
+        vx.appendChild(i);
+      });
+      corpo.appendChild(vx);
+
+    } else if (b.tipo === "audio") {
+      var ax = el('<div class="ws-anexo"></div>');
+      if (b.conteudo.midia_id) {
+        ax.appendChild(el('<audio controls style="width:100%" src="/api/midia/' +
+          esc(b.conteudo.midia_id) + '"></audio>'));
+      }
+      ax.appendChild(botaoEnviar("↑ Enviar áudio", pag.cliente_id, "audio", function (r) {
+        b.conteudo.midia_id = r.id;
+        if (!b.conteudo.titulo) b.conteudo.titulo = r.nome;
+        api("/api/admin/ws-bloco", { id: b.id, conteudo: b.conteudo }).then(redesenhar);
+      }, "audio/*"));
+      var at = document.createElement("input");
+      at.type = "text"; at.placeholder = "Nome do áudio"; at.value = b.conteudo.titulo || "";
+      at.oninput = function () { b.conteudo.titulo = at.value; salvarBloco(b); };
+      ax.appendChild(at);
+      corpo.appendChild(ax);
+
+    } else if (b.tipo === "subpagina") {
+      var sx = el('<div class="ws-anexo"></div>');
+      if (b.conteudo.pagina_id) {
+        var ir = el('<button type="button" class="ws-sub">⤷ ' +
+          esc(b.conteudo.titulo || "Abrir subpágina") + '</button>');
+        ir.onclick = function () {
+          pag.cliente_id ? abrirMateriais(pag.cliente_id, b.conteudo.pagina_id)
+                         : abrirMetodologia(b.conteudo.pagina_id);
+        };
+        sx.appendChild(ir);
+      } else {
+        var criar = el('<button type="button" class="acao-add">+ Criar a subpágina</button>');
+        criar.onclick = function () {
+          var t = prompt("Nome da subpágina:", "Nova subpágina");
+          if (t === null) return;
+          api("/api/admin/ws-pagina", { cliente_id: pag.cliente_id || null,
+            titulo: t || "Nova subpágina", pai_id: pag.id })
+            .then(function (r) {
+              b.conteudo.pagina_id = r.id; b.conteudo.titulo = t || "Nova subpágina";
+              api("/api/admin/ws-bloco", { id: b.id, conteudo: b.conteudo }).then(redesenhar);
+            });
+        };
+        sx.appendChild(criar);
+      }
+      corpo.appendChild(sx);
 
     } else if (b.tipo === "link") {
       var lk = el('<div class="ws-link-edit"></div>');
@@ -939,34 +1117,52 @@
     atencao.appendChild(cSem);
     wrap.appendChild(atencao);
 
-    /* carteira detalhada */
-    var tab = el('<div class="card" style="overflow:hidden;margin-top:18px">' +
-      '<div class="card-pad" style="padding-bottom:0"><div class="eyebrow">Carteira</div>' +
-      '<h2 class="serif tit-card">Cada cliente, <em class="grifo">em uma linha</em></h2></div>' +
-      '<div style="overflow-x:auto"><table class="lista"><thead><tr>' +
-      '<th>Cliente</th><th>Ciclo</th><th>Progresso</th><th>Pilar de entrada</th>' +
-      '<th>Ações</th><th>Materiais</th></tr></thead><tbody></tbody></table></div></div>');
-    var tb = tab.querySelector("tbody");
-    d.jornada.forEach(function (j) {
-      var tr = el('<tr>' +
-        '<td><span class="emp">' + esc(j.empresa) + '</span>' +
-        '<div class="small muted">' + esc(j.segmento || "Sem segmento") + '</div></td>' +
-        '<td>' + esc(j.ciclo) + '</td>' +
-        '<td><div class="mini-barra"><i style="width:' + (j.progresso || 0) + '%"></i></div>' +
-        '<span class="small muted">' + (j.progresso || 0) + '%</span></td>' +
-        '<td>' + (j.entrada ? '<span class="selo selo-entrada">' + esc(j.entrada) + '</span>' :
-          '<span class="small muted">aguardando</span>') + '</td>' +
-        '<td>' + j.acoes_feitas + ' de ' + j.acoes + '</td>' +
-        '<td>' + (j.documentos + j.paginas) + '</td></tr>');
-      tr.style.cursor = "pointer";
-      tr.onclick = function () { abrirCliente(j.id); };
-      tb.appendChild(tr);
-    });
+    /* carteira em cartões, agrupada pelo ciclo */
+    wrap.appendChild(el('<div class="p-sec" style="margin:34px 0 14px">' +
+      '<div class="eyebrow">Carteira</div>' +
+      '<h2 class="serif tit-card" style="margin-bottom:0">Cada cliente, ' +
+      '<em class="grifo">um cartão</em></h2></div>'));
+
     if (!d.jornada.length) {
-      tab.querySelector("tbody").appendChild(el('<tr><td colspan="6" class="small muted" ' +
-        'style="padding:22px">Nenhum cliente ativo ainda.</td></tr>'));
+      wrap.appendChild(el('<div class="card card-pad center" style="padding:44px 24px">' +
+        '<p class="muted small">Nenhum cliente ativo ainda.</p></div>'));
+      return wrap;
     }
-    wrap.appendChild(tab);
+
+    var colunas = el('<div class="kanban"></div>');
+    d.ciclos.forEach(function (ciclo) {
+      var doCiclo = d.jornada.filter(function (j) { return j.ciclo === ciclo; });
+      if (!doCiclo.length) return;
+      var col = el('<div class="kan-col"><div class="kan-cab">' +
+        '<span class="kan-t">' + esc(ciclo) + '</span>' +
+        '<span class="kan-n">' + doCiclo.length + '</span></div>' +
+        '<div class="kan-lista"></div></div>');
+      var lista = col.querySelector(".kan-lista");
+      doCiclo.forEach(function (j) {
+        var pct = j.acoes ? Math.round(j.acoes_feitas / j.acoes * 100) : 0;
+        var c = el('<div class="kan-card">' +
+          '<div class="kan-topo"><span class="kan-ini">' +
+          esc((j.empresa || "?").slice(0, 1).toUpperCase()) + '</span>' +
+          '<div class="kan-nome"><strong>' + esc(j.empresa) + '</strong>' +
+          '<span class="small muted">' + esc(j.segmento || "Sem segmento") + '</span></div></div>' +
+          (j.entrada ? '<span class="selo selo-entrada" style="margin-top:10px;display:inline-block">' +
+            esc(j.entrada) + '</span>' : '') +
+          '<div class="kan-linha"><span>Diagnóstico</span>' +
+          '<div class="mini-barra"><i style="width:' + (j.progresso || 0) + '%"></i></div>' +
+          '<b>' + (j.progresso || 0) + '%</b></div>' +
+          '<div class="kan-linha"><span>Implantação</span>' +
+          '<div class="mini-barra"><i style="width:' + pct + '%;background:var(--terracota-500)"></i></div>' +
+          '<b>' + j.acoes_feitas + '/' + j.acoes + '</b></div>' +
+          '<div class="kan-pe"><span>' + (j.documentos + j.paginas) + ' materiais</span>' +
+          (j.dias_sem_contato != null && j.dias_sem_contato > 7
+            ? '<span class="kan-alerta">' + j.dias_sem_contato + 'd sem contato</span>'
+            : '') + '</div>');
+        c.onclick = function () { abrirCliente(j.id); };
+        lista.appendChild(c);
+      });
+      colunas.appendChild(col);
+    });
+    wrap.appendChild(colunas);
     return wrap;
   }
 
@@ -1488,6 +1684,28 @@
     f.querySelector(".modal-pe .btn-fantasma").remove();
   }
 
+  function blocoContrato(c, tipos) {
+    var h = '<h3 class="serif" style="font-size:20px;color:var(--ameixa-900);' +
+      'margin:24px 0 12px;padding-top:18px;border-top:1px solid var(--linha)">Contrato</h3>' +
+      '<div class="campo" style="margin-bottom:14px"><label class="small" ' +
+      'style="color:var(--ameixa-700);margin-bottom:5px;display:block">O que foi vendido</label>' +
+      '<select id="cl_servico"><option value="">Escolher</option>';
+    (tipos || []).forEach(function (t) {
+      h += '<option' + (c && c.tipo_servico === t ? " selected" : "") + '>' + esc(t) + '</option>';
+    });
+    h += '</select></div>' +
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">' +
+      '<div class="campo"><label class="small" style="color:var(--ameixa-700);' +
+      'margin-bottom:5px;display:block">Início</label>' +
+      '<input type="date" id="cl_ini" value="' + esc((c && c.contrato_inicio) || "") + '"></div>' +
+      '<div class="campo"><label class="small" style="color:var(--ameixa-700);' +
+      'margin-bottom:5px;display:block">Término</label>' +
+      '<input type="date" id="cl_fim" value="' + esc((c && c.contrato_fim) || "") + '"></div>' +
+      '</div>' +
+      campoTexto("cl_valor", "Valor", "Ex: R$ 3.500 por mês", (c && c.valor_contrato) || "");
+    return h;
+  }
+
   function modalEditar(c) {
     var corpo = el('<div>' +
       campoTexto("e_empresa", "Nome da empresa", "", c.empresa) +
@@ -1496,9 +1714,32 @@
       campoTexto("e_seg", "Segmento", "", c.segmento) +
       campoTexto("e_contato", "WhatsApp", "", c.contato) +
       campoTexto("e_email", "E-mail", "", c.email) +
-      '<label class="small" style="color:var(--ameixa-700);margin-bottom:5px;display:block">' +
-      'Observações internas sobre o cliente</label><textarea id="e_obs"></textarea></div>');
+      blocoContrato(c, (S.lista && S.lista.tipos_servico) || []) +
+      '<div id="cl_contrato_area" style="margin-bottom:14px"></div>' +
+      '<label class="small" style="color:var(--ameixa-700);margin-bottom:5px;display:block;' +
+      'margin-top:18px">Observações internas sobre o cliente</label>' +
+      '<textarea id="e_obs"></textarea></div>');
     corpo.querySelector("#e_obs").value = c.obs_internas || "";
+
+    /* anexo do contrato */
+    var area = corpo.querySelector("#cl_contrato_area");
+    var midiaContrato = c.contrato_midia_id || "";
+    function pintarContrato() {
+      area.innerHTML = "";
+      area.appendChild(el('<label class="small" style="color:var(--ameixa-700);' +
+        'margin-bottom:6px;display:block">Contrato assinado</label>'));
+      if (midiaContrato) {
+        area.appendChild(el('<a class="ws-arq" style="margin-bottom:8px" href="/api/midia/' +
+          esc(midiaContrato) + '" target="_blank"><span class="ws-arq-i">⇩</span>' +
+          '<span>Abrir o contrato</span></a>'));
+      }
+      area.appendChild(botaoEnviar(midiaContrato ? "↑ Trocar o contrato" : "↑ Anexar o contrato",
+        c.id, "contrato", function (r) {
+          midiaContrato = r.id; toast("Contrato anexado"); pintarContrato();
+        }));
+    }
+    pintarContrato();
+
     var salvar = el('<button class="btn btn-ouro">Salvar</button>');
     var f = modal('Editar <em class="grifo">cadastro</em>', "Dados do cliente", corpo, [salvar]);
     salvar.onclick = function () {
@@ -1510,6 +1751,11 @@
         contato: corpo.querySelector("#e_contato").value,
         email: corpo.querySelector("#e_email").value,
         obs_internas: corpo.querySelector("#e_obs").value,
+        tipo_servico: corpo.querySelector("#cl_servico").value,
+        contrato_inicio: corpo.querySelector("#cl_ini").value,
+        contrato_fim: corpo.querySelector("#cl_fim").value,
+        valor_contrato: corpo.querySelector("#cl_valor").value,
+        contrato_midia_id: midiaContrato,
       }).then(function () { f.remove(); toast("Cadastro atualizado"); abrirCliente(c.id, S.ciclo); });
     };
   }
