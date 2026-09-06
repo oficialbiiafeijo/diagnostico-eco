@@ -30,7 +30,7 @@ import questions
 
 BASE_DIR = Path(__file__).resolve().parent
 DATA_DIR = Path(os.getenv("ECO_DATA_DIR", BASE_DIR / "data"))
-WEB_DIR = BASE_DIR / "web"
+WEB_DIR = BASE_DIR
 UPLOAD_DIR = DATA_DIR / "uploads"
 DB_PATH = DATA_DIR / "eco.db"
 
