@@ -87,6 +87,13 @@
 
   .p-erro{max-width:520px;margin:90px auto;text-align:center}
 
+  .p-vermelho{color:var(--critico);font-weight:500}
+  .p-men{color:var(--ameixa-700);background:var(--ouro-100);border-radius:5px;
+    padding:1px 6px;font-size:.94em}
+  .p-emb{position:relative;width:100%;padding-top:56.25%;border-radius:var(--r);
+    overflow:hidden;background:#000}
+  .p-emb iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+
   @media (max-width:600px){
     .p-hero h1{font-size:33px}
     .p-linha{padding-left:22px}
@@ -113,6 +120,16 @@
       return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
     });
   }
+  /* as marcas simples do editor viram formatação de verdade aqui */
+  function formatar(txt) {
+    var h = esc(txt);
+    h = h.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+    h = h.replace(/__([^_]+)__/g, "<em>$1</em>");
+    h = h.replace(/!!([^!]+)!!/g, '<span class="p-vermelho">$1</span>');
+    h = h.replace(/@\[([^\]]{1,60})\]/g, '<span class="p-men">@$1</span>');
+    return h;
+  }
+
   function dataBr(s) {
     if (!s) return "";
     var d = new Date(s);
@@ -239,10 +256,10 @@
           } else if (b.tipo === "texto" && ct.texto) {
             palco.appendChild(el('<p style="font-size:15.5px;line-height:1.8;' +
               'color:var(--texto-2);margin:0 0 14px;white-space:pre-wrap">' +
-              esc(ct.texto) + '</p>'));
+              formatar(ct.texto) + '</p>'));
           } else if (b.tipo === "destaque" && ct.texto) {
             palco.appendChild(el('<div class="p-obj" style="margin:18px 0">' +
-              esc(ct.texto) + '</div>'));
+              formatar(ct.texto) + '</div>'));
           } else if (b.tipo === "divisor") {
             palco.appendChild(el('<hr style="border:none;border-top:1px solid var(--linha);' +
               'margin:26px 0">'));
@@ -279,6 +296,51 @@
               'text-decoration:none;color:var(--ameixa-800);font-size:14.5px;margin:0 0 16px">' +
               '<span style="color:var(--ouro-700);font-size:17px">⇩</span>' +
               esc(ct.titulo || (nome && nome.nome) || "Abrir arquivo") + '</a>'));
+          } else if (b.tipo === "video" && (ct.url || ct.midia_id)) {
+            var v;
+            if (ct.midia_id) {
+              v = el('<video controls style="width:100%;border-radius:var(--r);' +
+                'background:#000" src="/api/midia/' + esc(ct.midia_id) + '"></video>');
+            } else {
+              var yt = ct.url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([\w-]{6,})/);
+              var vm = ct.url.match(/vimeo\.com\/(?:video\/)?(\d+)/);
+              var src = yt ? "https://www.youtube.com/embed/" + yt[1]
+                      : vm ? "https://player.vimeo.com/video/" + vm[1] : ct.url;
+              v = el('<div class="p-emb"><iframe src="' + esc(src) +
+                '" allowfullscreen loading="lazy"></iframe></div>');
+            }
+            var cxv = el('<figure style="margin:0 0 20px"></figure>');
+            cxv.appendChild(v);
+            if (ct.titulo || ct.duracao) {
+              cxv.appendChild(el('<figcaption style="margin-top:8px;font-size:14.5px;' +
+                'color:var(--ameixa-900)"><strong>' + esc(ct.titulo || "") + '</strong>' +
+                (ct.duracao ? '<span class="small muted">  ·  ' + esc(ct.duracao) +
+                  '</span>' : '') + '</figcaption>'));
+            }
+            if (ct.descricao) {
+              cxv.appendChild(el('<div class="small muted" style="margin-top:3px">' +
+                esc(ct.descricao) + '</div>'));
+            }
+            palco.appendChild(cxv);
+          } else if (b.tipo === "audio" && ct.midia_id) {
+            palco.appendChild(el('<div style="margin:0 0 18px">' +
+              (ct.titulo ? '<div style="font-size:14.5px;color:var(--ameixa-900);' +
+                'margin-bottom:6px">' + esc(ct.titulo) + '</div>' : '') +
+              '<audio controls style="width:100%" src="/api/midia/' +
+              esc(ct.midia_id) + '"></audio></div>'));
+          } else if (b.tipo === "imagem" && ct.midia_id) {
+            palco.appendChild(el('<figure style="margin:0 0 18px">' +
+              '<img src="/api/midia/' + esc(ct.midia_id) + '" alt="" ' +
+              'style="max-width:100%;border-radius:var(--r);border:1px solid var(--linha)">' +
+              (ct.legenda ? '<figcaption class="small muted" style="margin-top:7px">' +
+                esc(ct.legenda) + '</figcaption>' : '') + '</figure>'));
+          } else if (b.tipo === "arquivo" && ct.midia_id) {
+            palco.appendChild(el('<a href="/api/midia/' + esc(ct.midia_id) + '" target="_blank" ' +
+              'style="display:inline-flex;align-items:center;gap:10px;padding:13px 18px;' +
+              'background:var(--creme-2);border:1px solid var(--linha);border-radius:var(--r-sm);' +
+              'text-decoration:none;color:var(--ameixa-800);font-size:14.5px;margin:0 0 16px">' +
+              '<span style="color:var(--ouro-700);font-size:17px">⇩</span>' +
+              esc(ct.titulo || "Abrir arquivo") + '</a>'));
           } else if (b.tipo === "link" && ct.url) {
             palco.appendChild(el('<a href="' + esc(ct.url) + '" target="_blank" rel="noopener" ' +
               'style="display:block;padding:15px 18px;border:1px solid var(--linha);' +

@@ -552,3 +552,32 @@ select.acao-status{width:auto;min-width:140px;font-size:13px;padding:8px 32px 8p
   border-radius:99px;padding:1px 8px}
 
 @media (max-width:600px){ .kan-col{flex-basis:82vw} }
+
+/* ================================================================
+   Ficha da página e formatação do texto
+   ================================================================ */
+.ficha{display:flex;flex-direction:column;gap:2px;margin-top:18px;
+  padding-top:16px;border-top:1px solid var(--linha)}
+.ficha-l{display:grid;grid-template-columns:132px 1fr;align-items:center;gap:10px;
+  padding:3px 0}
+.ficha-r{font-size:12.5px;color:var(--muted);display:flex;align-items:center;gap:7px}
+select.ficha-c,input.ficha-c{margin:0;border:1px solid transparent;background:transparent;
+  padding:6px 10px;font-size:13.5px;border-radius:var(--r-sm);max-width:290px}
+select.ficha-c:hover,input.ficha-c:hover{background:var(--creme-2)}
+select.ficha-c:focus,input.ficha-c:focus{background:var(--branco);
+  border-color:var(--ouro-500);box-shadow:none}
+select.ficha-c.st-ouro{background:var(--ouro-100);color:var(--ouro-800)}
+select.ficha-c.st-ameixa{background:rgba(201,180,214,.25);color:var(--ameixa-700)}
+select.ficha-c.st-terracota{background:var(--terracota-100);color:var(--terracota-800)}
+select.ficha-c.st-ok{background:rgba(62,125,90,.13);color:var(--ok)}
+
+.fmt{display:flex;gap:5px;align-items:center;margin:0 0 5px 8px}
+.fmt-b{width:28px;height:26px;border-radius:6px;border:1px solid var(--linha);
+  background:var(--branco);color:var(--texto-2);cursor:pointer;font-size:12.5px;
+  font-family:var(--serif);line-height:1}
+.fmt-b:hover{border-color:var(--ouro-500);color:var(--ameixa-900)}
+.fmt-n{font-weight:700}
+.fmt-i{font-style:italic}
+.fmt-a{color:var(--critico)}
+select.fmt-men{width:auto;margin:0;padding:4px 26px 4px 9px;font-size:12px;
+  background-position:right 8px center}

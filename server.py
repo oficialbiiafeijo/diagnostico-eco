@@ -214,6 +214,12 @@ COLUNAS_NOVAS = [
     ("clientes", "contrato_fim", "TEXT"),
     ("clientes", "contrato_midia_id", "TEXT"),
     ("clientes", "valor_contrato", "TEXT DEFAULT ''"),
+    ("ws_paginas", "status", "TEXT DEFAULT ''"),
+    ("ws_paginas", "prioridade", "TEXT DEFAULT ''"),
+    ("ws_paginas", "responsavel", "TEXT DEFAULT ''"),
+    ("ws_paginas", "setor", "TEXT DEFAULT ''"),
+    ("ws_paginas", "prazo", "TEXT"),
+    ("ws_paginas", "concluido_em", "TEXT"),
     ("clientes", "portal_ativo", "INTEGER DEFAULT 0"),
 ]
 
@@ -1188,6 +1194,10 @@ class Handler(BaseHTTPRequestHandler):
             "tipos": [{"id": k, "nome": v[0], "icone": v[1]}
                       for k, v in workspace.TIPOS.items()],
             "capas": workspace.CAPAS,
+            "status": workspace.STATUS_PAGINA,
+            "prioridades": workspace.PRIORIDADES,
+            "setores": workspace.SETORES,
+            "equipe": [],
         })
 
     def api_metodologia_modelo(self):
@@ -1210,10 +1220,17 @@ class Handler(BaseHTTPRequestHandler):
         if not cliente_dict(cid):
             return self.erro("Cliente não encontrado.", 404)
         return self.json({
+            "equipe_cliente": [dict(r) for r in db().execute(
+                "SELECT id,nome,funcao FROM equipe WHERE cliente_id=? AND ativo=1 "
+                "ORDER BY ordem", (cid,))],
             "paginas": workspace.listar_paginas(db(), cid),
             "tipos": [{"id": k, "nome": v[0], "icone": v[1]}
                       for k, v in workspace.TIPOS.items()],
             "capas": workspace.CAPAS,
+            "status": workspace.STATUS_PAGINA,
+            "prioridades": workspace.PRIORIDADES,
+            "setores": workspace.SETORES,
+            "equipe": [],
         })
 
     def api_ws_pagina(self, pid):
@@ -1249,7 +1266,8 @@ class Handler(BaseHTTPRequestHandler):
         conn = db()
         if b.get("id"):
             sets, vals = [], []
-            for k in ("titulo", "capa", "icone", "visivel_cliente", "ordem", "pai_id"):
+            for k in ("titulo", "capa", "icone", "visivel_cliente", "ordem", "pai_id",
+                      "status", "prioridade", "responsavel", "setor", "prazo"):
                 if k in b:
                     sets.append(f"{k}=?")
                     vals.append(int(b[k]) if k in ("visivel_cliente", "ordem") else b[k])

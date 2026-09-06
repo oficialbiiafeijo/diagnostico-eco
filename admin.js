@@ -479,7 +479,53 @@
     _piscaT = setTimeout(function () { e.classList.remove("on"); }, 1400);
   }
 
-  function blocoTexto(b, tag, place) {
+  /* A formatacao e escrita no proprio texto, com marcas simples.
+     Assim o conteudo continua sendo texto puro: nada de HTML colado sujo,
+     e o portal do cliente sabe desenhar do mesmo jeito. */
+  function envolver(t, b, abre, fecha) {
+    var i = t.selectionStart, f = t.selectionEnd;
+    var sel = t.value.slice(i, f) || "texto";
+    t.value = t.value.slice(0, i) + abre + sel + (fecha || abre) + t.value.slice(f);
+    b.conteudo.texto = t.value;
+    salvarBloco(b);
+    t.focus();
+    t.setSelectionRange(i + abre.length, i + abre.length + sel.length);
+    autoAltura(t);
+  }
+
+  function barraFormato(t, b, equipe) {
+    var barra = el('<div class="fmt"></div>');
+    [["N", "negrito", "**"], ["I", "itálico", "__"], ["A", "destacar em vermelho", "!!"]]
+      .forEach(function (x) {
+        var bt = el('<button type="button" title="' + x[1] + '" class="fmt-b fmt-' +
+          x[0].toLowerCase() + '">' + x[0] + '</button>');
+        bt.onmousedown = function (e) { e.preventDefault(); };
+        bt.onclick = function () { envolver(t, b, x[2]); };
+        barra.appendChild(bt);
+      });
+    if ((equipe || []).length) {
+      var sel = document.createElement("select");
+      sel.className = "fmt-men";
+      sel.appendChild(el('<option value="">@ marcar alguém</option>'));
+      equipe.forEach(function (p) {
+        var o = document.createElement("option");
+        o.value = p.nome; o.textContent = p.nome;
+        sel.appendChild(o);
+      });
+      sel.onchange = function () {
+        if (!sel.value) return;
+        var i = t.selectionStart;
+        t.value = t.value.slice(0, i) + "@[" + sel.value + "] " + t.value.slice(i);
+        b.conteudo.texto = t.value; salvarBloco(b); autoAltura(t);
+        sel.value = ""; t.focus();
+      };
+      barra.appendChild(sel);
+    }
+    return barra;
+  }
+
+  function blocoTexto(b, tag, place, equipe) {
+    var cx = document.createElement("div");
     var t = document.createElement("textarea");
     t.className = "ws-t " + tag;
     t.rows = 1;
@@ -487,7 +533,13 @@
     t.value = b.conteudo.texto || "";
     t.oninput = function () { b.conteudo.texto = t.value; autoAltura(t); salvarBloco(b); };
     setTimeout(function () { autoAltura(t); }, 0);
-    return t;
+    var barra = barraFormato(t, b, equipe);
+    barra.style.display = "none";
+    t.onfocus = function () { barra.style.display = "flex"; };
+    t.onblur = function () { setTimeout(function () { barra.style.display = "none"; }, 200); };
+    cx.appendChild(barra);
+    cx.appendChild(t);
+    return cx;
   }
 
 
@@ -515,15 +567,16 @@
     var box = el('<div class="ws-bloco" data-id="' + b.id + '"></div>');
     var corpo = el('<div class="ws-corpo"></div>');
 
+    var equipe = pag._equipe || [];
     if (b.tipo === "titulo") {
-      corpo.appendChild(blocoTexto(b, "ws-titulo", "Título da seção"));
+      corpo.appendChild(blocoTexto(b, "ws-titulo", "Título da seção", equipe));
 
     } else if (b.tipo === "texto") {
-      corpo.appendChild(blocoTexto(b, "", "Escreva aqui"));
+      corpo.appendChild(blocoTexto(b, "", "Escreva aqui", equipe));
 
     } else if (b.tipo === "destaque") {
       var d = el('<div class="ws-destaque"></div>');
-      d.appendChild(blocoTexto(b, "", "O que não pode ser esquecido"));
+      d.appendChild(blocoTexto(b, "", "O que não pode ser esquecido", equipe));
       corpo.appendChild(d);
 
     } else if (b.tipo === "divisor") {
@@ -875,6 +928,59 @@
         }, 800);
       };
       cab.appendChild(ti);
+
+      /* ficha da página: status, prioridade, quem faz, setor e prazo */
+      var ficha = el('<div class="ficha"></div>');
+      function prop(rot, icone, campo, opcoes, tipo) {
+        var linha = el('<div class="ficha-l"><span class="ficha-r">' + icone + ' ' +
+          rot + '</span></div>');
+        var ctrl;
+        if (tipo === "data") {
+          ctrl = document.createElement("input");
+          ctrl.type = "date"; ctrl.value = pag[campo] || "";
+        } else {
+          ctrl = document.createElement("select");
+          ctrl.appendChild(el('<option value="">Vazio</option>'));
+          (opcoes || []).forEach(function (o) {
+            var op = document.createElement("option");
+            op.value = o; op.textContent = o;
+            if ((pag[campo] || "") === o) op.selected = true;
+            ctrl.appendChild(op);
+          });
+          if (pag[campo] && (opcoes || []).indexOf(pag[campo]) < 0) {
+            var ex = document.createElement("option");
+            ex.value = pag[campo]; ex.textContent = pag[campo]; ex.selected = true;
+            ctrl.appendChild(ex);
+          }
+        }
+        ctrl.className = "ficha-c" + (campo === "status" ? " st-" + cor(pag.status) : "");
+        var salva = function () {
+          var corpo = { id: paginaId };
+          corpo[campo] = ctrl.value;
+          api("/api/admin/ws-pagina", corpo).then(function () {
+            pisca("Salvo");
+            if (campo === "status") ctrl.className = "ficha-c st-" + cor(ctrl.value);
+          });
+          pag[campo] = ctrl.value;
+        };
+        ctrl.onchange = salva;
+        linha.appendChild(ctrl);
+        ficha.appendChild(linha);
+      }
+      function cor(st) {
+        return ({ "A fazer": "muted", "Em andamento": "ouro", "Em revisão": "ameixa",
+                  "Aguardando cliente": "terracota", "Concluído": "ok",
+                  "Pausado": "muted" })[st] || "muted";
+      }
+      var nomesEquipe = (dados.equipe_cliente || []).map(function (p) { return p.nome; });
+      prop("Status", "◍", "status", dados.status);
+      prop("Prioridade", "◆", "prioridade", dados.prioridades);
+      prop("Responsável", "◐", "responsavel",
+           nomesEquipe.concat(["Equipe B3 Sales"]));
+      prop("Setor", "▤", "setor", dados.setores);
+      prop("Prazo", "▣", "prazo", null, "data");
+      cab.appendChild(ficha);
+
       if (!daCasa) {
         var vis = el('<label class="ws-vis"><input type="checkbox"' +
           (pag.visivel_cliente ? " checked" : "") + '> <span>O cliente pode ver esta página</span></label>');
@@ -888,6 +994,7 @@
 
       /* blocos */
       var lista = el('<div class="ws-blocos"></div>');
+      pag._equipe = dados.equipe_cliente || [];
       pag.blocos.forEach(function (b) { lista.appendChild(desenharBloco(b, pag, redesenhar)); });
       if (!pag.blocos.length) {
         lista.appendChild(el('<p class="small muted" style="padding:8px 0">Página em branco. ' +

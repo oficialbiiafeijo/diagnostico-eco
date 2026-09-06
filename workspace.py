@@ -34,6 +34,21 @@ TIPOS = {
     "divisor":  ("Divisor", "—", {}),
 }
 
+# Propriedades de acompanhamento de cada página, no espírito de um quadro.
+STATUS_PAGINA = ["A fazer", "Em andamento", "Em revisão", "Aguardando cliente",
+                 "Concluído", "Pausado"]
+
+PRIORIDADES = ["Urgente", "Alta", "Média", "Baixa"]
+
+SETORES = ["Comercial", "Marketing", "Gestão", "Operação", "Financeiro",
+           "Atendimento", "Treinamento"]
+
+# cor de cada status, para o quadro ler de longe
+COR_STATUS = {
+    "A fazer": "muted", "Em andamento": "ouro", "Em revisão": "ameixa",
+    "Aguardando cliente": "terracota", "Concluído": "ok", "Pausado": "muted",
+}
+
 # Capas padrão por pilar, para a página já nascer com cara de material da casa.
 CAPAS = [
     {"id": "estrategia", "nome": "Estratégia",
