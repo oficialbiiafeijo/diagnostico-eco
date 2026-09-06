@@ -1034,3 +1034,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+Corrigir persistência de dados
