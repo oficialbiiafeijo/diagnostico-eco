@@ -581,3 +581,50 @@ select.ficha-c.st-ok{background:rgba(62,125,90,.13);color:var(--ok)}
 .fmt-a{color:var(--critico)}
 select.fmt-men{width:auto;margin:0;padding:4px 26px 4px 9px;font-size:12px;
   background-position:right 8px center}
+
+/* ================================================================
+   Cursos e trilhas de treinamento
+   ================================================================ */
+.cur-grade{display:grid;grid-template-columns:repeat(auto-fill,minmax(238px,1fr));gap:16px}
+.cur-card{background:var(--branco);border:1px solid var(--linha);border-radius:var(--r);
+  overflow:hidden;cursor:pointer;transition:.18s;box-shadow:var(--sombra)}
+.cur-card:hover{transform:translateY(-3px);box-shadow:var(--sombra-lg);
+  border-color:var(--ouro-300)}
+.cur-capa{height:118px;position:relative;display:flex;align-items:center;
+  justify-content:center}
+.cur-play{width:42px;height:42px;border-radius:50%;background:rgba(255,255,255,.9);
+  color:var(--ameixa-800);display:flex;align-items:center;justify-content:center;
+  font-size:15px;padding-left:3px}
+.cur-corpo{padding:15px 16px}
+.cur-corpo strong{display:block;font-size:15px;color:var(--ameixa-900);font-weight:500;
+  line-height:1.35}
+.cur-corpo .small{margin-top:4px;line-height:1.5}
+.cur-pe{display:flex;justify-content:space-between;align-items:center;gap:8px;
+  margin-top:12px;padding-top:10px;border-top:1px solid var(--linha);font-size:11.5px;
+  color:var(--muted)}
+.cur-lib{color:var(--ok)}
+.cur-fech{color:var(--terracota-700)}
+
+.aula{display:flex;align-items:center;gap:13px;padding:13px 0;
+  border-top:1px solid var(--linha)}
+.aula-n{width:24px;text-align:center;font-family:var(--serif);font-size:17px;
+  color:var(--ouro-700);flex:0 0 auto}
+.aula-capa{width:74px;height:44px;border-radius:7px;flex:0 0 auto;
+  border:1px solid var(--linha)}
+.aula-d{flex:1;min-width:0}
+.aula-d strong{font-size:14.5px;color:var(--ameixa-900);font-weight:500}
+.aula-x{display:flex;gap:3px;flex:0 0 auto}
+
+/* escolher itens numa lista */
+.pessoa.esc{border-radius:var(--r-sm);padding-left:10px;padding-right:10px}
+.pessoa.esc:hover{background:var(--creme-2)}
+.pessoa.esc.on{background:var(--ouro-100)}
+.esc-n{width:24px;height:24px;border-radius:50%;flex:0 0 auto;border:1px solid var(--linha-2);
+  display:flex;align-items:center;justify-content:center;font-size:11.5px;
+  color:var(--ameixa-800);background:var(--branco)}
+.pessoa.esc.on .esc-n{background:var(--ouro-600);border-color:var(--ouro-600);color:#fff}
+
+.capa-esc{display:flex;gap:8px;flex-wrap:wrap}
+.capa-esc button{width:44px;height:32px;border-radius:8px;cursor:pointer;
+  border:2px solid transparent}
+.capa-esc button.on{border-color:var(--ameixa-700)}

@@ -94,6 +94,14 @@
     overflow:hidden;background:#000}
   .p-emb iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
 
+  .p-aula{background:var(--branco);border:1px solid var(--linha);border-radius:var(--r);
+    padding:20px 22px;margin-bottom:16px;box-shadow:var(--sombra)}
+  .p-aula-cab{display:flex;gap:13px;align-items:flex-start}
+  .p-aula-n{width:28px;height:28px;border-radius:50%;flex:0 0 auto;
+    background:var(--ouro-100);color:var(--ouro-800);display:flex;align-items:center;
+    justify-content:center;font-family:var(--serif);font-size:14px}
+  .p-aula-cab strong{font-size:16px;color:var(--ameixa-900);font-weight:500}
+
   @media (max-width:600px){
     .p-hero h1{font-size:33px}
     .p-linha{padding-left:22px}
@@ -186,6 +194,27 @@
       palco.appendChild(mat);
     }
 
+    /* cursos liberados */
+    if ((d.cursos || []).length) {
+      palco.appendChild(el('<div class="p-sec"><div class="eyebrow">Para a sua equipe assistir</div>' +
+        '<h2>Os seus <em class="grifo">treinamentos</em></h2></div>'));
+      var cur = el('<div class="p-mat"></div>');
+      d.cursos.forEach(function (c) {
+        var card = el('<div class="p-mat-c">' +
+          '<div class="p-mat-capa" style="background:' + (CAPAS[c.capa] || CAPAS.ouro) +
+          ';display:flex;align-items:center;justify-content:center">' +
+          '<span style="width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,.9);' +
+          'color:var(--ameixa-800);display:flex;align-items:center;justify-content:center;' +
+          'padding-left:3px">▶</span></div>' +
+          '<div class="p-mat-t">' + esc(c.titulo) +
+          '<div class="small muted" style="margin-top:3px">' + c.aulas +
+          (c.aulas === 1 ? " aula" : " aulas") + '</div></div></div>');
+        card.onclick = function () { abrirCurso(c.id); };
+        cur.appendChild(card);
+      });
+      palco.appendChild(cur);
+    }
+
     /* linha do tempo */
     palco.appendChild(el('<div class="p-sec"><div class="eyebrow">Mês a mês</div>' +
       '<h2>A sua <em class="grifo">jornada</em></h2></div>'));
@@ -233,6 +262,57 @@
     palco.appendChild(el('<p class="small muted" style="text-align:center;margin-top:40px">' +
       'Este acompanhamento é atualizado pela equipe do Grupo B3 Sales conforme a ' +
       'implementação avança.</p>'));
+  }
+
+  function abrirCurso(id) {
+    fetch("/api/c/" + encodeURIComponent(token) + "/curso/" + encodeURIComponent(id))
+      .then(function (r) { return r.json(); })
+      .then(function (c) {
+        if (c.erro) return alert(c.erro);
+        palco.innerHTML = "";
+        var v = el('<button class="p-voltar">← Voltar ao acompanhamento</button>');
+        v.onclick = carregar;
+        palco.appendChild(v);
+        palco.appendChild(el('<div class="eyebrow">' + esc(c.trilha || "Treinamento") + '</div>'));
+        palco.appendChild(el('<h1 class="serif" style="font-size:38px;color:var(--ameixa-900);' +
+          'margin:6px 0 8px">' + esc(c.titulo) + '</h1>'));
+        if (c.descricao) {
+          palco.appendChild(el('<p class="muted" style="margin:0 0 26px;font-size:15px">' +
+            esc(c.descricao) + '</p>'));
+        }
+        if (!c.aulas.length) {
+          palco.appendChild(el('<p class="p-vazio">As aulas deste curso estão sendo ' +
+            'preparadas.</p>'));
+        }
+        c.aulas.forEach(function (a, i) {
+          var bloco = el('<div class="p-aula"></div>');
+          bloco.appendChild(el('<div class="p-aula-cab"><span class="p-aula-n">' + (i + 1) +
+            '</span><div><strong>' + esc(a.titulo) + '</strong>' +
+            (a.duracao ? '<span class="small muted">  ·  ' + esc(a.duracao) + '</span>' : '') +
+            (a.descricao ? '<div class="small muted">' + esc(a.descricao) + '</div>' : '') +
+            '</div></div>'));
+          if (a.midia_id) {
+            bloco.appendChild(el('<video controls style="width:100%;border-radius:var(--r);' +
+              'background:#000;margin-top:12px" src="/api/midia/' + esc(a.midia_id) + '"></video>'));
+          } else if (a.url) {
+            var yt = a.url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([\w-]{6,})/);
+            var vm = a.url.match(/vimeo\.com\/(?:video\/)?(\d+)/);
+            var src = yt ? "https://www.youtube.com/embed/" + yt[1]
+                    : vm ? "https://player.vimeo.com/video/" + vm[1] : a.url;
+            bloco.appendChild(el('<div class="p-emb" style="margin-top:12px"><iframe src="' +
+              esc(src) + '" allowfullscreen loading="lazy"></iframe></div>'));
+          }
+          if (a.material_midia_id) {
+            bloco.appendChild(el('<a href="/api/midia/' + esc(a.material_midia_id) +
+              '" target="_blank" style="display:inline-flex;align-items:center;gap:9px;' +
+              'margin-top:12px;padding:10px 15px;background:var(--creme-2);' +
+              'border:1px solid var(--linha);border-radius:var(--r-sm);text-decoration:none;' +
+              'color:var(--ameixa-800);font-size:14px">⇩ Material da aula</a>'));
+          }
+          palco.appendChild(bloco);
+        });
+        window.scrollTo(0, 0);
+      });
   }
 
   function abrirPagina(pid) {

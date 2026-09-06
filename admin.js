@@ -103,6 +103,10 @@
       (S.rota === "metodologia" ? " at" : "") + '">Metodologia</button>');
     bmet.onclick = function () { abrirMetodologia(); };
     dir.appendChild(bmet);
+    var bcur = el('<button class="btn btn-fantasma btn-sm' +
+      (S.rota === "cursos" ? " at" : "") + '">Cursos</button>');
+    bcur.onclick = function () { abrirCursos(); };
+    dir.appendChild(bcur);
     var bu = el('<button class="btn btn-fantasma btn-sm">Pessoas com acesso</button>');
     bu.onclick = modalUsuarios;
     dir.appendChild(bu);
@@ -396,6 +400,281 @@
     modal("Acompanhamento do cliente", "O que ele vê", corpo);
   }
 
+
+
+  /* ------------------------------------------------------------ cursos */
+  function telaCursos(d, cursoAberto) {
+    var wrap = document.createElement("div");
+    CAPA_CSS = {};
+    (d.capas || []).forEach(function (c) { CAPA_CSS[c.id] = c.css; });
+
+    wrap.appendChild(el('<div class="painel-topo"><div>' +
+      '<div class="eyebrow">Treinamento</div>' +
+      '<h1 class="serif">Os seus <em class="grifo">cursos</em></h1>' +
+      '<p class="muted small" style="margin-top:6px">Trilhas de aula para a equipe do ' +
+      'cliente assistir. Você escolhe quem vê cada curso.</p></div>' +
+      '<div style="display:flex;gap:10px;align-items:center"></div></div>'));
+    var bNovo = el('<button class="btn btn-ouro btn-sm">+ Novo curso</button>');
+    bNovo.onclick = function () { modalCurso(null, d); };
+    wrap.querySelector(".painel-topo > div:last-child").appendChild(bNovo);
+
+    if (!d.cursos.length) {
+      wrap.appendChild(el('<div class="card card-pad center" style="padding:52px 24px">' +
+        '<h2 class="serif" style="font-size:26px;color:var(--ameixa-900)">Nenhum curso ainda</h2>' +
+        '<p class="muted small" style="margin-top:8px">Crie a primeira trilha. ' +
+        'Aula longa entra por link do Panda, YouTube ou Vimeo.</p></div>'));
+      return wrap;
+    }
+
+    /* agrupado por trilha */
+    var trilhas = {};
+    d.cursos.forEach(function (c) {
+      var t = c.trilha || "Sem trilha";
+      (trilhas[t] = trilhas[t] || []).push(c);
+    });
+    Object.keys(trilhas).forEach(function (t) {
+      wrap.appendChild(el('<div class="p-sec" style="margin:30px 0 12px">' +
+        '<div class="eyebrow">Trilha</div>' +
+        '<h2 class="serif tit-card" style="margin-bottom:0">' + esc(t) + '</h2></div>'));
+      var grade = el('<div class="cur-grade"></div>');
+      trilhas[t].forEach(function (c) {
+        var card = el('<div class="cur-card">' +
+          '<div class="cur-capa" style="background:' +
+          (c.capa_midia_id ? "#000 url(/api/midia/" + esc(c.capa_midia_id) +
+            ") center/cover" : (CAPA_CSS[c.capa] || "var(--creme-3)")) + '">' +
+          '<span class="cur-play">▶</span></div>' +
+          '<div class="cur-corpo"><strong>' + esc(c.titulo) + '</strong>' +
+          (c.descricao ? '<div class="small muted">' + esc(c.descricao) + '</div>' : '') +
+          '<div class="cur-pe"><span>' + c.aulas +
+          (c.aulas === 1 ? " aula" : " aulas") + '</span>' +
+          '<span class="' + (c.clientes.length ? "cur-lib" : "cur-fech") + '">' +
+          (c.clientes.length ? c.clientes.length + " com acesso" : "ninguém vê ainda") +
+          '</span></div></div>');
+        card.onclick = function () { abrirCurso(c.id); };
+        grade.appendChild(card);
+      });
+      wrap.appendChild(grade);
+    });
+    return wrap;
+  }
+
+  function modalCurso(c, d) {
+    c = c || {};
+    var corpo = el('<div>' +
+      campoTexto("cu_tit", "Nome do curso", "Ex: Treinamento de SDR", c.titulo) +
+      campoTexto("cu_tri", "Trilha", "Ex: Funil de vendas", c.trilha) +
+      '<div class="campo" style="margin-bottom:14px"><label class="small" ' +
+      'style="color:var(--ameixa-700);margin-bottom:5px;display:block">Sobre o curso</label>' +
+      '<textarea id="cu_desc" style="min-height:70px">' + esc(c.descricao || "") + '</textarea></div>' +
+      '<label class="small" style="color:var(--ameixa-700);margin-bottom:7px;display:block">Capa</label>' +
+      '<div class="capa-esc" id="cu_capas"></div></div>');
+    var capaEsc = c.capa || "ouro";
+    var cx = corpo.querySelector("#cu_capas");
+    (d.capas || []).forEach(function (cp) {
+      var b = el('<button type="button" title="' + esc(cp.nome) + '" style="background:' +
+        cp.css + '"' + (capaEsc === cp.id ? ' class="on"' : '') + '></button>');
+      b.onclick = function () {
+        capaEsc = cp.id;
+        cx.querySelectorAll("button").forEach(function (x) { x.classList.remove("on"); });
+        b.classList.add("on");
+      };
+      cx.appendChild(b);
+    });
+    var bs = el('<button class="btn btn-ouro">Salvar</button>');
+    var f = modal(c.id ? "Editar curso" : "Novo curso", "Treinamento", corpo, [bs]);
+    bs.onclick = function () {
+      var t = f.querySelector("#cu_tit").value.trim();
+      if (!t) return toast("Dê um nome ao curso");
+      api("/api/admin/curso-salvar", { id: c.id, titulo: t,
+        trilha: f.querySelector("#cu_tri").value,
+        descricao: f.querySelector("#cu_desc").value, capa: capaEsc })
+        .then(function (r) {
+          if (r.erro) return toast(r.erro);
+          f.remove(); toast("Curso salvo"); abrirCurso(r.id);
+        });
+    };
+  }
+
+  function telaCurso(c) {
+    var wrap = document.createElement("div");
+    CAPA_CSS = {};
+    (c.capas || []).forEach(function (x) { CAPA_CSS[x.id] = x.css; });
+
+    var volta = el('<button class="btn btn-linha btn-sm">← Todos os cursos</button>');
+    volta.onclick = function () { abrirCursos(); };
+    wrap.appendChild(el('<div class="painel-topo"><div>' +
+      '<div class="eyebrow">' + esc(c.trilha || "Treinamento") + '</div>' +
+      '<h1 class="serif">' + esc(c.titulo) + '</h1>' +
+      (c.descricao ? '<p class="muted small" style="margin-top:6px">' +
+        esc(c.descricao) + '</p>' : '') +
+      '</div><div style="display:flex;gap:10px;align-items:center"></div></div>'));
+    var topo = wrap.querySelector(".painel-topo > div:last-child");
+    var bEd = el('<button class="btn btn-linha btn-sm">Editar curso</button>');
+    bEd.onclick = function () { modalCurso(c, c); };
+    var bAc = el('<button class="btn btn-ouro btn-sm">Quem pode ver</button>');
+    bAc.onclick = function () { modalAcesso(c); };
+    topo.appendChild(bEd); topo.appendChild(bAc); topo.appendChild(volta);
+
+    var lista = el('<div class="card card-pad"></div>');
+    lista.appendChild(el('<div class="eyebrow">' + c.aulas.length +
+      (c.aulas.length === 1 ? " aula" : " aulas") + '</div>'));
+    if (!c.aulas.length) {
+      lista.appendChild(el('<p class="small muted" style="margin-top:10px">Nenhuma aula ' +
+        'ainda. Acrescente a primeira abaixo.</p>'));
+    }
+    c.aulas.forEach(function (a, i) {
+      var linha = el('<div class="aula">' +
+        '<span class="aula-n">' + (i + 1) + '</span>' +
+        '<div class="aula-capa" style="background:' +
+        (a.capa_midia_id ? "#000 url(/api/midia/" + esc(a.capa_midia_id) +
+          ") center/cover" : "var(--creme-3)") + '"></div>' +
+        '<div class="aula-d"><strong>' + esc(a.titulo) + '</strong>' +
+        (a.duracao ? '<div class="small muted">' + esc(a.duracao) + '</div>' : '') +
+        (a.descricao ? '<div class="small muted">' + esc(a.descricao) + '</div>' : '') +
+        '</div></div>');
+      var acoes = el('<div class="aula-x"></div>');
+      [["↑", "cima"], ["↓", "baixo"]].forEach(function (m) {
+        var b = el('<button class="acao-x" title="Mover">' + m[0] + '</button>');
+        b.onclick = function () {
+          api("/api/admin/aula-mover", { id: a.id, direcao: m[1] })
+            .then(function () { abrirCurso(c.id); });
+        };
+        acoes.appendChild(b);
+      });
+      var be = el('<button class="acao-x" title="Editar">✎</button>');
+      be.onclick = function () { modalAula(c, a); };
+      var bx = el('<button class="acao-x" title="Remover">×</button>');
+      bx.onclick = function () {
+        if (!confirm('Remover a aula "' + a.titulo + '"?')) return;
+        api("/api/admin/aula-excluir", { id: a.id }).then(function () { abrirCurso(c.id); });
+      };
+      acoes.appendChild(be); acoes.appendChild(bx);
+      linha.appendChild(acoes);
+      lista.appendChild(linha);
+    });
+    var bNova = el('<button class="btn btn-ouro btn-sm" style="margin-top:16px">+ Nova aula</button>');
+    bNova.onclick = function () { modalAula(c, null); };
+    lista.appendChild(bNova);
+    wrap.appendChild(lista);
+
+    var bDel = el('<button class="btn btn-linha btn-sm" style="margin-top:20px">Excluir este curso</button>');
+    bDel.onclick = function () {
+      if (!confirm('Excluir "' + c.titulo + '" e todas as aulas?')) return;
+      api("/api/admin/curso-excluir", { id: c.id }).then(function () {
+        toast("Curso excluído"); abrirCursos();
+      });
+    };
+    wrap.appendChild(bDel);
+    return wrap;
+  }
+
+  function modalAula(c, a) {
+    a = a || {};
+    var corpo = el('<div>' +
+      campoTexto("au_tit", "Nome da aula", "Ex: Como abrir a ligação", a.titulo) +
+      campoTexto("au_dur", "Duração", "Ex: 42 min", a.duracao) +
+      campoTexto("au_url", "Link do vídeo", "Panda, YouTube ou Vimeo", a.url) +
+      '<p class="small muted" style="margin:-8px 0 14px">Aula longa por link carrega ' +
+      'mais rápido e não pesa no servidor.</p>' +
+      '<div class="campo" style="margin-bottom:14px"><label class="small" ' +
+      'style="color:var(--ameixa-700);margin-bottom:5px;display:block">Sobre a aula</label>' +
+      '<textarea id="au_desc" style="min-height:70px">' + esc(a.descricao || "") + '</textarea></div>' +
+      '<div id="au_capa" style="margin-bottom:14px"></div>' +
+      '<div id="au_mat"></div></div>');
+
+    var capaId = a.capa_midia_id || "";
+    var matId = a.material_midia_id || "";
+
+    var areaCapa = corpo.querySelector("#au_capa");
+    function pintarCapa() {
+      areaCapa.innerHTML = "";
+      areaCapa.appendChild(el('<label class="small" style="color:var(--ameixa-700);' +
+        'margin-bottom:6px;display:block">Capa da aula</label>'));
+      if (capaId) {
+        areaCapa.appendChild(el('<img src="/api/midia/' + esc(capaId) + '" ' +
+          'style="max-height:78px;border-radius:var(--r-sm);margin-bottom:8px;display:block">'));
+      }
+      areaCapa.appendChild(botaoEnviar(capaId ? "↑ Trocar a capa" : "↑ Enviar uma capa",
+        null, "curso", function (r) { capaId = r.id; pintarCapa(); }, "image/*"));
+    }
+    pintarCapa();
+
+    var areaMat = corpo.querySelector("#au_mat");
+    function pintarMat() {
+      areaMat.innerHTML = "";
+      areaMat.appendChild(el('<label class="small" style="color:var(--ameixa-700);' +
+        'margin-bottom:6px;display:block">Material de apoio</label>'));
+      if (matId) {
+        areaMat.appendChild(el('<a class="ws-arq" style="margin-bottom:8px" href="/api/midia/' +
+          esc(matId) + '" target="_blank"><span class="ws-arq-i">⇩</span>' +
+          '<span>Abrir o material</span></a>'));
+      }
+      areaMat.appendChild(botaoEnviar(matId ? "↑ Trocar o material" : "↑ Anexar material",
+        null, "curso", function (r) { matId = r.id; pintarMat(); }));
+    }
+    pintarMat();
+
+    var bs = el('<button class="btn btn-ouro">Salvar</button>');
+    var f = modal(a.id ? "Editar aula" : "Nova aula", esc(c.titulo), corpo, [bs]);
+    bs.onclick = function () {
+      var t = f.querySelector("#au_tit").value.trim();
+      if (!t) return toast("Dê um nome à aula");
+      api("/api/admin/aula-salvar", { id: a.id, curso_id: c.id, titulo: t,
+        duracao: f.querySelector("#au_dur").value, url: f.querySelector("#au_url").value,
+        descricao: f.querySelector("#au_desc").value, midia_id: a.midia_id || "",
+        capa_midia_id: capaId, material_midia_id: matId })
+        .then(function (r) {
+          if (r.erro) return toast(r.erro);
+          f.remove(); toast("Aula salva"); abrirCurso(c.id);
+        });
+    };
+  }
+
+  function modalAcesso(c) {
+    var corpo = el('<div></div>');
+    corpo.appendChild(el('<p class="small muted" style="margin:0 0 14px;line-height:1.7">' +
+      'Marque quem enxerga este curso no acompanhamento. Quem não estiver marcado ' +
+      'não vê o curso.</p>'));
+    var escolhidos = (c.acesso || []).slice();
+    (c.clientes || []).forEach(function (cli) {
+      var it = el('<div class="pessoa esc' + (escolhidos.indexOf(cli.id) >= 0 ? " on" : "") +
+        '" style="cursor:pointer"><span class="esc-n">' +
+        (escolhidos.indexOf(cli.id) >= 0 ? "✓" : "") + '</span>' +
+        '<div class="pessoa-d"><strong>' + esc(cli.empresa) + '</strong></div></div>');
+      it.onclick = function () {
+        var i = escolhidos.indexOf(cli.id);
+        if (i >= 0) escolhidos.splice(i, 1); else escolhidos.push(cli.id);
+        it.classList.toggle("on", escolhidos.indexOf(cli.id) >= 0);
+        it.querySelector(".esc-n").textContent = escolhidos.indexOf(cli.id) >= 0 ? "✓" : "";
+      };
+      corpo.appendChild(it);
+    });
+    if (!(c.clientes || []).length) {
+      corpo.appendChild(el('<p class="small muted">Nenhum cliente ativo ainda.</p>'));
+    }
+    var bs = el('<button class="btn btn-ouro">Salvar acesso</button>');
+    var f = modal("Quem pode ver", esc(c.titulo), corpo, [bs]);
+    bs.onclick = function () {
+      api("/api/admin/curso-acesso", { curso_id: c.id, clientes: escolhidos })
+        .then(function () { f.remove(); toast("Acesso atualizado"); abrirCurso(c.id); });
+    };
+  }
+
+  function abrirCursos() {
+    api("/api/admin/cursos").then(function (d) {
+      if (d.erro) return toast(d.erro);
+      S.rota = "cursos";
+      shell(telaCursos(d));
+    });
+  }
+
+  function abrirCurso(id) {
+    api("/api/admin/curso/" + id).then(function (c) {
+      if (c.erro) return toast(c.erro);
+      S.rota = "cursos";
+      shell(telaCurso(c));
+    });
+  }
 
   /* ------------------------------------------------- envio de arquivos */
   var TIPOS_ACEITOS = "image/*,video/*,audio/*,application/pdf,.doc,.docx,.xls,.xlsx," +
@@ -833,6 +1112,20 @@
           'Daqui você leva uma página pronta para dentro de uma empresa e adapta.</p>'
         : '<h1 class="serif">O que já <em class="grifo">entregamos</em></h1>') +
       '</div><div style="display:flex;gap:10px;align-items:center"></div></div>'));
+
+    if (daCasa && dados.resumo) {
+      var rs = dados.resumo;
+      wrap.appendChild(el('<div class="kpis" style="margin-bottom:20px">' +
+        '<div class="kpi"><b>' + rs.paginas + '</b><span>Páginas</span></div>' +
+        '<div class="kpi"><b>' + rs.subpaginas + '</b><span>Subpáginas</span></div>' +
+        '<div class="kpi"><b>' + (rs.palavras > 999
+          ? (rs.palavras / 1000).toFixed(1).replace(".", ",") + "k" : rs.palavras) +
+        '</b><span>Palavras</span></div>' +
+        '<div class="kpi"><b>' + rs.arquivos + '</b><span>Arquivos</span></div>' +
+        '<div class="kpi"><b>' + rs.cursos + '</b><span>Cursos</span></div>' +
+        '<div class="kpi"><b>' + rs.aulas + '</b><span>Aulas</span></div>' +
+        '</div>'));
+    }
     var acoesTopo = wrap.querySelector(".painel-topo > div:last-child");
     acoesTopo.appendChild(el('<span id="ws_salvo" class="ws-salvo">Salvo</span>'));
     if (!daCasa) {
@@ -1042,24 +1335,44 @@
       corpo.appendChild(el('<p class="small muted" style="margin:0 0 14px;line-height:1.7">' +
         'A página vem como cópia. Você adapta para esta empresa sem mexer na ' +
         'metodologia original.</p>'));
+      var escolhidas = [];
       d.paginas.forEach(function (pg) {
-        var it = el('<div class="pessoa" style="cursor:pointer">' +
+        var it = el('<div class="pessoa esc" style="cursor:pointer">' +
+          '<span class="esc-n"></span>' +
           '<span class="ws-pag-capa" style="background:' +
           (CAPA_CSS[pg.capa] || "var(--creme-3)") + '"></span>' +
           '<div class="pessoa-d" style="margin-left:4px"><strong>' + esc(pg.titulo) + '</strong>' +
           '<div class="small muted">' + pg.blocos +
           (pg.blocos === 1 ? " bloco" : " blocos") + '</div></div></div>');
         it.onclick = function () {
-          api("/api/admin/ws-copiar", { cliente_id: cid, pagina_id: pg.id })
-            .then(function (r) {
-              if (r.erro) return toast(r.erro);
-              var m = document.querySelector(".modal-fundo"); if (m) m.remove();
-              toast("Página trazida"); abrirMateriais(cid, r.id);
-            });
+          var i = escolhidas.indexOf(pg.id);
+          if (i >= 0) escolhidas.splice(i, 1); else escolhidas.push(pg.id);
+          corpo.querySelectorAll(".esc").forEach(function (x, idx) {
+            var pos = escolhidas.indexOf(d.paginas[idx].id);
+            x.classList.toggle("on", pos >= 0);
+            x.querySelector(".esc-n").textContent = pos >= 0 ? (pos + 1) : "";
+          });
+          bLevar.textContent = escolhidas.length
+            ? "Levar " + escolhidas.length + (escolhidas.length === 1 ? " página" : " páginas")
+            : "Escolha ao menos uma";
+          bLevar.disabled = !escolhidas.length;
         };
         corpo.appendChild(it);
       });
-      modal("Trazer da metodologia", "Base da casa", corpo);
+      corpo.appendChild(el('<p class="small muted" style="margin:14px 0 0">A ordem do ' +
+        'número é a ordem em que elas vão entrar no cliente.</p>'));
+      var bLevar = el('<button class="btn btn-ouro">Escolha ao menos uma</button>');
+      bLevar.disabled = true;
+      bLevar.onclick = function () {
+        api("/api/admin/ws-copiar", { cliente_id: cid, paginas: escolhidas })
+          .then(function (r) {
+            if (r.erro) return toast(r.erro);
+            var m = document.querySelector(".modal-fundo"); if (m) m.remove();
+            toast(r.criadas + (r.criadas === 1 ? " página trazida" : " páginas trazidas"));
+            abrirMateriais(cid, r.id);
+          });
+      };
+      modal("Trazer da metodologia", "Base da casa", corpo, [bLevar]);
     });
   }
 
