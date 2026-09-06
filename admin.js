@@ -99,6 +99,10 @@
     var bp = el('<button class="btn btn-fantasma btn-sm' +
       (S.rota === "lista" ? " at" : "") + '">Clientes</button>');
     bp.onclick = function () { S.rota = "lista"; carregar(); };
+    var bmet = el('<button class="btn btn-fantasma btn-sm' +
+      (S.rota === "metodologia" ? " at" : "") + '">Metodologia</button>');
+    bmet.onclick = function () { abrirMetodologia(); };
+    dir.appendChild(bmet);
     var bu = el('<button class="btn btn-fantasma btn-sm">Pessoas com acesso</button>');
     bu.onclick = modalUsuarios;
     dir.appendChild(bu);
@@ -585,19 +589,26 @@
   }
 
   function telaMateriais(cid, dados, paginaId) {
+    var daCasa = !cid;                      /* sem cliente = metodologia da B3 Sales */
     var wrap = document.createElement("div");
     CAPA_CSS = {};
     dados.capas.forEach(function (c) { CAPA_CSS[c.id] = c.css; });
 
-    var volta = el('<button class="btn btn-linha btn-sm">← Voltar ao cliente</button>');
-    volta.onclick = function () { abrirCliente(cid); };
     wrap.appendChild(el('<div class="painel-topo"><div>' +
-      '<div class="eyebrow">Materiais e metodologia</div>' +
-      '<h1 class="serif">O que já <em class="grifo">entregamos</em></h1></div>' +
-      '<div style="display:flex;gap:10px;align-items:center"></div></div>'));
+      '<div class="eyebrow">' + (daCasa ? "A base de tudo" : "Materiais e metodologia") + '</div>' +
+      (daCasa
+        ? '<h1 class="serif">A metodologia <em class="grifo">da casa</em></h1>' +
+          '<p class="muted small" style="margin-top:6px">O que vale para qualquer cliente. ' +
+          'Daqui você leva uma página pronta para dentro de uma empresa e adapta.</p>'
+        : '<h1 class="serif">O que já <em class="grifo">entregamos</em></h1>') +
+      '</div><div style="display:flex;gap:10px;align-items:center"></div></div>'));
     var acoesTopo = wrap.querySelector(".painel-topo > div:last-child");
     acoesTopo.appendChild(el('<span id="ws_salvo" class="ws-salvo">Salvo</span>'));
-    acoesTopo.appendChild(volta);
+    if (!daCasa) {
+      var volta = el('<button class="btn btn-linha btn-sm">← Voltar ao cliente</button>');
+      volta.onclick = function () { abrirCliente(cid); };
+      acoesTopo.appendChild(volta);
+    }
 
     var grade = el('<div class="ws-grade"></div>');
 
@@ -616,9 +627,12 @@
       lat.appendChild(el('<p class="small muted">Nenhuma página ainda.</p>'));
       var bm = el('<button class="btn btn-ouro btn-sm" style="width:100%;margin-top:10px">Criar a estrutura sugerida</button>');
       bm.onclick = function () {
-        api("/api/admin/ws-modelo", { cliente_id: cid }).then(function () {
-          toast("Estrutura criada"); abrirMateriais(cid);
-        });
+        api(daCasa ? "/api/admin/metodologia-modelo" : "/api/admin/ws-modelo",
+            daCasa ? {} : { cliente_id: cid })
+          .then(function () {
+            toast("Estrutura criada");
+            daCasa ? abrirMetodologia() : abrirMateriais(cid);
+          });
       };
       lat.appendChild(bm);
     }
@@ -626,10 +640,15 @@
     bnova.onclick = function () {
       var t = prompt("Nome da página:", "Nova página");
       if (t === null) return;
-      api("/api/admin/ws-pagina", { cliente_id: cid, titulo: t || "Nova página" })
-        .then(function (r) { abrirMateriais(cid, r.id); });
+      api("/api/admin/ws-pagina", { cliente_id: cid || null, titulo: t || "Nova página" })
+        .then(function (r) { daCasa ? abrirMetodologia(r.id) : abrirMateriais(cid, r.id); });
     };
     lat.appendChild(bnova);
+    if (!daCasa) {
+      var bTraz = el('<button class="btn btn-ouro btn-sm" style="width:100%;margin-top:8px">↓ Trazer da metodologia</button>');
+      bTraz.onclick = function () { modalTrazer(cid); };
+      lat.appendChild(bTraz);
+    }
     grade.appendChild(lat);
 
     /* a página aberta */
@@ -649,7 +668,9 @@
 
     api("/api/admin/ws-pagina/" + paginaId).then(function (pag) {
       col.innerHTML = "";
-      function redesenhar() { abrirMateriais(cid, paginaId); }
+      function redesenhar() {
+        daCasa ? abrirMetodologia(paginaId) : abrirMateriais(cid, paginaId);
+      }
 
       /* capa */
       var capa = el('<div class="ws-capa" style="background:' +
@@ -676,13 +697,15 @@
         }, 800);
       };
       cab.appendChild(ti);
-      var vis = el('<label class="ws-vis"><input type="checkbox"' +
-        (pag.visivel_cliente ? " checked" : "") + '> <span>O cliente pode ver esta página</span></label>');
-      vis.querySelector("input").onchange = function (e) {
-        api("/api/admin/ws-pagina", { id: paginaId, visivel_cliente: e.target.checked ? 1 : 0 })
-          .then(function () { pisca(e.target.checked ? "Visível ao cliente" : "Só interno"); });
-      };
-      cab.appendChild(vis);
+      if (!daCasa) {
+        var vis = el('<label class="ws-vis"><input type="checkbox"' +
+          (pag.visivel_cliente ? " checked" : "") + '> <span>O cliente pode ver esta página</span></label>');
+        vis.querySelector("input").onchange = function (e) {
+          api("/api/admin/ws-pagina", { id: paginaId, visivel_cliente: e.target.checked ? 1 : 0 })
+            .then(function () { pisca(e.target.checked ? "Visível ao cliente" : "Só interno"); });
+        };
+        cab.appendChild(vis);
+      }
       col.appendChild(cab);
 
       /* blocos */
@@ -703,12 +726,56 @@
       bex.onclick = function () {
         if (!confirm('Excluir a página "' + pag.titulo + '" e tudo que está nela?')) return;
         api("/api/admin/ws-pagina-excluir", { id: paginaId }).then(function () {
-          toast("Página excluída"); abrirMateriais(cid);
+          toast("Página excluída");
+          daCasa ? abrirMetodologia() : abrirMateriais(cid);
         });
       };
       col.appendChild(bex);
     });
     return wrap;
+  }
+
+  function abrirMetodologia(paginaId) {
+    api("/api/admin/metodologia").then(function (d) {
+      if (d.erro) return toast(d.erro);
+      S.rota = "metodologia"; S.cid = null;
+      var pid = paginaId || (d.paginas[0] && d.paginas[0].id) || null;
+      shell(telaMateriais(null, d, pid));
+    });
+  }
+
+  function modalTrazer(cid) {
+    api("/api/admin/metodologia").then(function (d) {
+      var corpo = el('<div></div>');
+      if (!d.paginas.length) {
+        corpo.appendChild(el('<p class="small muted">A sua metodologia ainda está vazia. ' +
+          'Monte ela em <strong>Metodologia</strong>, na barra de cima, e depois traga ' +
+          'as páginas para os clientes.</p>'));
+        modal("Trazer da metodologia", "Base da casa", corpo);
+        return;
+      }
+      corpo.appendChild(el('<p class="small muted" style="margin:0 0 14px;line-height:1.7">' +
+        'A página vem como cópia. Você adapta para esta empresa sem mexer na ' +
+        'metodologia original.</p>'));
+      d.paginas.forEach(function (pg) {
+        var it = el('<div class="pessoa" style="cursor:pointer">' +
+          '<span class="ws-pag-capa" style="background:' +
+          (CAPA_CSS[pg.capa] || "var(--creme-3)") + '"></span>' +
+          '<div class="pessoa-d" style="margin-left:4px"><strong>' + esc(pg.titulo) + '</strong>' +
+          '<div class="small muted">' + pg.blocos +
+          (pg.blocos === 1 ? " bloco" : " blocos") + '</div></div></div>');
+        it.onclick = function () {
+          api("/api/admin/ws-copiar", { cliente_id: cid, pagina_id: pg.id })
+            .then(function (r) {
+              if (r.erro) return toast(r.erro);
+              var m = document.querySelector(".modal-fundo"); if (m) m.remove();
+              toast("Página trazida"); abrirMateriais(cid, r.id);
+            });
+        };
+        corpo.appendChild(it);
+      });
+      modal("Trazer da metodologia", "Base da casa", corpo);
+    });
   }
 
   function abrirMateriais(cid, paginaId) {

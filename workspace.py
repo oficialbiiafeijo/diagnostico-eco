@@ -64,8 +64,12 @@ MODELO_INICIAL = [
 
 
 def _agora_ordem(conn, cliente_id):
-    r = conn.execute("SELECT COALESCE(MAX(ordem),0)+1 n FROM ws_paginas WHERE cliente_id=?",
-                     (cliente_id,)).fetchone()
+    if cliente_id is None:
+        r = conn.execute("SELECT COALESCE(MAX(ordem),0)+1 n FROM ws_paginas "
+                         "WHERE cliente_id IS NULL").fetchone()
+    else:
+        r = conn.execute("SELECT COALESCE(MAX(ordem),0)+1 n FROM ws_paginas "
+                         "WHERE cliente_id=?", (cliente_id,)).fetchone()
     return r["n"]
 
 
@@ -91,6 +95,64 @@ def montar_modelo(conn, cliente_id, agora):
     for i, (titulo, capa, desc) in enumerate(MODELO_INICIAL, start=1):
         criadas.append(criar_pagina(conn, cliente_id, titulo, agora, capa, desc, i))
     return criadas
+
+
+# A metodologia da B3 Sales sao as paginas sem dono: cliente_id nulo.
+# Elas sao a base reutilizavel; a pagina de um cliente e uma instancia dela.
+MODELO_METODOLOGIA = [
+    ("Fundação do método", "ameixa",
+     "O que sustenta tudo: a promessa, para quem serve e o que entrega."),
+    ("E · Estratégia", "estrategia",
+     "Cliente ideal, proposta de valor, oferta, canais e meta."),
+    ("C · Condução", "conducao",
+     "A jornada do lead: atendimento, qualificação, proposta, follow up e fechamento."),
+    ("O · Operação", "operacao",
+     "Registro, indicadores, rotina de gestão, time e documentação."),
+    ("Scripts e abordagens", "conducao",
+     "O que se fala em cada momento da conversa."),
+    ("Rotinas de gestão", "operacao",
+     "Os encontros e os rituais que sustentam o processo."),
+    ("Treinamentos", "ouro",
+     "A trilha que forma alguém novo sem começar do zero."),
+    ("Casos e provas", "creme",
+     "Resultados, antes e depois, depoimentos."),
+]
+
+
+def montar_metodologia(conn, agora):
+    criadas = []
+    for i, (titulo, capa, desc) in enumerate(MODELO_METODOLOGIA, start=1):
+        criadas.append(criar_pagina(conn, None, titulo, agora, capa, desc, i))
+    return criadas
+
+
+def listar_metodologia(conn):
+    saida = []
+    for r in conn.execute("SELECT * FROM ws_paginas WHERE cliente_id IS NULL "
+                          "ORDER BY ordem, criado_em"):
+        d = dict(r)
+        d["blocos"] = conn.execute(
+            "SELECT COUNT(*) n FROM ws_blocos WHERE pagina_id=?", (r["id"],)).fetchone()["n"]
+        saida.append(d)
+    return saida
+
+
+def copiar_para_cliente(conn, pagina_id, cliente_id, agora):
+    """Traz uma pagina da metodologia para dentro de um cliente.
+
+    A copia e independente: mexer nela nao altera a metodologia, e vice versa.
+    """
+    origem = ler_pagina(conn, pagina_id)
+    if not origem:
+        return None
+    novo = criar_pagina(conn, cliente_id, origem["titulo"], agora, origem["capa"] or "")
+    for b in origem["blocos"]:
+        conn.execute("INSERT INTO ws_blocos(id,pagina_id,tipo,ordem,conteudo,atualizado_em) "
+                     "VALUES(?,?,?,?,?,?)",
+                     (secrets.token_hex(8), novo, b["tipo"], b["ordem"],
+                      json.dumps(b["conteudo"], ensure_ascii=False), agora))
+    conn.commit()
+    return novo
 
 
 def listar_paginas(conn, cliente_id):

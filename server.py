@@ -593,6 +593,10 @@ class Handler(BaseHTTPRequestHandler):
         m = re.fullmatch(r"/api/c/([\w\-]+)/pagina/([\w\-]+)", p)
         if m:
             return self.api_portal_pagina(m.group(1), m.group(2))
+        if p == "/api/admin/metodologia":
+            if not self.exige_admin():
+                return
+            return self.api_metodologia()
         m = re.fullmatch(r"/api/admin/ws/([\w\-]+)", p)
         if m:
             if not self.exige_admin():
@@ -684,6 +688,10 @@ class Handler(BaseHTTPRequestHandler):
             return self.api_usuario_excluir()
         if p == "/api/admin/portal":
             return self.api_portal_config()
+        if p == "/api/admin/metodologia-modelo":
+            return self.api_metodologia_modelo()
+        if p == "/api/admin/ws-copiar":
+            return self.api_ws_copiar()
         if p == "/api/admin/ws-pagina":
             return self.api_ws_pagina_salvar()
         if p == "/api/admin/ws-pagina-excluir":
@@ -1058,6 +1066,31 @@ class Handler(BaseHTTPRequestHandler):
         pag.pop("cliente_id", None)
         return self.json(pag)
 
+    # ------------------------------------------------------ metodologia
+    def api_metodologia(self):
+        """A base reutilizável da B3 Sales. Páginas sem dono."""
+        return self.json({
+            "paginas": workspace.listar_metodologia(db()),
+            "tipos": [{"id": k, "nome": v[0], "icone": v[1]}
+                      for k, v in workspace.TIPOS.items()],
+            "capas": workspace.CAPAS,
+        })
+
+    def api_metodologia_modelo(self):
+        criadas = workspace.montar_metodologia(db(), now())
+        return self.json({"ok": True, "criadas": len(criadas)})
+
+    def api_ws_copiar(self):
+        """Traz uma página da metodologia para dentro de um cliente."""
+        b = self.body()
+        cid = b.get("cliente_id")
+        if not cliente_dict(cid):
+            return self.erro("Cliente não encontrado.", 404)
+        novo = workspace.copiar_para_cliente(db(), b.get("pagina_id"), cid, now())
+        if not novo:
+            return self.erro("Página não encontrada.", 404)
+        return self.json({"ok": True, "id": novo})
+
     # ------------------------------------------------- espaço de materiais
     def api_ws(self, cid):
         if not cliente_dict(cid):
@@ -1073,10 +1106,16 @@ class Handler(BaseHTTPRequestHandler):
         p = workspace.ler_pagina(db(), pid)
         if not p:
             return self.erro("Página não encontrada.", 404)
-        # no espaço de materiais valem todos os arquivos do cliente, de qualquer ciclo
-        p["anexos"] = [dict(r) for r in db().execute(
-            "SELECT id, nome, tipo, tamanho, ciclo, origem FROM anexos WHERE cliente_id=? "
-            "ORDER BY enviado_em DESC", (p["cliente_id"],))] if p["cliente_id"] else []
+        # no espaço de materiais valem todos os arquivos do cliente, de qualquer ciclo.
+        # na metodologia, que não tem dono, valem todos os arquivos do sistema.
+        if p["cliente_id"]:
+            p["anexos"] = [dict(r) for r in db().execute(
+                "SELECT id, nome, tipo, tamanho, ciclo, origem FROM anexos WHERE cliente_id=? "
+                "ORDER BY enviado_em DESC", (p["cliente_id"],))]
+        else:
+            p["anexos"] = [dict(r) for r in db().execute(
+                "SELECT id, nome, tipo, tamanho, ciclo, origem FROM anexos "
+                "ORDER BY enviado_em DESC LIMIT 200")]
         return self.json(p)
 
     def api_ws_pagina_salvar(self):
@@ -1094,8 +1133,9 @@ class Handler(BaseHTTPRequestHandler):
                 conn.execute(f"UPDATE ws_paginas SET {', '.join(sets)} WHERE id=?", vals)
                 conn.commit()
             return self.json({"ok": True, "id": b["id"]})
-        cid = b.get("cliente_id")
-        if not cliente_dict(cid):
+        cid = b.get("cliente_id") or None
+        # sem cliente, a página entra na metodologia da casa
+        if cid and not cliente_dict(cid):
             return self.erro("Cliente não encontrado.", 404)
         pid = workspace.criar_pagina(conn, cid, (b.get("titulo") or "Nova página").strip(),
                                      now(), b.get("capa", ""))
