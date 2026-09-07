@@ -3,435 +3,371 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Acompanhamento · Grupo B3 Sales</title>
+<title>Portal do cliente · Grupo B3 Sales</title>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/static/style.css">
 <style>
-  .p-topo{background:linear-gradient(120deg,var(--ameixa-900),var(--ameixa-700));
-    color:#fff;padding:0}
-  .p-topo-in{max-width:1080px;margin:0 auto;padding:20px 26px;display:flex;
-    align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap}
-  .p-topo .marca-txt{color:#fff}
-  .p-topo .marca-sub{color:var(--ouro-300)}
-  .p-topo .marca-b{background:linear-gradient(140deg,var(--ouro-500),var(--ouro-800));
-    color:#2A1733}
-  .p-tag{font-size:10px;letter-spacing:.2em;text-transform:uppercase;
-    color:var(--ouro-300)}
+  body{background:var(--creme)}
 
-  .p-palco{max-width:1080px;margin:0 auto;padding:34px 26px 90px}
-
-  .p-topo-cli{border-radius:var(--r);position:relative;overflow:hidden;
-    margin-bottom:26px;min-height:186px;display:flex;align-items:flex-end}
-  .p-topo-veu{position:absolute;inset:0;
-    background:linear-gradient(180deg,rgba(20,8,28,.12) 25%,rgba(20,8,28,.85))}
-  .p-topo-in{position:relative;z-index:1;padding:26px 30px;display:flex;gap:20px;
-    align-items:flex-end;width:100%}
-  .p-topo-foto{width:74px;height:74px;border-radius:19px;flex:none;background-size:cover;
+  /* ---------------------------------------------------------- casca ---- */
+  .pf-app{min-height:100vh;display:flex}
+  .pf-side{width:264px;flex:none;background:linear-gradient(180deg,var(--ameixa-800),var(--ameixa-900) 70%);
+    color:#fff;padding:26px 18px 20px;position:fixed;inset:0 auto 0 0;overflow-y:auto;z-index:5}
+  .pf-logo{padding:6px 8px 22px;border-bottom:1px solid rgba(255,255,255,.12);margin-bottom:18px}
+  .pf-logo .marca-b3 .mb,.pf-logo .marca-b3 .m3{fill:#FFFCF9}
+  .pf-logo .marca-b3 .m3{fill:var(--ouro-300)}
+  .pf-logo .marca-fio{background:var(--ouro-300);opacity:.55}
+  .pf-logo .marca-txt{color:#fff}
+  .pf-logo .marca-sub{color:var(--ouro-300)}
+  .pf-logo .marca-img{max-height:34px;background:var(--branco);border-radius:8px;padding:4px 8px}
+  .pf-eyebrow-side{font-size:9.5px;letter-spacing:.22em;text-transform:uppercase;
+    color:rgba(255,255,255,.42);padding:0 8px;margin-bottom:10px}
+  .pf-nav{display:grid;gap:5px}
+  .pf-nav button{width:100%;text-align:left;background:transparent;border:none;color:#d9cbdc;
+    border-radius:12px;padding:12px 13px;display:flex;align-items:center;gap:12px;
+    font-family:var(--sans);font-size:13.5px;cursor:pointer;transition:.16s}
+  .pf-nav button:hover{background:rgba(255,255,255,.06);color:#fff}
+  .pf-nav button.at{background:rgba(255,255,255,.12);color:#fff}
+  .pf-nav .ico{width:30px;height:30px;border-radius:9px;background:rgba(255,255,255,.07);
+    border:1px solid rgba(230,203,152,.18);display:flex;align-items:center;justify-content:center;
+    font-size:14px;flex:none;color:var(--ouro-300)}
+  .pf-nav button.at .ico{background:linear-gradient(140deg,var(--ouro-500),var(--ouro-800));
+    color:#2A1733;border-color:transparent}
+  .pf-side-baixo{margin-top:26px;padding-top:16px;border-top:1px solid rgba(255,255,255,.1)}
+  .pf-quem{display:flex;align-items:center;gap:10px;padding:6px 8px}
+  .pf-quem-av{width:36px;height:36px;border-radius:11px;flex:none;background-size:cover;
     background-position:center;display:flex;align-items:center;justify-content:center;
-    font-family:var(--serif);font-size:30px;color:#fff;
-    border:2px solid rgba(255,255,255,.4);box-shadow:0 8px 24px -10px rgba(0,0,0,.6)}
-  .p-topo-t{color:#fff;min-width:0}
-  .p-topo-t h1{font-size:clamp(28px,4.4vw,40px);color:#fff;line-height:1.08;margin:4px 0 0}
-  .p-topo-t p{font-size:14.5px;color:rgba(255,255,255,.84);margin:9px 0 0;max-width:56ch}
-
-  .p-num-i{width:34px;height:34px;border-radius:10px;margin:0 auto 11px;color:#fff;
-    display:flex;align-items:center;justify-content:center;font-size:14px}
-
-  .p-hero{text-align:center;padding:16px 0 34px}
-  .p-hero h1{font-size:44px;color:var(--ameixa-900);line-height:1.1}
-  .p-hero p{max-width:600px;margin:14px auto 0;color:var(--texto-2);font-size:15.5px}
-
-  /* ---- cabeçalho do cliente: área exclusiva, não página de cursos ---- */
-  .p-cab{border-radius:var(--r);position:relative;overflow:hidden;
-    margin-bottom:30px;box-shadow:var(--sombra-lg)}
-  .p-cab-veu{position:absolute;inset:0;
-    background:linear-gradient(105deg,rgba(20,8,28,.92) 32%,rgba(20,8,28,.55))}
-  .p-cab-in{position:relative;z-index:1;padding:26px 30px;display:flex;
-    align-items:center;gap:20px}
-  .p-cab-foto{width:74px;height:74px;border-radius:20px;flex:none;
-    background-size:cover;background-position:center;background-color:rgba(255,255,255,.14);
-    border:1px solid rgba(230,203,152,.42);display:flex;align-items:center;
-    justify-content:center;font-family:var(--serif);font-size:31px;color:#FFF7F2}
-  .p-cab-r{font-size:10px;letter-spacing:.24em;text-transform:uppercase;
-    color:var(--ouro-300)}
-  .p-cab-t h2{font-family:var(--serif);font-weight:500;font-size:30px;color:#FFFCF9;
-    margin:4px 0 2px;line-height:1.1}
-  .p-cab-t p{margin:0;font-size:13px;color:rgba(255,252,249,.7)}
-
-  /* ---- abertura ---- */
-  .p-abertura{margin-bottom:28px}
-  .p-abertura h1{font-family:var(--serif);font-weight:500;
-    font-size:clamp(30px,4.2vw,44px);line-height:1.12;color:var(--ameixa-900);
-    margin:0 0 10px;max-width:22ch;text-wrap:balance}
-  .p-abertura p{margin:0;font-size:15.5px;color:var(--texto-2);max-width:58ch}
-
-  .p-rot{display:block;font-size:10.5px;letter-spacing:.2em;text-transform:uppercase;
-    color:var(--ouro-600);margin-bottom:6px}
-  .p-rot-azul{color:var(--azul-800)}
-  .p-rot-terra{color:var(--terracota-700)}
-
-  /* ---- etapa, foco e selo ---- */
-  .p-trio{display:grid;grid-template-columns:minmax(0,1fr) 236px;gap:14px;
-    align-items:stretch}
-  .p-trio-esq{display:flex;flex-direction:column;gap:14px}
-  .p-etapa-c{background:var(--terracota-100);border-left:3px solid var(--terracota-500);
-    border-radius:0 var(--r) var(--r) 0;padding:18px 22px}
-  .p-etapa-c strong{display:block;font-family:var(--serif);font-size:29px;
-    font-weight:500;color:var(--terracota-700);line-height:1.15}
-  .p-foco-c{background:var(--branco);border:1px solid var(--linha);
-    border-radius:var(--r);padding:18px 22px;flex:1}
-  .p-foco-c p{margin:0;font-size:15px;color:var(--texto-2);line-height:1.68}
-  .p-selo{background:var(--ameixa-900);border:none;border-radius:var(--r);
-    padding:24px 18px;text-align:center;cursor:pointer;color:#FFFCF9;
-    display:flex;flex-direction:column;align-items:center;justify-content:center;
-    gap:4px;font-family:var(--sans);transition:.18s}
-  .p-selo:hover{background:var(--ameixa-800)}
-  .p-selo-anel{width:82px;height:82px;border-radius:50%;
-    border:1px solid var(--ouro-300);display:flex;align-items:center;
-    justify-content:center;margin-bottom:10px;position:relative}
-  .p-selo-anel::after{content:"";position:absolute;inset:5px;border-radius:50%;
+    font-family:var(--serif);font-size:16px;color:#fff;background-color:rgba(255,255,255,.14);
     border:1px solid rgba(230,203,152,.3)}
-  .p-selo-anel b{font-family:var(--serif);font-size:35px;color:var(--ouro-300);
-    font-variant-numeric:lining-nums}
-  .p-selo-t{font-size:10.5px;letter-spacing:.18em;text-transform:uppercase}
-  .p-selo-s{font-size:11.5px;color:var(--ameixa-300);line-height:1.4}
+  .pf-quem strong{display:block;font-size:12.5px;color:#fff;font-weight:500;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .pf-quem span{font-size:11px;color:rgba(255,255,255,.5)}
 
-  /* ---- próximo passo ---- */
-  .p-passo{margin-top:14px;background:var(--terracota-100);
-    border:1px solid var(--terracota-300);border-radius:var(--r);
-    padding:18px 22px;display:flex;gap:16px;align-items:flex-start}
-  .p-passo-i{width:32px;height:32px;border-radius:50%;flex:none;
-    background:var(--terracota-500);color:#fff;display:flex;align-items:center;
-    justify-content:center;font-size:15px;margin-top:2px}
-  .p-passo p{margin:0;font-size:15px;color:var(--terracota-700);line-height:1.65}
+  .pf-main{margin-left:264px;width:calc(100% - 264px);min-height:100vh}
+  .pf-topbar{display:flex;align-items:center;justify-content:space-between;gap:16px;
+    padding:20px 34px;position:sticky;top:0;background:rgba(250,243,236,.88);
+    backdrop-filter:blur(6px);z-index:4;border-bottom:1px solid var(--linha)}
+  .pf-crumb{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+  .pf-crumb b{color:var(--ameixa-800)}
+  .pf-top-acoes{display:flex;align-items:center;gap:10px}
+  .pf-sino{width:38px;height:38px;border-radius:12px;border:1px solid var(--linha-2);
+    background:var(--branco);display:flex;align-items:center;justify-content:center;
+    font-size:15px;color:var(--ameixa-700);cursor:pointer;position:relative}
+  .pf-palco{max-width:1080px;margin:0 auto;padding:30px 34px 90px}
 
-  /* ---- o que já está sendo construído ---- */
-  .p-sec-fina{margin:34px 0 12px}
-  .p-construido{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));
-    gap:12px}
-  .p-cons{background:var(--branco);border:1px solid var(--linha);
-    border-top:2px solid var(--c);border-radius:0 0 var(--r-sm) var(--r-sm);
-    padding:15px 17px;font-size:14.5px;color:var(--ameixa-900);line-height:1.45}
-  .p-cons span{display:block;width:16px;height:2px;background:var(--c);
-    margin-bottom:9px;opacity:.55}
-
-  /* ---- as cinco portas ---- */
-  .p-portas{display:grid;grid-template-columns:repeat(auto-fit,minmax(196px,1fr));
-    gap:13px;margin-top:34px}
-  .p-porta{position:relative;background:var(--branco);border:1px solid var(--linha);
-    border-radius:var(--r);padding:20px 18px 18px;text-align:left;cursor:pointer;
-    font-family:var(--sans);transition:.18s}
-  .p-porta:hover{border-color:var(--c);transform:translateY(-2px);
-    box-shadow:var(--sombra-lg)}
-  .p-porta-i{display:flex;align-items:center;justify-content:center;
-    width:36px;height:36px;border-radius:11px;font-size:16px;
-    background:var(--creme-2);color:var(--c);margin-bottom:13px}
-  .p-porta b{display:block;font-family:var(--serif);font-size:19px;font-weight:500;
-    color:var(--ameixa-900);line-height:1.22}
-  .p-porta-s{display:block;font-size:12px;color:var(--muted);margin-top:4px;
-    line-height:1.5}
-  .p-porta-seta{position:absolute;top:20px;right:18px;color:var(--c);opacity:0;
-    transition:.18s;font-size:14px}
-  .p-porta:hover .p-porta-seta{opacity:1}
-
-  /* ---- atualização mais recente ---- */
-  .p-atual{margin-top:34px;background:var(--creme-2);border-radius:var(--r);
-    padding:16px 20px;display:flex;align-items:center;gap:14px}
-  .p-atual-i{width:28px;height:28px;border-radius:50%;flex:none;
-    background:var(--creme-3);color:var(--ameixa-700);display:flex;
-    align-items:center;justify-content:center;font-size:13px}
-  .p-atual div{flex:1;min-width:0}
-  .p-atual p{margin:0;font-size:13.5px;color:var(--texto-2)}
-  .p-atual time{font-size:11.5px;color:var(--muted);white-space:nowrap;
-    font-variant-numeric:lining-nums tabular-nums}
-
-  /* ---- subpáginas ---- */
-  .p-h2{font-family:var(--serif);font-weight:500;font-size:33px;color:var(--ameixa-900);
-    margin:2px 0 0;line-height:1.15}
-  .p-apoio{margin:9px 0 0;font-size:14.5px;color:var(--texto-2);max-width:60ch}
-  .p-sub{margin:34px 0 12px}
-  .p-caixa{background:var(--branco);border:1px solid var(--linha);
-    border-radius:var(--r);padding:24px 26px;box-shadow:var(--sombra)}
-  .p-vazio{font-size:14px;color:var(--muted);font-style:italic;margin:14px 0 0}
-  .p-resultado{margin:22px 0 0;padding:18px 22px;background:var(--ouro-100);
-    border-radius:var(--r);font-family:var(--serif);font-size:19px;
-    color:var(--ouro-800);line-height:1.5}
-  .p-play{width:38px;height:38px;border-radius:50%;background:rgba(255,255,255,.92);
-    color:var(--ameixa-800);display:flex;align-items:center;justify-content:center;
-    padding-left:3px}
-
-  /* jornada */
-  .p-etapas{display:flex;flex-direction:column;gap:9px;margin-top:16px}
-  .p-et{position:relative;display:flex;align-items:center;gap:14px;width:100%;
-    background:var(--branco);border:1px solid var(--linha);border-radius:var(--r-sm);
-    padding:16px 20px;cursor:pointer;font-family:var(--sans);text-align:left;
-    transition:.16s}
-  .p-et:hover{border-color:var(--ouro-500);transform:translateX(2px)}
-  .p-et b{flex:1;font-family:var(--serif);font-size:22px;font-weight:500;
-    color:var(--muted)}
-  .p-et.agora{border-color:var(--terracota-500);background:var(--terracota-100)}
-  .p-et.agora b{color:var(--terracota-700)}
-  .p-et.feita b{color:var(--ameixa-900)}
-  .p-et-s{font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;
-    color:var(--muted)}
-  .p-et.agora .p-et-s{color:var(--terracota-700)}
-  .p-et.feita .p-et-s{color:var(--verde-500)}
-  .p-et-seta{color:var(--muted);font-size:13px}
-
-  /* método ECO */
-  .p-eco{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));
-    gap:14px;margin-top:18px}
-  .p-eco-c{background:var(--branco);border:1px solid var(--linha);
-    border-top:3px solid var(--c);border-radius:0 0 var(--r) var(--r);padding:24px 22px}
-  .p-eco-l{font-family:var(--serif);font-size:46px;color:var(--c);line-height:1;
-    display:block;margin-bottom:8px}
-  .p-eco-c h3{font-family:var(--serif);font-weight:500;font-size:24px;
-    color:var(--ameixa-900);margin:0 0 8px}
-  .p-eco-c p{margin:0;font-size:14px;color:var(--texto-2);line-height:1.7}
-
-  /* conquistas */
-  .p-med{margin-top:18px}
-  .p-med-i{display:grid;grid-template-columns:60px minmax(0,1fr) auto;gap:18px;
-    align-items:start;padding:20px 0;border-bottom:1px solid var(--linha-2)}
-  .p-med-i:last-child{border-bottom:0}
-  .p-brasao{width:60px;height:60px;border-radius:50%;border:1px solid var(--ouro-500);
-    background:var(--ouro-100);display:flex;align-items:center;justify-content:center;
-    font-family:var(--serif);font-size:21px;color:var(--ouro-800);position:relative}
-  .p-brasao::after{content:"";position:absolute;inset:5px;border-radius:50%;
-    border:1px solid rgba(168,128,63,.32)}
-  .p-brasao-vazio{background:transparent;border-style:dashed;border-color:var(--linha);
-    color:var(--muted)}
-  .p-brasao-vazio::after{display:none}
-  .p-med-i h3{font-family:var(--serif);font-weight:500;font-size:23px;
-    color:var(--ameixa-900);margin:5px 0 3px;line-height:1.2}
-  .p-med-i p{margin:0;font-size:14px;color:var(--texto-2);line-height:1.6}
-  .p-med-i time{font-size:11.5px;color:var(--muted);white-space:nowrap;padding-top:10px;
-    font-variant-numeric:lining-nums tabular-nums}
-  .p-prox{margin-top:22px;background:var(--creme-2);border:1px dashed var(--linha);
-    border-radius:var(--r);padding:20px 22px;display:grid;
-    grid-template-columns:60px minmax(0,1fr);gap:18px;align-items:center}
-  .p-prox h3{font-family:var(--serif);font-weight:500;font-size:21px;
-    color:var(--ameixa-800);margin:0 0 2px}
-  .p-prox p{margin:0;font-size:13.5px;color:var(--texto-2)}
-
-  @media (max-width:760px){
-    .p-trio{grid-template-columns:minmax(0,1fr)}
-    .p-med-i{grid-template-columns:48px minmax(0,1fr)}
-    .p-med-i time{grid-column:2;padding-top:0}
-    .p-brasao{width:48px;height:48px;font-size:17px}
+  @media (max-width:920px){
+    .pf-side{width:76px;padding:20px 10px}
+    .pf-logo{padding:4px 4px 16px;text-align:center}
+    .pf-logo .marca-txt,.pf-logo .marca-sub,.pf-logo .marca-fio,.pf-eyebrow-side,
+    .pf-nav button span,.pf-quem strong,.pf-quem span{display:none}
+    .pf-nav button{justify-content:center;padding:11px}
+    .pf-quem{justify-content:center}
+    .pf-main{margin-left:76px;width:calc(100% - 76px)}
+    .pf-topbar{padding:16px 20px}
+    .pf-palco{padding:22px 20px 70px}
   }
 
-  .p-frentes{display:grid;grid-template-columns:repeat(auto-fit,minmax(178px,1fr));
-    gap:14px;margin-top:16px}
-  .p-fr{background:var(--branco);border:1px solid var(--linha);border-radius:var(--r);
-    padding:20px 16px 18px;text-align:center;box-shadow:var(--sombra)}
-  .p-fr-anel{display:flex;justify-content:center;margin-bottom:10px}
-  .p-fr-t{font-size:13.5px;color:var(--ameixa-900);font-weight:500;
-    display:flex;align-items:center;justify-content:center;gap:7px}
-  .p-fr-i{font-size:16px;line-height:1}
-  .p-fr-d{font-size:11.5px;color:var(--muted);line-height:1.55;margin:6px 0 0}
-  .p-numeros{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));
-    gap:13px;margin-bottom:34px}
-  .p-num{background:var(--branco);border:1px solid var(--linha);border-radius:var(--r);
-    padding:20px;text-align:center;box-shadow:var(--sombra)}
-  .p-num b{display:block;font-family:var(--serif);font-size:38px;color:var(--ameixa-900);
-    line-height:1;font-variant-numeric:lining-nums tabular-nums}
-  .p-num span{display:block;margin-top:7px;font-size:11px;letter-spacing:.13em;
-    text-transform:uppercase;color:var(--muted)}
+  /* --------------------------------------------------------- hero ---- */
+  .pf-hero{display:grid;grid-template-columns:minmax(0,1fr) 268px;gap:22px;margin-bottom:30px}
+  .pf-hero-copy{background:var(--branco);border:1px solid var(--linha);border-radius:var(--r);
+    padding:38px 36px;box-shadow:var(--sombra);position:relative;overflow:hidden}
+  .pf-hero-copy::after{content:"B3";position:absolute;right:-6px;bottom:-38px;
+    font:150px var(--serif);color:rgba(36,16,48,.04);pointer-events:none}
+  .pf-hero-copy h1{font-family:var(--serif);font-weight:500;font-size:clamp(28px,3.6vw,40px);
+    line-height:1.12;color:var(--ameixa-900);margin:10px 0 0;max-width:20ch;text-wrap:balance;
+    position:relative}
+  .pf-hero-copy p{margin:14px 0 0;font-size:14.5px;color:var(--texto-2);max-width:52ch;
+    position:relative}
+  .pf-pill{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:99px;
+    background:var(--creme-2);font-size:11px;color:var(--texto-2);border:1px solid var(--linha-2)}
+  .pf-pill b{color:var(--ameixa-900)}
+  .pf-pills{display:flex;gap:9px;flex-wrap:wrap;margin-top:20px;position:relative}
+  .pf-stage{background:linear-gradient(155deg,var(--ameixa-800),var(--ameixa-900));
+    border-radius:var(--r);padding:26px 24px;color:#fff;display:flex;flex-direction:column;
+    box-shadow:var(--sombra-lg);position:relative;overflow:hidden}
+  .pf-stage::before{content:"";position:absolute;right:-30px;top:-30px;width:130px;height:130px;
+    border:1px solid rgba(230,203,152,.2);border-radius:50%}
+  .pf-stage span.tag{font-size:9.5px;letter-spacing:.2em;text-transform:uppercase;
+    color:var(--ouro-300);position:relative}
+  .pf-stage h3{font-family:var(--serif);font-size:24px;margin:9px 0 0;line-height:1.15;
+    position:relative;font-weight:500}
+  .pf-stage-linha{height:1px;background:rgba(255,255,255,.16);margin:16px 0}
+  .pf-stage p{margin:0;font-size:12px;color:rgba(255,255,255,.78);line-height:1.6;position:relative}
+  .pf-stage .prox{font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;
+    color:var(--ouro-300);margin-top:14px;position:relative}
 
-  /* linha do tempo */
-  .p-linha{position:relative;padding-left:30px;margin-top:8px}
-  .p-linha::before{content:"";position:absolute;left:9px;top:8px;bottom:8px;width:2px;
-    background:linear-gradient(180deg,var(--ouro-500),var(--creme-3))}
-  .p-etapa{position:relative;margin-bottom:16px}
-  .p-bola{position:absolute;left:-29px;top:20px;width:20px;height:20px;border-radius:50%;
-    background:var(--creme);border:2px solid var(--creme-3);display:flex;
-    align-items:center;justify-content:center;font-size:11px;color:var(--muted)}
-  .p-etapa.ok .p-bola{background:var(--ouro-500);border-color:var(--ouro-500);color:#fff}
-  .p-etapa.agora .p-bola{border-color:var(--terracota-500);background:var(--terracota-100);
-    color:var(--terracota-800)}
+  @media (max-width:820px){ .pf-hero{grid-template-columns:1fr} }
 
-  .p-card{background:var(--branco);border:1px solid var(--linha);border-radius:var(--r);
-    padding:22px 24px;box-shadow:var(--sombra)}
-  .p-etapa.agora .p-card{border-color:var(--terracota-300)}
-  .p-card h3{font-family:var(--serif);font-size:23px;color:var(--ameixa-900);margin:0}
-  .p-quando{font-size:11.5px;letter-spacing:.1em;text-transform:uppercase;
-    color:var(--muted);margin-bottom:5px}
+  /* ------------------------------------------------------- cartões ---- */
+  .pf-sec{margin:38px 0 14px}
+  .pf-sec .eyebrow{color:var(--ouro-700);margin-bottom:6px;display:block}
+  .pf-sec h2{font-family:var(--serif);font-weight:500;font-size:27px;color:var(--ameixa-900);margin:0}
 
-  .p-obj{margin:14px 0 0;padding:13px 16px;background:var(--ouro-100);
+  .pf-portas{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px}
+  .pf-porta{position:relative;background:var(--branco);border:1px solid var(--linha);
+    border-radius:var(--r);padding:22px 20px 20px;text-align:left;cursor:pointer;
+    font-family:var(--sans);transition:.18s}
+  .pf-porta:hover{border-color:var(--c);transform:translateY(-3px);box-shadow:var(--sombra-lg)}
+  .pf-porta-i{display:flex;align-items:center;justify-content:center;width:38px;height:38px;
+    border-radius:12px;font-size:16px;background:var(--creme-2);color:var(--c);margin-bottom:15px}
+  .pf-porta b{display:block;font-family:var(--serif);font-size:19px;font-weight:500;
+    color:var(--ameixa-900);line-height:1.22}
+  .pf-porta-s{display:block;font-size:12px;color:var(--muted);margin-top:5px;line-height:1.5}
+  .pf-porta-seta{position:absolute;top:22px;right:18px;color:var(--c);opacity:0;
+    transition:.18s;font-size:14px}
+  .pf-porta:hover .pf-porta-seta{opacity:1}
+
+  .pf-construido{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px}
+  .pf-cons{background:var(--branco);border:1px solid var(--linha);border-top:2px solid var(--c);
+    border-radius:0 0 var(--r-sm) var(--r-sm);padding:15px 17px;font-size:14px;
+    color:var(--ameixa-900);line-height:1.45}
+  .pf-cons span{display:block;width:16px;height:2px;background:var(--c);margin-bottom:9px;opacity:.55}
+
+  .pf-atual{margin-top:34px;background:var(--creme-2);border-radius:var(--r);padding:16px 20px;
+    display:flex;align-items:center;gap:14px}
+  .pf-atual-i{width:28px;height:28px;border-radius:50%;flex:none;background:var(--creme-3);
+    color:var(--ameixa-700);display:flex;align-items:center;justify-content:center;font-size:13px}
+  .pf-atual p{margin:0;font-size:13.5px;color:var(--texto-2)}
+  .pf-atual time{font-size:11.5px;color:var(--muted);white-space:nowrap;
+    font-variant-numeric:lining-nums tabular-nums;margin-left:auto}
+
+  /* -------------------------------------------------------- jornada ---- */
+  .pf-journey{background:var(--branco);border:1px solid var(--linha);border-radius:var(--r);
+    padding:36px 34px;box-shadow:var(--sombra);position:relative}
+  .pf-journey::before{content:"";position:absolute;left:52px;top:60px;bottom:60px;width:2px;
+    background:linear-gradient(var(--terracota-500),var(--linha))}
+  .pf-jstep{position:relative;display:flex;gap:22px;padding:9px 0 26px;cursor:pointer;
+    background:none;border:none;text-align:left;width:100%;font-family:var(--sans)}
+  .pf-jstep:last-child{padding-bottom:0}
+  .pf-jbullet{z-index:1;width:42px;height:42px;border-radius:50%;background:var(--creme);
+    border:2px solid var(--linha-2);display:flex;align-items:center;justify-content:center;
+    color:var(--muted);font-family:var(--serif);font-size:16px;flex:none}
+  .pf-jstep.feita .pf-jbullet{background:var(--terracota-500);border-color:var(--terracota-500);color:#fff}
+  .pf-jstep.agora .pf-jbullet{background:var(--ameixa-900);border-color:var(--ameixa-900);
+    color:var(--ouro-300);box-shadow:0 0 0 6px var(--terracota-100)}
+  .pf-jbody{padding-top:2px;flex:1;min-width:0}
+  .pf-jbody small{display:block;color:var(--ouro-700);text-transform:uppercase;
+    letter-spacing:.14em;font-size:9.5px;margin-bottom:5px}
+  .pf-jbody h3{font-family:var(--serif);font-weight:500;font-size:21px;color:var(--muted);margin:0}
+  .pf-jstep.feita .pf-jbody h3,.pf-jstep.agora .pf-jbody h3{color:var(--ameixa-900)}
+  .pf-jtag{align-self:center;font-size:10px;padding:7px 11px;border-radius:99px;
+    background:var(--creme-2);color:var(--muted);flex:none}
+  .pf-jstep.agora .pf-jtag{background:var(--terracota-100);color:var(--terracota-700)}
+  .pf-jstep.feita .pf-jtag{background:var(--ouro-100);color:var(--ouro-800)}
+  .pf-resultado{margin:24px 0 0;padding:18px 22px;background:var(--ouro-100);border-radius:var(--r);
+    font-family:var(--serif);font-size:18px;color:var(--ouro-800);line-height:1.5}
+
+  .pf-obj{margin:14px 0 0;padding:13px 16px;background:var(--ouro-100);
     border-left:3px solid var(--ouro-500);border-radius:0 var(--r-sm) var(--r-sm) 0;
     font-size:14px;color:var(--texto)}
-  .p-obj b{display:block;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;
+  .pf-obj b{display:block;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;
     color:var(--ouro-800);margin-bottom:4px}
-
-  .p-entregas{margin:16px 0 0;display:flex;flex-direction:column;gap:8px}
-  .p-entrega{display:flex;align-items:flex-start;gap:10px;font-size:14.2px;
+  .pf-entregas{margin:16px 0 0;display:flex;flex-direction:column;gap:8px}
+  .pf-entrega{display:flex;align-items:flex-start;gap:10px;font-size:14.2px;
     color:var(--texto-2);line-height:1.5}
-  .p-check{width:18px;height:18px;border-radius:50%;flex:0 0 auto;margin-top:1px;
+  .pf-check{width:18px;height:18px;border-radius:50%;flex:0 0 auto;margin-top:1px;
     display:flex;align-items:center;justify-content:center;font-size:10px;
     background:var(--creme-3);color:var(--muted)}
-  .p-entrega.ok .p-check{background:var(--ok);color:#fff}
-  .p-entrega.ok{color:var(--texto)}
-  .p-pilar{font-size:10px;letter-spacing:.1em;text-transform:uppercase;
-    color:var(--ouro-700);border:1px solid var(--ouro-300);border-radius:99px;
-    padding:1px 7px;margin-left:auto;flex:0 0 auto}
+  .pf-entrega.ok .pf-check{background:var(--ok);color:#fff}
+  .pf-entrega.ok{color:var(--texto)}
+  .pf-pilar{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--ouro-700);
+    border:1px solid var(--ouro-300);border-radius:99px;padding:1px 7px;margin-left:auto;flex:0 0 auto}
+  .pf-vazio{font-size:13.5px;color:var(--muted);font-style:italic}
 
-  .p-vazio{font-size:13.5px;color:var(--muted);font-style:italic}
+  /* ------------------------------------------------------------ ECO ---- */
+  .eco-tri .e{color:var(--ameixa-700)}
+  .eco-tri .c{color:var(--terracota-600)}
+  .eco-tri .o{color:var(--azul-700)}
+  .pf-eco-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:6px}
+  .pf-eco-c{border-radius:var(--r);min-height:250px;padding:30px 26px;color:#fff;
+    position:relative;overflow:hidden}
+  .pf-eco-c::after{content:"";position:absolute;width:170px;height:170px;
+    border:1px solid rgba(255,255,255,.2);border-radius:50%;right:-55px;bottom:-60px}
+  .pf-eco-c.e{background:linear-gradient(150deg,var(--ameixa-700),var(--ameixa-900))}
+  .pf-eco-c.c{background:linear-gradient(150deg,var(--terracota-500),var(--terracota-800))}
+  .pf-eco-c.o{background:linear-gradient(150deg,var(--azul-500),var(--azul-900))}
+  .pf-eco-l{font-family:var(--serif);font-size:44px;color:rgba(255,255,255,.7);line-height:1;
+    display:block;position:relative}
+  .pf-eco-c h3{font-family:var(--serif);font-weight:500;font-size:25px;color:#fff;
+    margin:16px 0 9px;position:relative}
+  .pf-eco-c p{margin:0;font-size:13px;color:rgba(255,255,255,.82);line-height:1.7;
+    max-width:34ch;position:relative}
+  @media (max-width:820px){ .pf-eco-grid{grid-template-columns:1fr} }
 
-  .p-mat{display:grid;grid-template-columns:repeat(auto-fill,minmax(212px,1fr));gap:14px}
-  .p-met{display:grid;grid-template-columns:repeat(auto-fill,minmax(232px,1fr));gap:14px}
-  .p-met-c{border:1px solid var(--linha);border-radius:var(--r);background:var(--branco);
-    box-shadow:var(--sombra);overflow:hidden;transition:.18s}
-  .p-met-c:hover{transform:translateY(-2px);box-shadow:var(--sombra-lg)}
-  .p-met-capa{height:64px;cursor:pointer}
-  .p-met-t{padding:13px 16px 4px;font-size:15px;color:var(--ameixa-900);cursor:pointer;
-    display:flex;align-items:center;gap:8px}
-  .p-met-sub{padding:0 16px 13px;margin:0}
-  .p-met-sub button{display:block;width:100%;text-align:left;background:none;border:none;
-    padding:5px 0;font-family:var(--sans);font-size:12.5px;color:var(--texto-2);
-    cursor:pointer;border-top:1px solid var(--linha-2)}
-  .p-met-sub button:hover{color:var(--ameixa-900)}
-  .p-card-link{cursor:pointer;transition:.18s}
-  .p-card-link:hover{border-color:var(--ouro-500);transform:translateX(2px)}
-  .p-abrir{display:inline-block;margin-top:12px;font-size:12.5px;color:var(--ameixa-700);
-    letter-spacing:.06em}
-  .p-fala{background:var(--branco);border:1px solid var(--linha);border-radius:var(--r);
-    padding:26px 24px;box-shadow:var(--sombra);margin-top:18px}
-  .p-fala label{display:block;font-size:12.5px;color:var(--ameixa-700);margin:14px 0 5px}
-  .p-fala input,.p-fala textarea{width:100%;font-family:var(--sans);font-size:14px;
-    padding:11px 13px;border:1px solid var(--linha-2);border-radius:10px;
-    background:var(--creme);color:var(--texto)}
-  .p-fala textarea{min-height:120px;resize:vertical}
-  .p-ax-lista{display:flex;gap:7px;flex-wrap:wrap;margin-top:8px}
-  .p-ax-t{background:var(--creme-2);border:1px solid var(--linha-2);border-radius:99px;
-    padding:3px 11px;font-size:11.5px;color:var(--texto-2)}
-  .p-ax-t button{background:none;border:none;cursor:pointer;color:var(--muted);
-    font-size:13px;padding:0 0 0 4px}
-  .p-fala-i.casa{border-left:3px solid var(--ouro-600);padding-left:11px}
-  .p-fala-i.meu{border-left:3px solid var(--linha-2);padding-left:11px}
-  .p-fala-d{font-size:11px;color:var(--muted);margin-left:8px;
+  /* -------------------------------------------------------- evolução ---- */
+  .pf-ribbon{margin:6px 0 26px;display:grid;grid-template-columns:1.2fr .8fr;gap:18px;
+    background:linear-gradient(110deg,var(--ameixa-900),var(--azul-900));color:#fff;
+    border-radius:var(--r);padding:30px 32px;position:relative;overflow:hidden;
+    box-shadow:var(--sombra-lg)}
+  .pf-ribbon::after{content:"";position:absolute;right:-28px;top:-60px;width:220px;height:220px;
+    border:1px solid rgba(230,203,152,.3);border-radius:50%}
+  .pf-ribbon h3{color:#fff;font-family:var(--serif);font-size:26px;margin:9px 0 7px;font-weight:500}
+  .pf-ribbon p{font-size:12.5px;line-height:1.6;color:rgba(255,255,255,.82);max-width:400px;margin:0}
+  .pf-evo-stats{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;align-items:center}
+  .pf-evo-stat{border-left:1px solid rgba(255,255,255,.2);padding-left:14px}
+  .pf-evo-stat strong{display:block;font-family:var(--serif);font-size:25px;color:var(--ouro-300)}
+  .pf-evo-stat span{display:block;color:rgba(255,255,255,.8);font-size:10px;margin-top:3px}
+  @media (max-width:760px){ .pf-ribbon{grid-template-columns:1fr} }
+
+  .pf-ach-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px}
+  .pf-ach{background:var(--branco);border:1px solid var(--linha);border-radius:var(--r);
+    padding:24px 22px;box-shadow:var(--sombra)}
+  .pf-ach .selo{width:48px;height:48px;border-radius:50%;border:1px solid var(--ouro-500);
+    background:var(--ouro-100);display:flex;align-items:center;justify-content:center;
+    font-family:var(--serif);font-size:18px;color:var(--ouro-800);margin-bottom:14px;position:relative}
+  .pf-ach .selo::after{content:"";position:absolute;inset:4px;border-radius:50%;
+    border:1px solid rgba(168,128,63,.3)}
+  .pf-ach h3{font-family:var(--serif);font-weight:500;font-size:19px;color:var(--ameixa-900);margin:0}
+  .pf-ach p{margin:8px 0 0;font-size:12.5px;color:var(--texto-2);line-height:1.6}
+  .pf-ach time{display:block;margin-top:10px;font-size:11px;color:var(--muted);
     font-variant-numeric:lining-nums tabular-nums}
-  .p-fala-lk{display:block;margin-top:5px;font-size:12.5px;color:var(--ameixa-700);
-    word-break:break-all}
-  .p-fala-hist{margin-top:20px;border-top:1px solid var(--linha-2);padding-top:16px}
-  .p-fala-i{padding:11px 0;border-bottom:1px solid var(--linha-2)}
-  .p-fala-i:last-child{border-bottom:0}
-  .p-fala-i b{font-size:12px;color:var(--ameixa-700);font-weight:500;
-    font-variant-numeric:lining-nums tabular-nums}
-  .p-fala-i p{margin:3px 0 0;font-size:13.5px;color:var(--texto-2);line-height:1.6;
-    white-space:pre-wrap}
-  .p-mat-c{border:1px solid var(--linha);border-radius:var(--r);overflow:hidden;
-    background:var(--branco);cursor:pointer;transition:.18s;box-shadow:var(--sombra)}
-  .p-mat-c:hover{transform:translateY(-2px);box-shadow:var(--sombra-lg)}
-  .p-mat-capa{height:112px;position:relative}
-  .p-mat-t{padding:14px 16px;font-size:14.5px;color:var(--ameixa-900)}
+  .pf-prox-card{margin-top:16px;background:var(--creme-2);border:1px dashed var(--linha-2);
+    border-radius:var(--r);padding:22px 24px;display:grid;grid-template-columns:52px minmax(0,1fr);
+    gap:16px;align-items:center}
+  .pf-prox-card .selo{background:transparent;border-style:dashed;border-color:var(--linha-2);
+    color:var(--muted);width:52px;height:52px;margin:0}
+  .pf-prox-card .selo::after{display:none}
+  .pf-prox-card h3{font-family:var(--serif);font-weight:500;font-size:19px;color:var(--ameixa-800);margin:0 0 2px}
+  .pf-prox-card p{margin:0;font-size:13px;color:var(--texto-2)}
 
-  .p-sec{margin:44px 0 18px}
-  .p-sec h2{font-family:var(--serif);font-size:30px;color:var(--ameixa-900);margin:4px 0 0}
-
-  .p-voltar{background:none;border:none;color:var(--ameixa-700);cursor:pointer;
-    font-family:var(--sans);font-size:13.5px;padding:0;margin-bottom:16px}
-
-  .p-erro{max-width:520px;margin:90px auto;text-align:center}
-
-  .p-vermelho{color:var(--critico);font-weight:500}
-  .p-men{color:var(--ameixa-700);background:var(--ouro-100);border-radius:5px;
-    padding:1px 6px;font-size:.94em}
-  .p-emb{position:relative;width:100%;padding-top:56.25%;border-radius:var(--r);
-    overflow:hidden;background:#000}
-  .p-emb iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
-
-  .p-aula{background:var(--branco);border:1px solid var(--linha);border-radius:var(--r);
-    padding:20px 22px;margin-bottom:16px;box-shadow:var(--sombra)}
-  .p-aula-cab{display:flex;gap:13px;align-items:flex-start}
-  .p-aula-n{width:28px;height:28px;border-radius:50%;flex:0 0 auto;
-    background:var(--ouro-100);color:var(--ouro-800);display:flex;align-items:center;
-    justify-content:center;font-family:var(--serif);font-size:14px}
-  .p-aula-cab strong{font-size:16px;color:var(--ameixa-900);font-weight:500}
-
-  /* curso */
-  .p-cur-banner{height:210px;border-radius:var(--r);display:flex;align-items:flex-end;
-    position:relative;overflow:hidden;margin-bottom:20px}
-  .p-cur-banner::after{content:"";position:absolute;inset:0;
-    background:linear-gradient(180deg,transparent 30%,rgba(20,8,28,.82))}
-  .p-cur-sobre{position:relative;z-index:1;padding:26px 30px;color:#fff}
-  .p-cur-t{font-size:38px;color:#fff;margin:4px 0 0;line-height:1.1}
-  .p-cur-d{margin:8px 0 0;font-size:14.5px;color:rgba(255,255,255,.86);max-width:640px}
-
-  .p-prog-cx{background:var(--branco);border:1px solid var(--linha);border-radius:var(--r);
-    padding:18px 20px;margin-bottom:18px}
-  .p-prog-r{display:flex;justify-content:space-between;align-items:baseline;
-    font-size:13px;color:var(--texto-2);margin-bottom:9px}
-  .p-prog-r b{font-family:var(--serif);font-size:25px;color:var(--ameixa-900)}
-  .p-prog{height:8px;border-radius:99px;background:var(--creme-3);overflow:hidden}
-  .p-prog i{display:block;height:100%;border-radius:99px;
-    background:linear-gradient(90deg,var(--ouro-600),var(--terracota-500));
-    transition:width .4s ease}
-  .p-comecar{margin-bottom:26px}
-
-  .p-mod-cab{display:flex;justify-content:space-between;align-items:flex-end;gap:14px;
-    margin:30px 0 12px}
-  .p-mod-t{font-size:24px;color:var(--ameixa-900);margin:3px 0 0}
-  .p-mod-p{font-size:12px;color:var(--ouro-800);background:var(--ouro-100);
-    border-radius:99px;padding:3px 11px;flex:none}
-
-  .p-aulas{display:grid;grid-template-columns:repeat(auto-fill,minmax(186px,1fr));gap:13px}
-  .p-aula-c{background:var(--branco);border:1px solid var(--linha);border-radius:var(--r-sm);
-    overflow:hidden;cursor:pointer;transition:.16s}
-  .p-aula-c:hover{transform:translateY(-2px);box-shadow:var(--sombra-lg);
-    border-color:var(--ouro-300)}
-  .p-aula-c.vista{border-color:rgba(62,125,90,.4)}
-  .p-aula-capa{height:104px;position:relative;display:flex;align-items:center;
-    justify-content:center}
-  .p-aula-play{width:34px;height:34px;border-radius:50%;background:rgba(255,255,255,.9);
+  /* --------------------------------------------------- materiais ---- */
+  .pf-lib-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px}
+  .pf-res{background:var(--branco);border:1px solid var(--linha);border-radius:var(--r);
+    overflow:hidden;cursor:pointer;transition:.18s;box-shadow:var(--sombra)}
+  .pf-res:hover{transform:translateY(-3px);box-shadow:var(--sombra-lg)}
+  .pf-res-capa{height:72px}
+  .pf-res-top{padding:16px 17px 0}
+  .pf-res small{color:var(--ouro-700);font-size:9px;text-transform:uppercase;letter-spacing:.15em}
+  .pf-res h3{font-family:var(--serif);font-weight:500;font-size:18px;color:var(--ameixa-900);
+    margin:8px 0 0}
+  .pf-res-sub{padding:0 17px 15px}
+  .pf-res-sub button{display:block;width:100%;text-align:left;background:none;border:none;
+    padding:6px 0;font-family:var(--sans);font-size:12.5px;color:var(--texto-2);cursor:pointer;
+    border-top:1px solid var(--linha-2)}
+  .pf-res-sub button:hover{color:var(--ameixa-900)}
+  .pf-res-foot{padding:14px 17px 17px;font-size:12px;color:var(--muted)}
+  .pf-res-play{height:72px;display:flex;align-items:center;justify-content:center}
+  .pf-res-play span{width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,.9);
     color:var(--ameixa-800);display:flex;align-items:center;justify-content:center;
     font-size:12px;padding-left:2px}
-  .p-aula-ok{position:absolute;top:8px;right:8px;width:22px;height:22px;border-radius:50%;
-    background:var(--ok);color:#fff;display:flex;align-items:center;justify-content:center;
-    font-size:11px}
-  .p-aula-t{padding:11px 13px;font-size:13.5px;color:var(--ameixa-900);line-height:1.4}
+  .pf-prog{height:6px;border-radius:99px;background:var(--creme-3);overflow:hidden;margin-top:9px}
+  .pf-prog i{display:block;height:100%;border-radius:99px;
+    background:linear-gradient(90deg,var(--ouro-600),var(--terracota-500))}
 
-  .p-play-grade{display:grid;grid-template-columns:1fr 306px;gap:22px;align-items:start}
-  .p-player{width:100%;border-radius:var(--r);background:#000;display:block}
-  .p-semvideo{padding:60px 20px;text-align:center;background:var(--creme-2);
+  /* -------------------------------------------------------- conversa ---- */
+  .pf-chat{background:var(--branco);border:1px solid var(--linha);border-radius:var(--r);
+    box-shadow:var(--sombra);display:flex;flex-direction:column;overflow:hidden}
+  .pf-chat-hist{padding:28px 30px;max-height:520px;overflow-y:auto;display:flex;
+    flex-direction:column;gap:14px}
+  .pf-bubble{max-width:74%;padding:13px 17px;border-radius:16px 16px 16px 4px;
+    background:var(--creme-2);color:var(--texto)}
+  .pf-bubble.eu{align-self:flex-end;border-radius:16px 16px 4px 16px;
+    background:linear-gradient(140deg,var(--ameixa-700),var(--ameixa-900));color:#fff}
+  .pf-bubble b{display:block;font-size:11px;font-weight:600;margin-bottom:3px;
+    color:var(--ouro-700)}
+  .pf-bubble.eu b{color:var(--ouro-300)}
+  .pf-bubble p{margin:0;font-size:14px;line-height:1.6;white-space:pre-wrap}
+  .pf-bubble time{display:block;margin-top:6px;font-size:10.5px;opacity:.65;
+    font-variant-numeric:lining-nums tabular-nums}
+  .pf-bubble a.anexo{display:flex;align-items:center;gap:7px;margin-top:8px;font-size:12.5px;
+    text-decoration:none;color:inherit;opacity:.92;border-top:1px solid rgba(0,0,0,.08);
+    padding-top:7px}
+  .pf-bubble.eu a.anexo{border-top-color:rgba(255,255,255,.2)}
+  .pf-compose{border-top:1px solid var(--linha);padding:20px 24px;background:var(--creme-2)}
+  .pf-compose input,.pf-compose textarea{width:100%;font-family:var(--sans);font-size:14px;
+    padding:11px 13px;border:1px solid var(--linha-2);border-radius:10px;background:var(--branco);
+    color:var(--texto);margin-bottom:10px}
+  .pf-compose textarea{min-height:88px;resize:vertical}
+  .pf-ax-lista{display:flex;gap:7px;flex-wrap:wrap;margin:0 0 10px}
+  .pf-ax-t{background:var(--branco);border:1px solid var(--linha-2);border-radius:99px;
+    padding:4px 12px;font-size:11.5px;color:var(--texto-2)}
+  .pf-ax-t button{background:none;border:none;cursor:pointer;color:var(--muted);
+    font-size:13px;padding:0 0 0 4px}
+  .pf-compose-linha{display:flex;justify-content:space-between;align-items:center;gap:10px;
+    flex-wrap:wrap}
+
+  .pf-voltar{background:none;border:none;color:var(--ameixa-700);cursor:pointer;
+    font-family:var(--sans);font-size:13.5px;padding:0;margin-bottom:18px}
+  .pf-erro{max-width:520px;margin:90px auto;text-align:center}
+  .pf-vermelho{color:var(--critico);font-weight:500}
+  .pf-men{color:var(--ameixa-700);background:var(--ouro-100);border-radius:5px;
+    padding:1px 6px;font-size:.94em}
+  .pf-emb{position:relative;width:100%;padding-top:56.25%;border-radius:var(--r);
+    overflow:hidden;background:#000}
+  .pf-emb iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+
+  /* ---------------------------------------------------------- curso ---- */
+  .pf-cur-banner{height:210px;border-radius:var(--r);display:flex;align-items:flex-end;
+    position:relative;overflow:hidden;margin-bottom:20px}
+  .pf-cur-banner::after{content:"";position:absolute;inset:0;
+    background:linear-gradient(180deg,transparent 30%,rgba(20,8,28,.82))}
+  .pf-cur-sobre{position:relative;z-index:1;padding:26px 30px;color:#fff}
+  .pf-cur-t{font-size:36px;color:#fff;margin:4px 0 0;line-height:1.1;font-family:var(--serif)}
+  .pf-cur-d{margin:8px 0 0;font-size:14.5px;color:rgba(255,255,255,.86);max-width:640px}
+  .pf-prog-cx{background:var(--branco);border:1px solid var(--linha);border-radius:var(--r);
+    padding:18px 20px;margin-bottom:18px}
+  .pf-prog-r{display:flex;justify-content:space-between;align-items:baseline;
+    font-size:13px;color:var(--texto-2);margin-bottom:9px}
+  .pf-prog-r b{font-family:var(--serif);font-size:24px;color:var(--ameixa-900)}
+  .pf-comecar{margin-bottom:26px}
+  .pf-mod-cab{display:flex;justify-content:space-between;align-items:flex-end;gap:14px;
+    margin:28px 0 12px}
+  .pf-mod-t{font-size:22px;color:var(--ameixa-900);margin:3px 0 0;font-family:var(--serif)}
+  .pf-mod-p{font-size:12px;color:var(--ouro-800);background:var(--ouro-100);border-radius:99px;
+    padding:3px 11px;flex:none}
+  .pf-aulas{display:grid;grid-template-columns:repeat(auto-fill,minmax(186px,1fr));gap:13px}
+  .pf-aula-c{background:var(--branco);border:1px solid var(--linha);border-radius:var(--r-sm);
+    overflow:hidden;cursor:pointer;transition:.16s}
+  .pf-aula-c:hover{transform:translateY(-2px);box-shadow:var(--sombra-lg);border-color:var(--ouro-300)}
+  .pf-aula-capa{height:100px;position:relative;display:flex;align-items:center;justify-content:center}
+  .pf-aula-play{width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,.9);
+    color:var(--ameixa-800);display:flex;align-items:center;justify-content:center;
+    font-size:12px;padding-left:2px}
+  .pf-aula-ok{position:absolute;top:8px;right:8px;width:22px;height:22px;border-radius:50%;
+    background:var(--ok);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px}
+  .pf-aula-t{padding:11px 13px;font-size:13.5px;color:var(--ameixa-900);line-height:1.4}
+  .pf-play-grade{display:grid;grid-template-columns:1fr 300px;gap:22px;align-items:start}
+  .pf-player{width:100%;border-radius:var(--r);background:#000;display:block}
+  .pf-semvideo{padding:60px 20px;text-align:center;background:var(--creme-2);
     border:1px dashed var(--linha-2);border-radius:var(--r);color:var(--muted);font-size:14px}
-  .p-aula-acoes{display:flex;gap:9px;flex-wrap:wrap;margin-top:16px}
-  .p-aula-info{margin-top:22px;padding-top:18px;border-top:1px solid var(--linha)}
-
-  .p-lado{position:sticky;top:18px;display:flex;flex-direction:column;gap:11px}
-  .p-lado-mod{background:var(--branco);border:1px solid var(--linha);
-    border-radius:var(--r-sm);overflow:hidden}
-  .p-lado-cab{display:flex;align-items:center;gap:10px;padding:13px 14px;
-    background:var(--creme-2);font-size:12.5px;color:var(--ameixa-900)}
-  .p-lado-p{font-size:10.5px;color:var(--ouro-800);background:var(--ouro-100);
-    border-radius:99px;padding:2px 8px;flex:none}
-  .p-lado-a{display:flex;align-items:center;gap:10px;padding:11px 14px;cursor:pointer;
+  .pf-aula-acoes{display:flex;gap:9px;flex-wrap:wrap;margin-top:16px}
+  .pf-aula-info{margin-top:22px;padding-top:18px;border-top:1px solid var(--linha)}
+  .pf-lado{position:sticky;top:90px;display:flex;flex-direction:column;gap:11px}
+  .pf-lado-mod{background:var(--branco);border:1px solid var(--linha);border-radius:var(--r-sm);
+    overflow:hidden}
+  .pf-lado-cab{display:flex;align-items:center;gap:10px;padding:13px 14px;background:var(--creme-2);
+    font-size:12.5px;color:var(--ameixa-900)}
+  .pf-lado-p{font-size:10.5px;color:var(--ouro-800);background:var(--ouro-100);border-radius:99px;
+    padding:2px 8px;flex:none}
+  .pf-lado-a{display:flex;align-items:center;gap:10px;padding:11px 14px;cursor:pointer;
     font-size:13px;color:var(--texto-2);border-top:1px solid var(--linha);transition:.14s}
-  .p-lado-a:hover{background:var(--creme)}
-  .p-lado-a.at{background:var(--ouro-100);color:var(--ameixa-900)}
-  .p-lado-a.vista .p-lado-i{color:var(--ok)}
-  .p-lado-i{width:16px;text-align:center;font-size:10px;color:var(--muted);flex:none}
-
-  @media (max-width:820px){
-    .p-play-grade{grid-template-columns:1fr}
-    .p-lado{position:static}
-    .p-cur-t{font-size:28px}
-  }
-
-  @media (max-width:600px){
-    .p-hero h1{font-size:33px}
-    .p-linha{padding-left:22px}
-    .p-bola{left:-25px}
-  }
+  .pf-lado-a:hover{background:var(--creme)}
+  .pf-lado-a.at{background:var(--ouro-100);color:var(--ameixa-900)}
+  .pf-lado-a.vista .pf-lado-i{color:var(--ok)}
+  .pf-lado-i{width:16px;text-align:center;font-size:10px;color:var(--muted);flex:none}
+  @media (max-width:820px){ .pf-play-grade{grid-template-columns:1fr} .pf-lado{position:static} }
 </style>
 </head>
 <body>
-<div class="p-topo"><div class="p-topo-in">
-  <div class="marca"><span class="marca-b3"><svg viewBox="0 0 56 56" aria-label="B3 Sales Group"><text class="mb" x="0" y="45">B</text><text class="m3" x="13" y="41">3</text></svg></span><span class="marca-fio"></span><div>
-    <div class="marca-txt">Sales</div><div class="marca-sub">Group</div></div></div>
-  <div class="p-tag">Acompanhamento da implementação</div>
-</div></div>
-<div class="p-palco" id="palco"></div>
+<div class="pf-app">
+  <aside class="pf-side">
+    <div class="pf-logo"><div class="marca"><span class="marca-b3"><svg viewBox="0 0 56 56" aria-label="B3 Sales Group"><text class="mb" x="0" y="45">B</text><text class="m3" x="13" y="41">3</text></svg></span><span class="marca-fio"></span><div>
+      <div class="marca-txt">Sales</div><div class="marca-sub">Group</div></div></div></div>
+    <div class="pf-eyebrow-side">Meu portal</div>
+    <nav class="pf-nav" id="pfNav"></nav>
+    <div class="pf-side-baixo"><div class="pf-quem" id="pfQuem"></div></div>
+  </aside>
+  <main class="pf-main">
+    <div class="pf-topbar">
+      <div class="pf-crumb">Portal do cliente <span style="color:var(--ouro-600)">/</span> <b id="pfCrumb">Visão geral</b></div>
+      <div class="pf-top-acoes">
+        <button class="pf-sino" title="Notificações" type="button">◔</button>
+        <button class="btn btn-ameixa btn-sm" id="pfFalar">Fale com a equipe</button>
+      </div>
+    </div>
+    <div class="pf-palco" id="palco"></div>
+  </main>
+</div>
 
 <script>
 (function () {
@@ -444,21 +380,30 @@
       return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
     });
   }
-  /* as marcas simples do editor viram formatação de verdade aqui */
   function formatar(txt) {
     var h = esc(txt);
     h = h.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
     h = h.replace(/__([^_]+)__/g, "<em>$1</em>");
-    h = h.replace(/!!([^!]+)!!/g, '<span class="p-vermelho">$1</span>');
-    h = h.replace(/@\[([^\]]{1,60})\]/g, '<span class="p-men">@$1</span>');
+    h = h.replace(/!!([^!]+)!!/g, '<span class="pf-vermelho">$1</span>');
+    h = h.replace(/@\[([^\]]{1,60})\]/g, '<span class="pf-men">@$1</span>');
     return h;
   }
-
   function dataBr(s) {
     if (!s) return "";
     var d = new Date(s);
     if (isNaN(d)) return "";
     return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" });
+  }
+  function dataCurta(v) {
+    if (!v) return "";
+    var pp = String(v).slice(0, 10).split("-");
+    if (pp.length !== 3) return v;
+    var m = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
+    return pp[2] + " " + (m[parseInt(pp[1], 10) - 1] || "") + " " + pp[0];
+  }
+  /* a palavra ECO sempre nas mesmas tres cores: roxo, laranja e azul */
+  function ecoTri() {
+    return '<span class="eco-tri"><span class="e">E</span><span class="c">C</span><span class="o">O</span></span>';
   }
 
   var CAPAS = {
@@ -470,9 +415,8 @@
     creme: "linear-gradient(135deg,#EDE0D6,#FAF3EC 60%,#FFFCF9)"
   };
 
-  /* a foto do cliente segue o mesmo enquadramento que a B3 Sales ajustou */
-  function estiloFoto(d) {
-    if (!d.logo_midia_id) return "background:rgba(255,255,255,.18)";
+  function estiloAvatar(d) {
+    if (!d.logo_midia_id) return "background:rgba(255,255,255,.14)";
     var a = {};
     try { a = JSON.parse(d.logo_ajuste || "{}") || {}; } catch (e) { a = {}; }
     var z = a.zoom || 100, x = a.x == null ? 50 : a.x, y = a.y == null ? 50 : a.y;
@@ -481,180 +425,134 @@
       "background-repeat:no-repeat;background-color:#fff";
   }
 
-  /* O mesmo anel usado no painel da B3 Sales, para o cliente ver o mesmo retrato. */
-  function anel(pct, cor, tamanho) {
-    var R = tamanho / 2, r = R * 0.66, cx = R, cy = R;
-    var meio = '<text x="' + cx + '" y="' + (cy + R * 0.14) + '" text-anchor="middle" ' +
-      'style="font-family:var(--serif);font-size:' + (R * 0.62) +
-      'px;fill:var(--ameixa-900);font-variant-numeric:lining-nums tabular-nums;' +
-      'font-feature-settings:\'lnum\' 1,\'tnum\' 1">' + pct + '</text>';
-    var fundo = '<circle cx="' + cx + '" cy="' + cy + '" r="' + ((R + r) / 2) +
-      '" fill="none" stroke="var(--creme-3)" stroke-width="' + (R - r) + '"/>';
-    var abre = '<svg viewBox="0 0 ' + tamanho + ' ' + tamanho + '" width="' + tamanho +
-      '" height="' + tamanho + '">';
-    if (pct <= 0) return abre + fundo + meio + '</svg>';
-    if (pct >= 100) {
-      return abre + fundo + '<circle cx="' + cx + '" cy="' + cy + '" r="' +
-        ((R + r) / 2) + '" fill="none" stroke="' + cor + '" stroke-width="' +
-        (R - r) + '"/>' + meio + '</svg>';
-    }
-    var ang = -Math.PI / 2, fim = ang + pct / 100 * Math.PI * 2;
-    var grande = pct > 50 ? 1 : 0;
-    var x1 = cx + R * Math.cos(ang), y1 = cy + R * Math.sin(ang);
-    var x2 = cx + R * Math.cos(fim), y2 = cy + R * Math.sin(fim);
-    var x3 = cx + r * Math.cos(fim), y3 = cy + r * Math.sin(fim);
-    var x4 = cx + r * Math.cos(ang), y4 = cy + r * Math.sin(ang);
-    return abre + fundo + '<path d="M' + x1 + ' ' + y1 + ' A' + R + ' ' + R + ' 0 ' +
-      grande + ' 1 ' + x2 + ' ' + y2 + ' L' + x3 + ' ' + y3 + ' A' + r + ' ' + r +
-      ' 0 ' + grande + ' 0 ' + x4 + ' ' + y4 + ' Z" fill="' + cor + '"/>' + meio + '</svg>';
-  }
-
   function erro(msg) {
     palco.innerHTML = "";
-    palco.appendChild(el('<div class="p-erro"><h1 class="serif" style="font-size:32px;' +
+    document.getElementById("pfNav").innerHTML = "";
+    palco.appendChild(el('<div class="pf-erro"><h1 class="serif" style="font-size:32px;' +
       'color:var(--ameixa-900)">Acompanhamento indisponível</h1>' +
       '<p class="muted" style="margin-top:12px">' + esc(msg) + '</p></div>'));
   }
 
-  function dataCurta(v) {
-    if (!v) return "";
-    var pp = String(v).slice(0, 10).split("-");
-    if (pp.length !== 3) return v;
-    var m = ["jan", "fev", "mar", "abr", "mai", "jun",
-             "jul", "ago", "set", "out", "nov", "dez"];
-    return pp[2] + " " + (m[parseInt(pp[1], 10) - 1] || "") + " " + pp[0];
+  /* ---------------------------------------------------------- casca ---- */
+  var PORTAS = [
+    ["inicio", "Visão geral", "▦"],
+    ["jornada", "Minha jornada", "◷"],
+    ["eco", "Método ECO", "◈"],
+    ["evolucao", "Minha evolução", "✦"],
+    ["materiais", "Materiais e treinamentos", "▤"],
+    ["conversa", "Fale com a equipe", "✉"]
+  ];
+
+  function montarCasca(d) {
+    var nav = document.getElementById("pfNav");
+    nav.innerHTML = "";
+    PORTAS.forEach(function (p) {
+      var b = el('<button type="button"><i class="ico">' + p[2] + '</i><span>' +
+        esc(p[1]) + '</span></button>');
+      b.onclick = function () { irPara(p[0]); };
+      b.setAttribute("data-rota", p[0]);
+      nav.appendChild(b);
+    });
+    document.getElementById("pfFalar").onclick = function () { irPara("conversa"); };
+    var quem = document.getElementById("pfQuem");
+    quem.innerHTML = '<div class="pf-quem-av" style="' + estiloAvatar(d) + '">' +
+      (d.logo_midia_id ? "" : esc((d.empresa || "?").slice(0, 1).toUpperCase())) + '</div>' +
+      '<div><strong>' + esc(d.empresa) + '</strong><span>' +
+      esc(d.segmento || "Cliente Grupo B3 Sales") + '</span></div>';
+  }
+
+  function marcarNavAtiva(onde) {
+    document.querySelectorAll("#pfNav button").forEach(function (b) {
+      b.classList.toggle("at", b.getAttribute("data-rota") === onde);
+    });
+    var rot = (PORTAS.filter(function (p) { return p[0] === onde; })[0] || PORTAS[0])[1];
+    document.getElementById("pfCrumb").textContent = rot;
   }
 
   /* ------------------------------------------------------ página inicial */
   function desenhar(d) {
     palco.innerHTML = "";
-    palco.appendChild(cabecalho(d));
+    marcarNavAtiva("inicio");
 
-    var abertura = el('<div class="p-abertura">' +
+    var hero = el('<div class="pf-hero"></div>');
+    var copy = el('<div class="pf-hero-copy">' +
+      '<div class="eyebrow" style="color:var(--terracota-600)">Grupo B3 Sales · Implementação comercial</div>' +
       '<h1>Sua empresa não precisa crescer <em class="grifo">no improviso.</em></h1>' +
       '<p>Aqui você acompanha o que está sendo construído para tornar sua operação ' +
-      'mais clara, organizada e preparada para crescer.</p></div>');
-    palco.appendChild(abertura);
-
-    /* etapa, foco e próximo passo: três informações, três pesos visuais */
-    var trio = el('<div class="p-trio"></div>');
-    var esq = el('<div class="p-trio-esq"></div>');
-    esq.appendChild(el('<div class="p-etapa-c">' +
-      '<span class="p-rot">Etapa atual</span>' +
-      '<strong>' + esc(d.etapa_atual.nome) + '</strong></div>'));
-    if (d.foco_atual) {
-      esq.appendChild(el('<div class="p-foco-c">' +
-        '<span class="p-rot p-rot-azul">Foco atual</span>' +
-        '<p>' + esc(d.foco_atual) + '</p></div>'));
-    }
-    trio.appendChild(esq);
-
-    var selo = el('<button class="p-selo" type="button">' +
-      '<span class="p-selo-anel"><b>' + (d.conquistas || []).length + '</b></span>' +
-      '<span class="p-selo-t">Conquistas da jornada</span>' +
-      '<span class="p-selo-s">Veja o que sua operação já construiu</span></button>');
-    selo.onclick = function () { irPara("evolucao"); };
-    trio.appendChild(selo);
-    palco.appendChild(trio);
-
+      'mais clara, organizada e preparada para crescer.</p>' +
+      '<div class="pf-pills"><span class="pf-pill">Empresa <b>' + esc(d.empresa) + '</b></span>' +
+      '<span class="pf-pill">Jornada em andamento</span></div></div>');
+    hero.appendChild(copy);
+    var stage = el('<div class="pf-stage"><span class="tag">Momento da jornada</span>' +
+      '<h3>' + esc(d.etapa_atual.nome) + '</h3><div class="pf-stage-linha"></div>' +
+      '<p>' + (d.foco_atual ? esc(d.foco_atual) : "O cenário foi mapeado. Agora, transformamos " +
+      "clareza em movimento.") + '</p></div>');
     if (d.proximo_passo) {
-      palco.appendChild(el('<div class="p-passo">' +
-        '<span class="p-passo-i" aria-hidden="true">→</span><div>' +
-        '<span class="p-rot p-rot-terra">Próximo passo</span>' +
-        '<p>' + esc(d.proximo_passo.detalhe || d.proximo_passo.titulo) + '</p>' +
-        '</div></div>'));
+      stage.appendChild(el('<div class="prox">Próximo movimento · ' +
+        esc(d.proximo_passo.titulo || "") + '</div>'));
     }
+    hero.appendChild(stage);
+    palco.appendChild(hero);
 
-    /* o que já está sendo construído: nomes, nunca números */
     var itens = d.construido || [];
-    var cores = ["var(--azul-800)", "var(--terracota-500)", "var(--ameixa-700)"];
-    var bloco = el('<div class="p-sec p-sec-fina"><span class="p-rot">' +
-      (itens.length ? "O que já está sendo construído" : "Sendo construído agora") +
-      '</span></div>');
-    palco.appendChild(bloco);
-    var grade = el('<div class="p-construido"></div>');
-    (itens.length ? itens : ["O retrato completo da sua operação comercial"])
-      .forEach(function (t, i) {
-        grade.appendChild(el('<div class="p-cons" style="--c:' +
-          cores[i % cores.length] + '"><span></span>' + esc(t) + '</div>'));
-      });
+    var cores = ["var(--azul-700)", "var(--terracota-600)", "var(--ameixa-700)"];
+    palco.appendChild(el('<div class="pf-sec"><span class="eyebrow">' +
+      (itens.length ? "O que está sendo construído" : "Sendo construído agora") +
+      '</span><h2>Uma operação com clareza.</h2></div>'));
+    var grade = el('<div class="pf-construido"></div>');
+    (itens.length ? itens : ["O retrato completo da sua operação comercial"]).forEach(function (t, i) {
+      grade.appendChild(el('<div class="pf-cons" style="--c:' + cores[i % cores.length] +
+        '"><span></span>' + esc(t) + '</div>'));
+    });
     palco.appendChild(grade);
 
-    /* as cinco portas */
-    var portas = [
-      ["jornada", "Minha jornada", "Acompanhe as etapas da implementação", "◷",
-       "var(--azul-800)"],
-      ["eco", "Método ECO", "Estratégia, Condução e Operação", "◈", "var(--ameixa-800)"],
-      ["evolucao", "Minha evolução", "Veja o que sua operação já construiu", "✦",
-       "var(--ouro-600)"],
-      ["materiais", "Materiais e treinamentos", "Acesse os conteúdos liberados", "▤",
-       "var(--terracota-500)"],
-      ["conversa", "Fale com a equipe", "Envie mensagens e arquivos", "✉",
-       "var(--ameixa-700)"]
-    ];
-    var pg = el('<div class="p-portas"></div>');
-    portas.forEach(function (x) {
-      var b = el('<button class="p-porta" type="button" style="--c:' + x[4] + '">' +
-        '<span class="p-porta-i">' + x[3] + '</span>' +
-        '<b>' + esc(x[1]) + '</b><span class="p-porta-s">' + esc(x[2]) + '</span>' +
-        '<span class="p-porta-seta">→</span></button>');
-      b.onclick = function () { irPara(x[0]); };
+    palco.appendChild(el('<div class="pf-sec"><span class="eyebrow">Acesse sua estrutura</span>' +
+      '<h2>Tudo em um só lugar.</h2></div>'));
+    var cores2 = { jornada: "var(--azul-700)", eco: "var(--ameixa-700)",
+      evolucao: "var(--ouro-700)", materiais: "var(--terracota-600)", conversa: "var(--ameixa-600)" };
+    var textos = { jornada: "Acompanhe o caminho e o momento atual da implementação.",
+      eco: "Conheça os três pilares que organizam a construção da sua operação.",
+      evolucao: "Reconheça as conquistas e entregas que já foram construídas.",
+      materiais: "Encontre conteúdos liberados para consultar e aplicar.",
+      conversa: "Envie uma mensagem, dúvida ou arquivo para a equipe." };
+    var pg = el('<div class="pf-portas"></div>');
+    PORTAS.filter(function (p) { return p[0] !== "inicio"; }).forEach(function (p) {
+      var b = el('<button class="pf-porta" type="button" style="--c:' + cores2[p[0]] + '">' +
+        '<span class="pf-porta-i">' + p[2] + '</span>' +
+        '<b>' + (p[0] === "eco" ? "Método " + ecoTri() : esc(p[1])) + '</b>' +
+        '<span class="pf-porta-s">' + esc(textos[p[0]]) + '</span>' +
+        '<span class="pf-porta-seta">→</span></button>');
+      b.onclick = function () { irPara(p[0]); };
       pg.appendChild(b);
     });
     palco.appendChild(pg);
 
     if (d.atualizacao) {
-      palco.appendChild(el('<div class="p-atual">' +
-        '<span class="p-atual-i" aria-hidden="true">◷</span>' +
-        '<div><span class="p-rot">Atualização mais recente</span>' +
-        '<p>' + esc(d.atualizacao.texto) + '</p></div>' +
-        '<time>' + dataBr(d.atualizacao.em) + '</time></div>'));
+      palco.appendChild(el('<div class="pf-atual"><span class="pf-atual-i">◷</span>' +
+        '<p><strong style="color:var(--ameixa-900)">Atualização recente</strong> · ' +
+        esc(d.atualizacao.texto) + '</p><time>' + dataBr(d.atualizacao.em) + '</time></div>'));
     }
   }
 
-  /* cabeçalho: área exclusiva do cliente, não uma página de cursos */
-  function cabecalho(d) {
-    var capa = (d.capas || []).filter(function (x) { return x.id === d.capa; })[0];
-    var fundo = capa ? capa.css : CAPAS.ameixa;
-    if (d.capa_midia_id) {
-      var ac = {};
-      try { ac = JSON.parse(d.capa_ajuste || "{}") || {}; } catch (e) { ac = {}; }
-      fundo = "url(/api/midia/" + esc(d.capa_midia_id) + ") " +
-        (ac.x == null ? 50 : ac.x) + "% " + (ac.y == null ? 50 : ac.y) + "%/" +
-        (ac.zoom && ac.zoom !== 100 ? ac.zoom + "% auto" : "cover") +
-        " no-repeat, " + fundo;
-    }
-    var h = el('<div class="p-cab" style="background:' + fundo + '">' +
-      '<div class="p-cab-veu"></div><div class="p-cab-in">' +
-      '<div class="p-cab-foto" style="' + estiloFoto(d) + '">' +
-      (d.logo_midia_id ? '' : esc((d.empresa || "?").slice(0, 1).toUpperCase())) + '</div>' +
-      '<div class="p-cab-t"><span class="p-cab-r">Painel de evolução comercial</span>' +
-      '<h2>' + esc(d.empresa) + '</h2>' +
-      '<p>' + (d.responsavel ? esc(d.responsavel) + "  ·  " : "") +
-      esc(d.segmento || "Implementação comercial") + '</p></div></div></div>');
-    return h;
-  }
-
-  /* ------------------------------------------------------------ subpáginas */
-  function volta() {
-    var b = el('<button class="p-voltar">← Voltar ao painel</button>');
-    b.onclick = function () { irPara("inicio"); };
+  function volta(destino, rotulo) {
+    var b = el('<button class="pf-voltar">← ' + esc(rotulo || "Voltar para visão geral") + '</button>');
+    b.onclick = function () { irPara(destino || "inicio"); };
     return b;
   }
 
   function tituloPag(rotulo, titulo, apoio) {
-    return el('<div class="p-sec" style="margin-top:6px">' +
-      '<span class="p-rot">' + esc(rotulo) + '</span>' +
-      '<h2 class="p-h2">' + titulo + '</h2>' +
-      (apoio ? '<p class="p-apoio">' + esc(apoio) + '</p>' : '') + '</div>');
+    return el('<div class="pf-sec" style="margin-top:0"><span class="eyebrow">' + esc(rotulo) +
+      '</span><h2 style="font-size:31px">' + titulo + '</h2>' +
+      (apoio ? '<p class="muted" style="margin:9px 0 0;font-size:14.5px;max-width:60ch">' +
+        esc(apoio) + '</p>' : '') + '</div>');
   }
 
   function irPara(onde, arg) {
     ONDE = onde;
     palco.innerHTML = "";
-    palco.appendChild(cabecalho(DADOS));
-    if (onde !== "inicio") palco.appendChild(volta());
+    marcarNavAtiva(onde === "mes" || onde === "curso" || onde === "aula" ? "jornada" : onde);
     if (onde === "inicio") return desenhar(DADOS);
+    palco.appendChild(volta());
     if (onde === "jornada") return telaJornada(DADOS);
     if (onde === "eco") return telaEco(DADOS);
     if (onde === "evolucao") return telaEvolucao(DADOS);
@@ -666,21 +564,19 @@
 
   function telaJornada(d) {
     palco.appendChild(tituloPag("Minha jornada", 'A sua <em class="grifo">jornada</em>',
-      "Uma implementação construída etapa por etapa, de acordo com as prioridades " +
-      "da sua operação."));
-    var lista = el('<div class="p-etapas"></div>');
+      "Uma implementação construída etapa por etapa, de acordo com as prioridades da sua operação."));
+    var jor = el('<div class="pf-journey"></div>');
     (d.etapas || []).forEach(function (e) {
-      var cls = e.situacao === "Concluída" ? "feita"
-              : e.situacao === "Em andamento" ? "agora" : "";
-      var it = el('<button class="p-et ' + cls + '" type="button">' +
-        '<b>' + esc(e.nome) + '</b>' +
-        '<span class="p-et-s">' + esc(e.situacao) + '</span>' +
-        '<span class="p-et-seta">→</span></button>');
+      var cls = e.situacao === "Concluída" ? "feita" : e.situacao === "Em andamento" ? "agora" : "";
+      var it = el('<button class="pf-jstep ' + cls + '" type="button">' +
+        '<span class="pf-jbullet">' + (cls === "feita" ? "✓" : "") + '</span>' +
+        '<div class="pf-jbody"><small>' + esc(e.situacao) + '</small><h3>' + esc(e.nome) +
+        '</h3></div><span class="pf-jtag">→</span></button>');
       it.onclick = function () { irPara("mes", e.ciclo); };
-      lista.appendChild(it);
+      jor.appendChild(it);
     });
-    palco.appendChild(lista);
-    palco.appendChild(el('<p class="p-resultado">' + esc(d.resultado_jornada) + '</p>'));
+    palco.appendChild(jor);
+    palco.appendChild(el('<p class="pf-resultado">' + esc(d.resultado_jornada) + '</p>'));
     window.scrollTo(0, 0);
   }
 
@@ -689,116 +585,117 @@
     var e = (d.etapas || []).filter(function (x) { return x.ciclo === ciclo; })[0] ||
             { nome: ciclo, situacao: "Na sequência" };
     palco.appendChild(tituloPag(e.situacao, esc(e.nome), ""));
-    var card = el('<div class="p-caixa"></div>');
+    var card = el('<div class="p-caixa" style="background:var(--branco);border:1px solid var(--linha);' +
+      'border-radius:var(--r);padding:26px 28px;box-shadow:var(--sombra)"></div>');
     if (c && c.objetivo) {
-      card.appendChild(el('<div class="p-foco-c" style="margin:0 0 18px">' +
-        '<span class="p-rot p-rot-azul">Objetivo desta etapa</span>' +
-        '<p>' + esc(c.objetivo) + '</p></div>'));
+      card.appendChild(el('<div class="pf-obj" style="margin:0 0 18px"><b>Objetivo desta etapa</b>' +
+        esc(c.objetivo) + '</div>'));
     }
     var ent = (c && c.entregas) || [];
     if (!ent.length) {
-      card.appendChild(el('<p class="p-vazio">Esta etapa ainda está sendo construída ' +
-        'com você.</p>'));
+      card.appendChild(el('<p class="pf-vazio">Esta etapa ainda está sendo construída com você.</p>'));
     }
     ent.forEach(function (x) {
-      card.appendChild(el('<div class="p-entrega ' + (x.feito ? "ok" : "") + '">' +
-        '<span class="p-check">' + (x.feito ? "✓" : "") + '</span>' +
-        '<span>' + esc(x.titulo) + '</span>' +
-        (x.pilar ? '<span class="p-pilar">' + esc(x.pilar) + '</span>' : '') + '</div>'));
+      card.appendChild(el('<div class="pf-entrega ' + (x.feito ? "ok" : "") + '">' +
+        '<span class="pf-check">' + (x.feito ? "✓" : "") + '</span><span>' + esc(x.titulo) + '</span>' +
+        (x.pilar ? '<span class="pf-pilar">' + esc(x.pilar) + '</span>' : '') + '</div>'));
     });
     if (c && c.documentos) {
-      card.appendChild(el('<p class="small muted" style="margin:16px 0 0">' +
-        c.documentos + (c.documentos > 1 ? ' documentos' : ' documento') +
-        ' guardados nesta etapa</p>'));
+      card.appendChild(el('<p class="small muted" style="margin:16px 0 0">' + c.documentos +
+        (c.documentos > 1 ? " documentos" : " documento") + " guardados nesta etapa</p>"));
     }
     palco.appendChild(card);
     window.scrollTo(0, 0);
   }
 
   var ECO = [
-    ["Estratégia", "E", "var(--azul-800)",
-     "Define para quem a empresa existe, o que ela entrega e onde deve concentrar " +
-     "seus esforços. É escolher uma direção clara para crescer com intenção, em vez " +
-     "de tentar atender todo mundo e operar no improviso."],
-    ["Condução", "C", "var(--terracota-500)",
-     "Organiza o caminho desde o primeiro contato até a decisão do cliente. É a forma " +
-     "como cada pessoa é recebida, orientada, acompanhada e conduzida, seja para uma " +
-     "compra, contratação, consulta, procedimento ou projeto."],
-    ["Operação", "O", "var(--ouro-600)",
-     "Transforma a estratégia e a condução em uma rotina que funciona. Envolve " +
-     "processos claros, responsabilidades definidas, indicadores acompanhados e uma " +
-     "equipe preparada para executar sem depender o tempo todo da liderança."]
+    ["Estratégia", "E", "e",
+     "Define para quem a empresa existe, o que ela entrega e onde deve concentrar seus " +
+     "esforços. É escolher uma direção clara para crescer com intenção, em vez de tentar " +
+     "atender todo mundo e operar no improviso."],
+    ["Condução", "C", "c",
+     "Organiza o caminho desde o primeiro contato até a decisão do cliente. É a forma como " +
+     "cada pessoa é recebida, orientada, acompanhada e conduzida, seja para uma compra, " +
+     "contratação, consulta, procedimento ou projeto."],
+    ["Operação", "O", "o",
+     "Transforma a estratégia e a condução em uma rotina que funciona. Envolve processos " +
+     "claros, responsabilidades definidas, indicadores acompanhados e uma equipe preparada " +
+     "para executar sem depender o tempo todo da liderança."]
   ];
 
   function telaEco(d) {
-    palco.appendChild(tituloPag("Método ECO",
-      'Os três <em class="grifo">pilares</em>',
+    palco.appendChild(tituloPag("Método ECO", 'Os três <em class="grifo">pilares</em>',
       "O método que orienta cada etapa da implementação da sua operação."));
-    var g = el('<div class="p-eco"></div>');
+    var g = el('<div class="pf-eco-grid"></div>');
     ECO.forEach(function (x) {
-      g.appendChild(el('<div class="p-eco-c" style="--c:' + x[2] + '">' +
-        '<span class="p-eco-l">' + x[1] + '</span>' +
-        '<h3>' + esc(x[0]) + '</h3><p>' + esc(x[3]) + '</p></div>'));
+      g.appendChild(el('<div class="pf-eco-c ' + x[2] + '"><span class="pf-eco-l">' + x[1] +
+        '</span><h3>' + esc(x[0]) + '</h3><p>' + esc(x[3]) + '</p></div>'));
     });
     palco.appendChild(g);
     window.scrollTo(0, 0);
   }
 
   function telaEvolucao(d) {
-    palco.appendChild(tituloPag("Conquistas da jornada",
-      'O que sua operação <em class="grifo">já construiu</em>',
-      "Cada conquista registra uma nova capacidade que passou a fazer parte da " +
-      "rotina da sua empresa."));
-    var lista = el('<div class="p-med"></div>');
+    palco.appendChild(tituloPag("Minha evolução", 'O que sua operação <em class="grifo">já construiu</em>',
+      "Cada conquista registra uma nova capacidade que passou a fazer parte da rotina da sua empresa."));
     var feitas = (d.conquistas || []).slice();
+    palco.appendChild(el('<div class="pf-ribbon"><div><div class="eyebrow" ' +
+      'style="color:var(--ouro-300)">Leitura da sua jornada</div>' +
+      '<h3>Clareza construída em camadas.</h3><p>Cada conquista representa uma parte da estrutura ' +
+      'comercial que passou a existir, ser compreendida ou fazer parte da rotina.</p></div>' +
+      '<div class="pf-evo-stats"><div class="pf-evo-stat"><strong>03</strong><span>PILARES ECO</span></div>' +
+      '<div class="pf-evo-stat"><strong>' + (d.etapas || []).length + '</strong><span>ETAPAS DA JORNADA</span></div>' +
+      '<div class="pf-evo-stat"><strong>' + feitas.length + '</strong><span>CONQUISTAS LIBERADAS</span></div>' +
+      '<div class="pf-evo-stat"><strong>' + (d.etapas || []).filter(function (e) {
+        return e.situacao === "Concluída"; }).length + '</strong><span>ETAPAS CONCLUÍDAS</span></div>' +
+      '</div></div>'));
+    var lista = el('<div class="pf-ach-grid"></div>');
     if (!feitas.length) {
-      lista.appendChild(el('<p class="p-vazio">As primeiras conquistas aparecem ' +
-        'assim que a construção começar.</p>'));
+      lista.appendChild(el('<p class="pf-vazio">As primeiras conquistas aparecem assim que a ' +
+        'construção começar.</p>'));
     }
-    var romanos = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X",
-                   "XI", "XII", "XIII", "XIV", "XV"];
+    var romanos = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI", "XII"];
     feitas.forEach(function (m, i) {
-      lista.appendChild(el('<div class="p-med-i">' +
-        '<span class="p-brasao">' + (romanos[i] || "•") + '</span>' +
-        '<div><h3>' + esc(m.titulo) + '</h3><p>' + esc(m.texto) + '</p></div>' +
+      lista.appendChild(el('<div class="pf-ach"><div class="selo">' + (romanos[i] || "•") +
+        '</div><h3>' + esc(m.titulo) + '</h3><p>' + esc(m.texto) + '</p>' +
         '<time>' + dataCurta(m.em) + '</time></div>'));
     });
     palco.appendChild(lista);
     if (d.proxima_conquista) {
-      palco.appendChild(el('<div class="p-prox">' +
-        '<span class="p-brasao p-brasao-vazio">' +
-        (romanos[feitas.length] || "•") + '</span>' +
-        '<div><span class="p-rot">A próxima</span>' +
-        '<h3>' + esc(d.proxima_conquista.titulo) + '</h3>' +
-        '<p>' + esc(d.proxima_conquista.texto) + '</p></div></div>'));
+      palco.appendChild(el('<div class="pf-prox-card"><div class="selo">' +
+        (romanos[feitas.length] || "•") + '</div><div><span class="eyebrow" ' +
+        'style="color:var(--ouro-700)">A próxima</span><h3>' + esc(d.proxima_conquista.titulo) +
+        '</h3><p>' + esc(d.proxima_conquista.texto) + '</p></div></div>'));
     }
     window.scrollTo(0, 0);
   }
 
   function telaMateriais(d) {
-    palco.appendChild(tituloPag("Materiais e treinamentos",
-      'Os conteúdos <em class="grifo">liberados</em>',
+    palco.appendChild(tituloPag("Materiais e treinamentos", 'Os conteúdos <em class="grifo">liberados</em>',
       "Tudo o que já está disponível para você e para a sua equipe consultar."));
 
     if ((d.metodologia || []).length) {
-      palco.appendChild(el('<div class="p-sub"><span class="p-rot">A metodologia</span>' +
-        '</div>'));
-      var met = el('<div class="p-met"></div>');
+      palco.appendChild(el('<div class="pf-sec" style="margin-top:0"><span class="eyebrow">' +
+        'A metodologia</span></div>'));
+      var met = el('<div class="pf-lib-grid"></div>');
       d.metodologia.forEach(function (pgi) {
-        var c = el('<div class="p-met-c"></div>');
-        var capa = el('<div class="p-met-capa" style="background:' +
+        var c = el('<div class="pf-res"></div>');
+        var capa = el('<div class="pf-res-capa" style="background:' +
           (CAPAS[pgi.capa] || CAPAS.ameixa) + '"></div>');
-        var t = el('<div class="p-met-t">' + esc(pgi.titulo) + '</div>');
-        capa.onclick = t.onclick = function () { abrirPagina(pgi.id); };
-        c.appendChild(capa); c.appendChild(t);
+        var top = el('<div class="pf-res-top"><small>Metodologia</small><h3>' +
+          esc(pgi.titulo) + '</h3></div>');
+        capa.onclick = top.onclick = function () { abrirPagina(pgi.id); };
+        c.appendChild(capa); c.appendChild(top);
         if ((pgi.subpaginas || []).length) {
-          var sub = el('<div class="p-met-sub"></div>');
+          var sub = el('<div class="pf-res-sub"></div>');
           pgi.subpaginas.forEach(function (sp) {
             var b = el('<button type="button">' + esc(sp.titulo) + '</button>');
             b.onclick = function () { abrirPagina(sp.id); };
             sub.appendChild(b);
           });
           c.appendChild(sub);
+        } else {
+          c.appendChild(el('<div style="height:12px"></div>'));
         }
         met.appendChild(c);
       });
@@ -806,14 +703,13 @@
     }
 
     if ((d.paginas || []).length) {
-      palco.appendChild(el('<div class="p-sub"><span class="p-rot">' +
-        'Materiais da sua operação</span></div>'));
-      var mat = el('<div class="p-mat"></div>');
+      palco.appendChild(el('<div class="pf-sec"><span class="eyebrow">Materiais da sua operação' +
+        '</span></div>'));
+      var mat = el('<div class="pf-lib-grid"></div>');
       d.paginas.forEach(function (pgi) {
-        var c = el('<div class="p-mat-c">' +
-          '<div class="p-mat-capa" style="background:' +
-          (CAPAS[pgi.capa] || CAPAS.creme) + '"></div>' +
-          '<div class="p-mat-t">' + esc(pgi.titulo) + '</div></div>');
+        var c = el('<div class="pf-res"><div class="pf-res-capa" style="background:' +
+          (CAPAS[pgi.capa] || CAPAS.creme) + '"></div><div class="pf-res-top" style="padding-bottom:16px">' +
+          '<small>Material</small><h3>' + esc(pgi.titulo) + '</h3></div></div>');
         c.onclick = function () { abrirPagina(pgi.id); };
         mat.appendChild(c);
       });
@@ -821,20 +717,16 @@
     }
 
     if ((d.cursos || []).length) {
-      palco.appendChild(el('<div class="p-sub"><span class="p-rot">' +
-        'Treinamentos da sua equipe</span></div>'));
-      var cur = el('<div class="p-mat"></div>');
+      palco.appendChild(el('<div class="pf-sec"><span class="eyebrow">Treinamentos da sua equipe' +
+        '</span></div>'));
+      var cur = el('<div class="pf-lib-grid"></div>');
       d.cursos.forEach(function (c) {
-        var card = el('<div class="p-mat-c">' +
-          '<div class="p-mat-capa" style="background:' +
-          (c.capa_midia_id ? "#241030 url(/api/midia/" + esc(c.capa_midia_id) +
-            ") center/cover" : (CAPAS[c.capa] || CAPAS.ouro)) +
-          ';display:flex;align-items:center;justify-content:center">' +
-          '<span class="p-play">▶</span></div>' +
-          '<div class="p-mat-t">' + esc(c.titulo) +
-          '<div class="small muted" style="margin-top:3px">' + c.aulas +
-          (c.aulas === 1 ? " aula" : " aulas") + '</div>' +
-          '<div class="p-prog" style="margin-top:8px"><i style="width:' +
+        var card = el('<div class="pf-res"><div class="pf-res-capa pf-res-play" style="background:' +
+          (c.capa_midia_id ? "#241030 url(/api/midia/" + esc(c.capa_midia_id) + ") center/cover"
+            : (CAPAS[c.capa] || CAPAS.ouro)) + '"><span>▶</span></div>' +
+          '<div class="pf-res-top" style="padding-bottom:0"><small>Trilha</small><h3>' +
+          esc(c.titulo) + '</h3></div><div class="pf-res-foot">' + c.aulas +
+          (c.aulas === 1 ? " aula" : " aulas") + '<div class="pf-prog"><i style="width:' +
           (c.progresso || 0) + '%"></i></div></div></div>');
         card.onclick = function () { abrirCurso(c.id); };
         cur.appendChild(card);
@@ -842,43 +734,101 @@
       palco.appendChild(cur);
     }
 
-    if (!(d.metodologia || []).length && !(d.paginas || []).length &&
-        !(d.cursos || []).length) {
-      palco.appendChild(el('<p class="p-vazio">Os primeiros conteúdos aparecem aqui ' +
-        'assim que forem liberados para você.</p>'));
+    if (!(d.metodologia || []).length && !(d.paginas || []).length && !(d.cursos || []).length) {
+      palco.appendChild(el('<p class="pf-vazio">Os primeiros conteúdos aparecem aqui assim que ' +
+        'forem liberados para você.</p>'));
     }
     window.scrollTo(0, 0);
   }
 
+  /* --------------------------------------------------------- upload ---- */
+  var PEDACO = 4 * 1024 * 1024;
+  function lerPedaco(blob) {
+    return new Promise(function (ok, falha) {
+      var fr = new FileReader();
+      fr.onerror = function () { falha(new Error("Não consegui ler o arquivo.")); };
+      fr.onload = function () { ok(fr.result); };
+      fr.readAsDataURL(blob);
+    });
+  }
+  /* arquivo grande vai em pedaços: cada um sobe sozinho, o servidor encaixa no disco */
+  function enviarArquivoPortal(file, aoProgredir) {
+    var envio = "e" + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+    var total = Math.max(1, Math.ceil(file.size / PEDACO));
+    var i = 0;
+    function proximo() {
+      if (i >= total) return Promise.reject(new Error("Envio incompleto."));
+      var ini = i * PEDACO;
+      return lerPedaco(file.slice(ini, ini + PEDACO)).then(function (dados) {
+        return fetch("/api/c/" + encodeURIComponent(token) + "/recado-pedaco", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ envio_id: envio, indice: i, total: total, dados: dados,
+            nome: file.name, tipo: file.type })
+        }).then(function (r) { return r.json(); });
+      }).then(function (r) {
+        if (r.erro) throw new Error(r.erro);
+        i++;
+        if (aoProgredir) aoProgredir(Math.round(i / total * 100));
+        return r.pronto ? r : proximo();
+      });
+    }
+    return proximo();
+  }
 
-  /* O cliente fala com a equipe: pedido, dúvida, arquivo ou informação. */
+  /* o cliente fala com a equipe: pedido, dúvida, observação ou arquivo */
   function telaConversa(d) {
     var ciclo = (d.etapa_atual || {}).ciclo || "";
-    palco.appendChild(tituloPag("Fale com a equipe",
-      'Converse com o <em class="grifo">seu time</em>',
-      "Pedido, dúvida, observação ou um arquivo que a gente precisa receber. " +
-      "Chega direto para quem acompanha a sua conta."));
-    var caixa = el('<div></div>');
-    var f = el('<div class="p-fala">' +
-      '<label for="fa_assunto">Assunto</label>' +
-      '<input type="text" id="fa_assunto" placeholder="Sobre o que você quer falar">' +
-      '<label for="fa_texto">Mensagem</label>' +
-      '<textarea id="fa_texto" placeholder="Escreva aqui"></textarea>' +
-      '<label for="fa_autor">Quem está escrevendo</label>' +
-      '<input type="text" id="fa_autor" placeholder="Seu nome"></div>');
-    var anexados = [], listaAx = el('<div class="p-ax-lista"></div>');
+    palco.appendChild(tituloPag("Fale com a equipe", 'Converse com o <em class="grifo">seu time</em>',
+      "Pedido, dúvida, observação ou um arquivo que a gente precisa receber. Chega direto para " +
+      "quem acompanha a sua conta."));
+    var chat = el('<div class="pf-chat"></div>');
+    var hist = el('<div class="pf-chat-hist"></div>');
+    var antes = (d.recados || []);
+    if (!antes.length) {
+      hist.appendChild(el('<p class="pf-vazio">Nenhuma mensagem ainda. Escreva abaixo para ' +
+        'começar a conversa.</p>'));
+    }
+    antes.slice().reverse().forEach(function (m) {
+      var eu = m.de !== "b3sales";
+      var i = el('<div class="pf-bubble' + (eu ? " eu" : "") + '">' +
+        '<b>' + (eu ? "Você" : "Grupo B3 Sales") + '</b>' +
+        (m.assunto ? '<div class="small" style="opacity:.8;margin-bottom:3px">' +
+          esc(m.assunto) + '</div>' : '') +
+        (m.texto ? '<p>' + esc(m.texto) + '</p>' : '') + '</div>');
+      if (m.link) {
+        i.appendChild(el('<a class="anexo" href="' + esc(m.link) + '" target="_blank" ' +
+          'rel="noopener">↗ ' + esc(m.link) + '</a>'));
+      }
+      (m.anexos || []).forEach(function (a) {
+        i.appendChild(el('<a class="anexo" href="/api/midia/' + esc(a.id) +
+          '" target="_blank" rel="noopener">⇩ ' + esc(a.nome) + '</a>'));
+      });
+      i.appendChild(el('<time>' + dataBr(m.criado_em) + '</time>'));
+      hist.appendChild(i);
+    });
+    chat.appendChild(hist);
+
+    var compose = el('<div class="pf-compose">' +
+      '<input type="text" id="fa_assunto" placeholder="Assunto (opcional)">' +
+      '<textarea id="fa_texto" placeholder="Escreva sua mensagem"></textarea>' +
+      '<input type="text" id="fa_autor" placeholder="Seu nome">' +
+      '<input type="text" id="fa_link" placeholder="Colar um link (opcional)"></div>');
+    var anexados = [], listaAx = el('<div class="pf-ax-lista"></div>');
     function pintarAx() {
       listaAx.innerHTML = "";
       anexados.forEach(function (a, ix) {
-        var t = el('<span class="p-ax-t">' + esc(a.nome) + ' <button>×</button></span>');
+        var t = el('<span class="pf-ax-t">' + esc(a.nome) + ' <button>×</button></span>');
         t.querySelector("button").onclick = function () { anexados.splice(ix, 1); pintarAx(); };
         listaAx.appendChild(t);
       });
     }
+    compose.appendChild(listaAx);
     var inp = document.createElement("input");
     inp.type = "file"; inp.style.display = "none";
-    var bAx = el('<button class="btn btn-linha" style="margin-top:16px">↑ Anexar arquivo</button>');
-    var stAx = el('<span class="small muted" style="margin-left:10px"></span>');
+    var linha = el('<div class="pf-compose-linha"></div>');
+    var bAx = el('<button class="btn btn-linha btn-sm" type="button">↑ Anexar arquivo</button>');
+    var stAx = el('<span class="small muted"></span>');
+    var b = el('<button class="btn btn-ameixa" type="button">Enviar mensagem</button>');
     bAx.onclick = function () { inp.click(); };
     inp.onchange = function () {
       var arq = inp.files[0];
@@ -893,18 +843,12 @@
         bAx.disabled = false; stAx.textContent = e.message;
       });
     };
-    f.appendChild(el('<label>Anexos e links</label>'));
-    f.appendChild(el('<input type="text" id="fa_link" placeholder="Colar um link (opcional)">'));
-    f.appendChild(listaAx);
-    var linhaAx = el('<div style="display:flex;align-items:center;flex-wrap:wrap"></div>');
-    linhaAx.appendChild(bAx); linhaAx.appendChild(stAx); linhaAx.appendChild(inp);
-    f.appendChild(linhaAx);
-
-    var b = el('<button class="btn btn-ameixa" style="margin-top:16px">Enviar mensagem</button>');
-    var st = el('<p class="small muted" style="margin:10px 0 0"></p>');
+    linha.appendChild(bAx); linha.appendChild(stAx); linha.appendChild(inp);
+    compose.appendChild(linha);
+    var st = el('<p class="small muted" style="margin:12px 0 0"></p>');
     b.onclick = function () {
-      var texto = f.querySelector("#fa_texto").value.trim();
-      var lk = f.querySelector("#fa_link").value.trim();
+      var texto = compose.querySelector("#fa_texto").value.trim();
+      var lk = compose.querySelector("#fa_link").value.trim();
       if (!texto && !lk && !anexados.length) {
         st.textContent = "Escreva a sua mensagem ou anexe alguma coisa."; return;
       }
@@ -912,54 +856,31 @@
       fetch("/api/c/" + encodeURIComponent(token) + "/recado", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ texto: texto || "(arquivo enviado)", ciclo: ciclo || "",
-          assunto: f.querySelector("#fa_assunto").value,
-          autor: f.querySelector("#fa_autor").value,
+          assunto: compose.querySelector("#fa_assunto").value,
+          autor: compose.querySelector("#fa_autor").value,
           link: lk, midia_ids: anexados.map(function (a) { return a.id; }) })
       }).then(function (r) { return r.json(); }).then(function (r) {
         b.disabled = false; b.textContent = "Enviar mensagem";
         if (r.erro) { st.textContent = r.erro; return; }
-        f.querySelector("#fa_texto").value = "";
-        f.querySelector("#fa_assunto").value = "";
-        f.querySelector("#fa_link").value = "";
+        compose.querySelector("#fa_texto").value = "";
+        compose.querySelector("#fa_assunto").value = "";
+        compose.querySelector("#fa_link").value = "";
         anexados = []; pintarAx();
         st.textContent = "Recebido. O time já foi avisado.";
-        carregar();
+        carregar(true);
       }).catch(function () {
         b.disabled = false; b.textContent = "Enviar mensagem";
         st.textContent = "Não deu para enviar agora. Tente de novo em instantes.";
       });
     };
-    f.appendChild(b); f.appendChild(st);
-    var antes = (d.recados || []);
-    if (antes.length) {
-      var h = el('<div class="p-fala-hist"><p class="small muted" ' +
-        'style="margin:0 0 8px">A conversa</p></div>');
-      antes.slice().reverse().forEach(function (m) {
-        var daCasa = m.de === "b3sales";
-        var i = el('<div class="p-fala-i ' + (daCasa ? "casa" : "meu") + '">' +
-          '<b>' + (daCasa ? "Grupo B3 Sales" : "Você") + '</b> ' +
-          '<span class="p-fala-d">' + dataBr(m.criado_em) + '</span>' +
-          (m.assunto ? '<span class="small muted"> · ' + esc(m.assunto) + '</span>' : '') +
-          (m.texto ? '<p>' + esc(m.texto) + '</p>' : '') + '</div>');
-        if (m.link) {
-          i.appendChild(el('<a class="p-fala-lk" href="' + esc(m.link) +
-            '" target="_blank" rel="noopener">' + esc(m.link) + '</a>'));
-        }
-        (m.anexos || []).forEach(function (a) {
-          i.appendChild(el('<a class="p-fala-lk" href="/api/midia/' + esc(a.id) +
-            '" target="_blank" rel="noopener">⇩ ' + esc(a.nome) + '</a>'));
-        });
-        h.appendChild(i);
-      });
-      f.appendChild(h);
-    }
-    caixa.appendChild(f);
-    palco.appendChild(caixa);
+    compose.appendChild(b); compose.appendChild(st);
+    chat.appendChild(compose);
+    palco.appendChild(chat);
+    hist.scrollTop = 0;
     window.scrollTo(0, 0);
   }
 
-  var DADOS = {}, ONDE = "inicio";
-  var CURSO = null, AULA = null;
+  var DADOS = {}, ONDE = "inicio", CURSO = null, AULA = null;
 
   function marcarVista(aula, visto) {
     return fetch("/api/c/" + encodeURIComponent(token) + "/aula-vista", {
@@ -970,54 +891,49 @@
 
   function playerDe(a) {
     if (a.midia_id) {
-      return el('<video controls class="p-player" src="/api/midia/' + esc(a.midia_id) + '"></video>');
+      return el('<video controls class="pf-player" src="/api/midia/' + esc(a.midia_id) + '"></video>');
     }
     if (a.url) {
       var yt = a.url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([\w-]{6,})/);
       var vm = a.url.match(/vimeo\.com\/(?:video\/)?(\d+)/);
       var src = yt ? "https://www.youtube.com/embed/" + yt[1]
               : vm ? "https://player.vimeo.com/video/" + vm[1] : a.url;
-      return el('<div class="p-emb"><iframe src="' + esc(src) +
-        '" allowfullscreen loading="lazy"></iframe></div>');
+      return el('<div class="pf-emb"><iframe src="' + esc(src) + '" allowfullscreen loading="lazy"></iframe></div>');
     }
-    return el('<div class="p-semvideo">Esta aula ainda não tem vídeo.</div>');
+    return el('<div class="pf-semvideo">Esta aula ainda não tem vídeo.</div>');
   }
 
   function todasAulas() {
     var t = [];
-    (CURSO.modulos || []).forEach(function (m) {
-      (m.aulas || []).forEach(function (a) { t.push(a); });
-    });
+    (CURSO.modulos || []).forEach(function (m) { (m.aulas || []).forEach(function (a) { t.push(a); }); });
     return t;
   }
 
   function desenharCurso() {
     palco.innerHTML = "";
-    palco.appendChild(cabecalho(DADOS));
-    var v = el('<button class="p-voltar">← Voltar aos materiais</button>');
+    marcarNavAtiva("materiais");
+    var v = el('<button class="pf-voltar">← Voltar aos materiais</button>');
     v.onclick = function () { irPara("materiais"); };
     palco.appendChild(v);
 
     var fundo = CURSO.banner_midia_id
       ? "#241030 url(/api/midia/" + esc(CURSO.banner_midia_id) + ") center/cover"
       : (CAPAS[CURSO.capa] || CAPAS.ouro);
-    palco.appendChild(el('<div class="p-cur-banner" style="background:' + fundo + '">' +
-      '<div class="p-cur-sobre"><div class="eyebrow" style="color:var(--ouro-300)">' +
-      esc(CURSO.trilha || "Treinamento") + '</div>' +
-      '<h1 class="serif p-cur-t">' + esc(CURSO.titulo) + '</h1>' +
-      (CURSO.descricao ? '<p class="p-cur-d">' + esc(CURSO.descricao) + '</p>' : '') +
+    palco.appendChild(el('<div class="pf-cur-banner" style="background:' + fundo + '">' +
+      '<div class="pf-cur-sobre"><div class="eyebrow" style="color:var(--ouro-300)">' +
+      esc(CURSO.trilha || "Treinamento") + '</div><h1 class="pf-cur-t">' + esc(CURSO.titulo) +
+      '</h1>' + (CURSO.descricao ? '<p class="pf-cur-d">' + esc(CURSO.descricao) + '</p>' : '') +
       '</div></div>'));
 
-    palco.appendChild(el('<div class="p-prog-cx"><div class="p-prog-r">' +
-      '<span>Seu progresso</span><b>' + CURSO.progresso + '%</b></div>' +
-      '<div class="p-prog"><i style="width:' + CURSO.progresso + '%"></i></div>' +
-      '<div class="small muted" style="margin-top:6px">' + CURSO.aulas_vistas +
-      ' de ' + CURSO.aulas_total + ' aulas concluídas</div></div>'));
+    palco.appendChild(el('<div class="pf-prog-cx"><div class="pf-prog-r"><span>Seu progresso</span>' +
+      '<b>' + CURSO.progresso + '%</b></div><div class="pf-prog"><i style="width:' +
+      CURSO.progresso + '%"></i></div><div class="small muted" style="margin-top:6px">' +
+      CURSO.aulas_vistas + ' de ' + CURSO.aulas_total + ' aulas concluídas</div></div>'));
 
     var todas = todasAulas();
     if (todas.length) {
       var prox = todas.filter(function (a) { return !a.vista; })[0] || todas[0];
-      var bc = el('<button class="btn btn-ouro p-comecar">' +
+      var bc = el('<button class="btn btn-ouro pf-comecar">' +
         (CURSO.progresso ? "Continuar de onde parei" : "Começar o curso") + '</button>');
       bc.onclick = function () { AULA = prox; desenharAula(); };
       palco.appendChild(bc);
@@ -1025,23 +941,19 @@
 
     (CURSO.modulos || []).forEach(function (m, mi) {
       if (!m.aulas.length) return;
-      palco.appendChild(el('<div class="p-mod-cab">' +
-        '<div><div class="eyebrow">Módulo ' + (mi + 1) + '</div>' +
-        '<h2 class="serif p-mod-t">' + esc(m.titulo) + '</h2>' +
-        (m.descricao ? '<p class="small muted" style="margin:3px 0 0">' +
-          esc(m.descricao) + '</p>' : '') + '</div>' +
-        '<span class="p-mod-p">' + m.progresso + '%</span></div>'));
-      var fila = el('<div class="p-aulas"></div>');
+      palco.appendChild(el('<div class="pf-mod-cab"><div><div class="eyebrow">Módulo ' + (mi + 1) +
+        '</div><h2 class="pf-mod-t">' + esc(m.titulo) + '</h2>' +
+        (m.descricao ? '<p class="small muted" style="margin:3px 0 0">' + esc(m.descricao) +
+          '</p>' : '') + '</div><span class="pf-mod-p">' + m.progresso + '%</span></div>'));
+      var fila = el('<div class="pf-aulas"></div>');
       m.aulas.forEach(function (a) {
-        var card = el('<div class="p-aula-c' + (a.vista ? " vista" : "") + '">' +
-          '<div class="p-aula-capa" style="background:' +
-          (a.capa_midia_id ? "#000 url(/api/midia/" + esc(a.capa_midia_id) +
-            ") center/cover" : "var(--creme-3)") + '">' +
-          '<span class="p-aula-play">▶</span>' +
-          (a.vista ? '<span class="p-aula-ok">✓</span>' : '') + '</div>' +
-          '<div class="p-aula-t">' + esc(a.titulo) +
-          (a.duracao ? '<div class="small muted">' + esc(a.duracao) + '</div>' : '') +
-          '</div></div>');
+        var card = el('<div class="pf-aula-c' + (a.vista ? " vista" : "") + '">' +
+          '<div class="pf-aula-capa" style="background:' +
+          (a.capa_midia_id ? "#000 url(/api/midia/" + esc(a.capa_midia_id) + ") center/cover"
+            : "var(--creme-3)") + '"><span class="pf-aula-play">▶</span>' +
+          (a.vista ? '<span class="pf-aula-ok">✓</span>' : '') + '</div>' +
+          '<div class="pf-aula-t">' + esc(a.titulo) +
+          (a.duracao ? '<div class="small muted">' + esc(a.duracao) + '</div>' : '') + '</div></div>');
         card.onclick = function () { AULA = a; desenharAula(); };
         fila.appendChild(card);
       });
@@ -1052,20 +964,18 @@
 
   function desenharAula() {
     palco.innerHTML = "";
-    var v = el('<button class="p-voltar">← Voltar para o curso</button>');
+    var v = el('<button class="pf-voltar">← Voltar para o curso</button>');
     v.onclick = desenharCurso;
     palco.appendChild(v);
 
-    var grade = el('<div class="p-play-grade"></div>');
+    var grade = el('<div class="pf-play-grade"></div>');
     var esq = el('<div></div>');
     esq.appendChild(playerDe(AULA));
-    esq.appendChild(el('<h1 class="serif" style="font-size:29px;color:var(--ameixa-900);' +
+    esq.appendChild(el('<h1 class="serif" style="font-size:27px;color:var(--ameixa-900);' +
       'margin:20px 0 4px">' + esc(AULA.titulo) + '</h1>'));
-    if (AULA.duracao) {
-      esq.appendChild(el('<div class="small muted">' + esc(AULA.duracao) + '</div>'));
-    }
+    if (AULA.duracao) esq.appendChild(el('<div class="small muted">' + esc(AULA.duracao) + '</div>'));
 
-    var linhaB = el('<div class="p-aula-acoes"></div>');
+    var linhaB = el('<div class="pf-aula-acoes"></div>');
     var bok = el('<button class="btn ' + (AULA.vista ? "btn-linha" : "btn-ouro") + '">' +
       (AULA.vista ? "✓ Aula concluída" : "Concluir e avançar") + '</button>');
     bok.onclick = function () {
@@ -1077,8 +987,7 @@
           m.progresso = m.aulas.length ? Math.round(f / m.aulas.length * 100) : 0;
         });
         if (AULA.vista) {
-          var t = todasAulas();
-          var i = t.indexOf(AULA);
+          var t = todasAulas(); var i = t.indexOf(AULA);
           if (i >= 0 && i + 1 < t.length) { AULA = t[i + 1]; desenharAula(); return; }
         }
         desenharAula();
@@ -1090,25 +999,23 @@
         esc(AULA.material_midia_id) + '" target="_blank">⇩ Material da aula</a>'));
     }
     esq.appendChild(linhaB);
-
     if (AULA.descricao) {
-      esq.appendChild(el('<div class="p-aula-info"><div class="eyebrow">Sobre a aula</div>' +
+      esq.appendChild(el('<div class="pf-aula-info"><div class="eyebrow">Sobre a aula</div>' +
         '<p style="margin:8px 0 0;line-height:1.8;color:var(--texto-2);white-space:pre-wrap">' +
         esc(AULA.descricao) + '</p></div>'));
     }
     grade.appendChild(esq);
 
-    /* lista dos módulos ao lado, como numa escola */
-    var dir = el('<div class="p-lado"></div>');
+    var dir = el('<div class="pf-lado"></div>');
     (CURSO.modulos || []).forEach(function (m, mi) {
       if (!m.aulas.length) return;
-      var bloco = el('<div class="p-lado-mod"><div class="p-lado-cab">' +
-        '<span class="p-lado-p">' + m.progresso + '%</span>' +
-        '<strong>Módulo ' + (mi + 1) + ' · ' + esc(m.titulo) + '</strong></div></div>');
+      var bloco = el('<div class="pf-lado-mod"><div class="pf-lado-cab"><span class="pf-lado-p">' +
+        m.progresso + '%</span><strong>Módulo ' + (mi + 1) + ' · ' + esc(m.titulo) +
+        '</strong></div></div>');
       m.aulas.forEach(function (a) {
-        var it = el('<div class="p-lado-a' + (a.id === AULA.id ? " at" : "") +
-          (a.vista ? " vista" : "") + '"><span class="p-lado-i">' +
-          (a.vista ? "✓" : "▶") + '</span><span>' + esc(a.titulo) + '</span></div>');
+        var it = el('<div class="pf-lado-a' + (a.id === AULA.id ? " at" : "") +
+          (a.vista ? " vista" : "") + '"><span class="pf-lado-i">' + (a.vista ? "✓" : "▶") +
+          '</span><span>' + esc(a.titulo) + '</span></div>');
         it.onclick = function () { AULA = a; desenharAula(); };
         bloco.appendChild(it);
       });
@@ -1135,35 +1042,30 @@
       .then(function (pag) {
         if (pag.erro) return alert(pag.erro);
         palco.innerHTML = "";
-        palco.appendChild(cabecalho(DADOS));
-        var v = el('<button class="p-voltar">← Voltar aos materiais</button>');
+        marcarNavAtiva("materiais");
+        var v = el('<button class="pf-voltar">← Voltar aos materiais</button>');
         v.onclick = function () { irPara("materiais"); };
         palco.appendChild(v);
-        palco.appendChild(el('<div style="height:120px;border-radius:var(--r);background:' +
+        palco.appendChild(el('<div style="height:110px;border-radius:var(--r);background:' +
           (CAPAS[pag.capa] || CAPAS.creme) + ';margin-bottom:22px"></div>'));
-        palco.appendChild(el('<h1 class="serif" style="font-size:38px;color:var(--ameixa-900);' +
+        palco.appendChild(el('<h1 class="serif" style="font-size:34px;color:var(--ameixa-900);' +
           'margin-bottom:22px">' + esc(pag.titulo) + '</h1>'));
         pag.blocos.forEach(function (b) {
           var ct = b.conteudo || {};
           if (b.tipo === "titulo" && ct.texto) {
-            palco.appendChild(el('<h2 class="serif" style="font-size:26px;' +
-              'color:var(--ameixa-900);margin:30px 0 10px">' + esc(ct.texto) + '</h2>'));
+            palco.appendChild(el('<h2 class="serif" style="font-size:24px;color:var(--ameixa-900);' +
+              'margin:28px 0 10px">' + esc(ct.texto) + '</h2>'));
           } else if (b.tipo === "texto" && ct.texto) {
-            palco.appendChild(el('<p style="font-size:15.5px;line-height:1.8;' +
-              'color:var(--texto-2);margin:0 0 14px;white-space:pre-wrap">' +
-              formatar(ct.texto) + '</p>'));
+            palco.appendChild(el('<p style="font-size:15px;line-height:1.8;color:var(--texto-2);' +
+              'margin:0 0 14px;white-space:pre-wrap">' + formatar(ct.texto) + '</p>'));
           } else if (b.tipo === "destaque" && ct.texto) {
-            palco.appendChild(el('<div class="p-obj" style="margin:18px 0">' +
-              formatar(ct.texto) + '</div>'));
+            palco.appendChild(el('<div class="pf-obj" style="margin:18px 0">' + formatar(ct.texto) + '</div>'));
           } else if (b.tipo === "divisor") {
-            palco.appendChild(el('<hr style="border:none;border-top:1px solid var(--linha);' +
-              'margin:26px 0">'));
+            palco.appendChild(el('<hr style="border:none;border-top:1px solid var(--linha);margin:26px 0">'));
           } else if (b.tipo === "lista" && (ct.itens || []).length) {
             var ul = el('<ul style="margin:0 0 16px;padding-left:20px;color:var(--texto-2);' +
               'font-size:15px;line-height:1.9"></ul>');
-            ct.itens.forEach(function (i) {
-              if (i) ul.appendChild(el('<li>' + esc(i) + '</li>'));
-            });
+            ct.itens.forEach(function (i) { if (i) ul.appendChild(el('<li>' + esc(i) + '</li>')); });
             if (ul.children.length) palco.appendChild(ul);
           } else if (b.tipo === "tabela" && (ct.colunas || []).length) {
             var t = el('<div style="overflow-x:auto;margin:0 0 18px"><table class="lista">' +
@@ -1178,11 +1080,10 @@
             });
             palco.appendChild(t);
           } else if (b.tipo === "imagem" && ct.anexo_id) {
-            palco.appendChild(el('<figure style="margin:0 0 18px">' +
-              '<img src="/api/anexo/' + esc(ct.anexo_id) + '" alt="" ' +
-              'style="max-width:100%;border-radius:var(--r);border:1px solid var(--linha)">' +
-              (ct.legenda ? '<figcaption class="small muted" style="margin-top:7px">' +
-                esc(ct.legenda) + '</figcaption>' : '') + '</figure>'));
+            palco.appendChild(el('<figure style="margin:0 0 18px"><img src="/api/anexo/' +
+              esc(ct.anexo_id) + '" alt="" style="max-width:100%;border-radius:var(--r);' +
+              'border:1px solid var(--linha)">' + (ct.legenda ? '<figcaption class="small muted" ' +
+              'style="margin-top:7px">' + esc(ct.legenda) + '</figcaption>' : '') + '</figure>'));
           } else if (b.tipo === "arquivo" && ct.anexo_id) {
             var nome = (pag.anexos || []).filter(function (a) { return a.id === ct.anexo_id; })[0];
             palco.appendChild(el('<a href="/api/anexo/' + esc(ct.anexo_id) + '" target="_blank" ' +
@@ -1192,43 +1093,39 @@
               '<span style="color:var(--ouro-700);font-size:17px">⇩</span>' +
               esc(ct.titulo || (nome && nome.nome) || "Abrir arquivo") + '</a>'));
           } else if (b.tipo === "video" && (ct.url || ct.midia_id)) {
-            var v;
+            var vd;
             if (ct.midia_id) {
-              v = el('<video controls style="width:100%;border-radius:var(--r);' +
-                'background:#000" src="/api/midia/' + esc(ct.midia_id) + '"></video>');
+              vd = el('<video controls style="width:100%;border-radius:var(--r);background:#000" ' +
+                'src="/api/midia/' + esc(ct.midia_id) + '"></video>');
             } else {
               var yt = ct.url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([\w-]{6,})/);
               var vm = ct.url.match(/vimeo\.com\/(?:video\/)?(\d+)/);
               var src = yt ? "https://www.youtube.com/embed/" + yt[1]
                       : vm ? "https://player.vimeo.com/video/" + vm[1] : ct.url;
-              v = el('<div class="p-emb"><iframe src="' + esc(src) +
-                '" allowfullscreen loading="lazy"></iframe></div>');
+              vd = el('<div class="pf-emb"><iframe src="' + esc(src) + '" allowfullscreen loading="lazy"></iframe></div>');
             }
             var cxv = el('<figure style="margin:0 0 20px"></figure>');
-            cxv.appendChild(v);
+            cxv.appendChild(vd);
             if (ct.titulo || ct.duracao) {
               cxv.appendChild(el('<figcaption style="margin-top:8px;font-size:14.5px;' +
                 'color:var(--ameixa-900)"><strong>' + esc(ct.titulo || "") + '</strong>' +
-                (ct.duracao ? '<span class="small muted">  ·  ' + esc(ct.duracao) +
-                  '</span>' : '') + '</figcaption>'));
+                (ct.duracao ? '<span class="small muted">  ·  ' + esc(ct.duracao) + '</span>' : '') +
+                '</figcaption>'));
             }
             if (ct.descricao) {
-              cxv.appendChild(el('<div class="small muted" style="margin-top:3px">' +
-                esc(ct.descricao) + '</div>'));
+              cxv.appendChild(el('<div class="small muted" style="margin-top:3px">' + esc(ct.descricao) + '</div>'));
             }
             palco.appendChild(cxv);
           } else if (b.tipo === "audio" && ct.midia_id) {
             palco.appendChild(el('<div style="margin:0 0 18px">' +
-              (ct.titulo ? '<div style="font-size:14.5px;color:var(--ameixa-900);' +
-                'margin-bottom:6px">' + esc(ct.titulo) + '</div>' : '') +
-              '<audio controls style="width:100%" src="/api/midia/' +
+              (ct.titulo ? '<div style="font-size:14.5px;color:var(--ameixa-900);margin-bottom:6px">' +
+                esc(ct.titulo) + '</div>' : '') + '<audio controls style="width:100%" src="/api/midia/' +
               esc(ct.midia_id) + '"></audio></div>'));
           } else if (b.tipo === "imagem" && ct.midia_id) {
-            palco.appendChild(el('<figure style="margin:0 0 18px">' +
-              '<img src="/api/midia/' + esc(ct.midia_id) + '" alt="" ' +
-              'style="max-width:100%;border-radius:var(--r);border:1px solid var(--linha)">' +
-              (ct.legenda ? '<figcaption class="small muted" style="margin-top:7px">' +
-                esc(ct.legenda) + '</figcaption>' : '') + '</figure>'));
+            palco.appendChild(el('<figure style="margin:0 0 18px"><img src="/api/midia/' +
+              esc(ct.midia_id) + '" alt="" style="max-width:100%;border-radius:var(--r);' +
+              'border:1px solid var(--linha)">' + (ct.legenda ? '<figcaption class="small muted" ' +
+              'style="margin-top:7px">' + esc(ct.legenda) + '</figcaption>' : '') + '</figure>'));
           } else if (b.tipo === "arquivo" && ct.midia_id) {
             palco.appendChild(el('<a href="/api/midia/' + esc(ct.midia_id) + '" target="_blank" ' +
               'style="display:inline-flex;align-items:center;gap:10px;padding:13px 18px;' +
@@ -1240,37 +1137,42 @@
             palco.appendChild(el('<a href="' + esc(ct.url) + '" target="_blank" rel="noopener" ' +
               'style="display:block;padding:15px 18px;border:1px solid var(--linha);' +
               'border-radius:var(--r-sm);text-decoration:none;margin:0 0 16px">' +
-              '<strong style="color:var(--ameixa-800);font-size:15px">' +
-              esc(ct.titulo || ct.url) + '</strong>' +
-              (ct.descricao ? '<div class="small muted" style="margin-top:3px">' +
-                esc(ct.descricao) + '</div>' : '') + '</a>'));
+              '<strong style="color:var(--ameixa-800);font-size:15px">' + esc(ct.titulo || ct.url) +
+              '</strong>' + (ct.descricao ? '<div class="small muted" style="margin-top:3px">' +
+              esc(ct.descricao) + '</div>' : '') + '</a>'));
           }
         });
         window.scrollTo(0, 0);
       });
   }
 
-  function carregar() {
-    palco.innerHTML = '<p class="muted" style="text-align:center;padding:60px 0">Carregando…</p>';
-    fetch("/api/c/" + encodeURIComponent(token))
-      .then(function (r) { return r.json(); })
+  function carregar(silencioso) {
+    if (!silencioso) {
+      palco.innerHTML = '<p class="muted" style="text-align:center;padding:60px 0">Carregando…</p>';
+    }
+    fetch("/api/c/" + encodeURIComponent(token)).then(function (r) { return r.json(); })
       .then(function (d) {
         if (d.erro) return erro(d.erro);
         DADOS = d;
+        montarCasca(d);
+        if (silencioso && ONDE === "conversa") {
+          palco.innerHTML = "";
+          marcarNavAtiva("conversa");
+          palco.appendChild(volta());
+          telaConversa(d);
+          return;
+        }
         desenhar(d);
-      })
-      .catch(function () { erro("Não foi possível carregar agora. Tente daqui a pouco."); });
+      }).catch(function () { erro("Não foi possível carregar agora. Tente daqui a pouco."); });
   }
   carregar();
 })();
-</script>
-<script>
+
 /* troca o simbolo desenhado pelo logo enviado pela B3 Sales, quando existir */
 fetch("/api/marca").then(function (r) { return r.json(); }).then(function (m) {
   if (!m.logo_midia_id) return;
   document.querySelectorAll(".marca").forEach(function (el) {
-    el.innerHTML = '<img class="marca-img" src="/api/midia/' + m.logo_midia_id +
-      '" alt="Grupo B3 Sales">';
+    el.innerHTML = '<img class="marca-img" src="/api/midia/' + m.logo_midia_id + '" alt="Grupo B3 Sales">';
   });
 }).catch(function () {});
 </script>
