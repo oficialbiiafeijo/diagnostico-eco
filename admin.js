@@ -3161,6 +3161,31 @@
       col2.appendChild(sCard);
     }
 
+    /* o foco do ciclo, que o cliente lê no painel dele */
+    var fCard = el('<div class="card card-pad" style="margin-top:16px">' +
+      '<div class="eyebrow">O cliente lê isto</div>' +
+      '<h3 class="serif" style="font-size:21px;color:var(--ameixa-900);margin:6px 0 4px">' +
+      'Foco atual</h3>' +
+      '<p class="small muted" style="margin:0 0 10px">Uma frase dizendo o que está ' +
+      'sendo trabalhado agora. Aparece no painel dele, abaixo da etapa. Se ficar ' +
+      'vazio, entra o objetivo do ciclo.</p></div>');
+    var fTa = document.createElement("textarea");
+    fTa.value = ciclo.foco || "";
+    fTa.placeholder = "Organizar o caminho que cada oportunidade percorre até a decisão.";
+    fCard.appendChild(fTa);
+    var fSt = el('<span class="an-ok" style="margin-top:8px;display:inline-block"></span>');
+    var fBt = el('<button class="btn btn-ouro btn-sm" style="margin-top:10px">' +
+      'Salvar o foco</button>');
+    fBt.onclick = function () {
+      api("/api/admin/ciclo-foco", { cliente_id: c.id, ciclo: d.ciclo, foco: fTa.value })
+        .then(function (r) {
+          if (r.erro) return toast(r.erro);
+          fSt.textContent = "Salvo, o cliente já vê"; fSt.className = "an-ok on";
+        });
+    };
+    fCard.appendChild(fBt); fCard.appendChild(fSt);
+    col2.appendChild(fCard);
+
     /* status */
     var stCard = el('<div class="card card-pad" style="margin-top:16px">' +
       '<div class="eyebrow">Status do ciclo ' + esc(d.ciclo) + '</div></div>');

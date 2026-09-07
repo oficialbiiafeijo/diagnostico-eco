@@ -41,6 +41,186 @@
   .p-hero h1{font-size:44px;color:var(--ameixa-900);line-height:1.1}
   .p-hero p{max-width:600px;margin:14px auto 0;color:var(--texto-2);font-size:15.5px}
 
+  /* ---- cabeçalho do cliente: área exclusiva, não página de cursos ---- */
+  .p-cab{border-radius:var(--r);position:relative;overflow:hidden;
+    margin-bottom:30px;box-shadow:var(--sombra-lg)}
+  .p-cab-veu{position:absolute;inset:0;
+    background:linear-gradient(105deg,rgba(20,8,28,.92) 32%,rgba(20,8,28,.55))}
+  .p-cab-in{position:relative;z-index:1;padding:26px 30px;display:flex;
+    align-items:center;gap:20px}
+  .p-cab-foto{width:74px;height:74px;border-radius:20px;flex:none;
+    background-size:cover;background-position:center;background-color:rgba(255,255,255,.14);
+    border:1px solid rgba(230,203,152,.42);display:flex;align-items:center;
+    justify-content:center;font-family:var(--serif);font-size:31px;color:#FFF7F2}
+  .p-cab-r{font-size:10px;letter-spacing:.24em;text-transform:uppercase;
+    color:var(--ouro-300)}
+  .p-cab-t h2{font-family:var(--serif);font-weight:500;font-size:30px;color:#FFFCF9;
+    margin:4px 0 2px;line-height:1.1}
+  .p-cab-t p{margin:0;font-size:13px;color:rgba(255,252,249,.7)}
+
+  /* ---- abertura ---- */
+  .p-abertura{margin-bottom:28px}
+  .p-abertura h1{font-family:var(--serif);font-weight:500;
+    font-size:clamp(30px,4.2vw,44px);line-height:1.12;color:var(--ameixa-900);
+    margin:0 0 10px;max-width:22ch;text-wrap:balance}
+  .p-abertura p{margin:0;font-size:15.5px;color:var(--texto-2);max-width:58ch}
+
+  .p-rot{display:block;font-size:10.5px;letter-spacing:.2em;text-transform:uppercase;
+    color:var(--ouro-600);margin-bottom:6px}
+  .p-rot-azul{color:var(--azul-800)}
+  .p-rot-terra{color:var(--terracota-700)}
+
+  /* ---- etapa, foco e selo ---- */
+  .p-trio{display:grid;grid-template-columns:minmax(0,1fr) 236px;gap:14px;
+    align-items:stretch}
+  .p-trio-esq{display:flex;flex-direction:column;gap:14px}
+  .p-etapa-c{background:var(--terracota-100);border-left:3px solid var(--terracota-500);
+    border-radius:0 var(--r) var(--r) 0;padding:18px 22px}
+  .p-etapa-c strong{display:block;font-family:var(--serif);font-size:29px;
+    font-weight:500;color:var(--terracota-700);line-height:1.15}
+  .p-foco-c{background:var(--branco);border:1px solid var(--linha);
+    border-radius:var(--r);padding:18px 22px;flex:1}
+  .p-foco-c p{margin:0;font-size:15px;color:var(--texto-2);line-height:1.68}
+  .p-selo{background:var(--ameixa-900);border:none;border-radius:var(--r);
+    padding:24px 18px;text-align:center;cursor:pointer;color:#FFFCF9;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    gap:4px;font-family:var(--sans);transition:.18s}
+  .p-selo:hover{background:var(--ameixa-800)}
+  .p-selo-anel{width:82px;height:82px;border-radius:50%;
+    border:1px solid var(--ouro-300);display:flex;align-items:center;
+    justify-content:center;margin-bottom:10px;position:relative}
+  .p-selo-anel::after{content:"";position:absolute;inset:5px;border-radius:50%;
+    border:1px solid rgba(230,203,152,.3)}
+  .p-selo-anel b{font-family:var(--serif);font-size:35px;color:var(--ouro-300);
+    font-variant-numeric:lining-nums}
+  .p-selo-t{font-size:10.5px;letter-spacing:.18em;text-transform:uppercase}
+  .p-selo-s{font-size:11.5px;color:var(--ameixa-300);line-height:1.4}
+
+  /* ---- próximo passo ---- */
+  .p-passo{margin-top:14px;background:var(--terracota-100);
+    border:1px solid var(--terracota-300);border-radius:var(--r);
+    padding:18px 22px;display:flex;gap:16px;align-items:flex-start}
+  .p-passo-i{width:32px;height:32px;border-radius:50%;flex:none;
+    background:var(--terracota-500);color:#fff;display:flex;align-items:center;
+    justify-content:center;font-size:15px;margin-top:2px}
+  .p-passo p{margin:0;font-size:15px;color:var(--terracota-700);line-height:1.65}
+
+  /* ---- o que já está sendo construído ---- */
+  .p-sec-fina{margin:34px 0 12px}
+  .p-construido{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));
+    gap:12px}
+  .p-cons{background:var(--branco);border:1px solid var(--linha);
+    border-top:2px solid var(--c);border-radius:0 0 var(--r-sm) var(--r-sm);
+    padding:15px 17px;font-size:14.5px;color:var(--ameixa-900);line-height:1.45}
+  .p-cons span{display:block;width:16px;height:2px;background:var(--c);
+    margin-bottom:9px;opacity:.55}
+
+  /* ---- as cinco portas ---- */
+  .p-portas{display:grid;grid-template-columns:repeat(auto-fit,minmax(196px,1fr));
+    gap:13px;margin-top:34px}
+  .p-porta{position:relative;background:var(--branco);border:1px solid var(--linha);
+    border-radius:var(--r);padding:20px 18px 18px;text-align:left;cursor:pointer;
+    font-family:var(--sans);transition:.18s}
+  .p-porta:hover{border-color:var(--c);transform:translateY(-2px);
+    box-shadow:var(--sombra-lg)}
+  .p-porta-i{display:flex;align-items:center;justify-content:center;
+    width:36px;height:36px;border-radius:11px;font-size:16px;
+    background:var(--creme-2);color:var(--c);margin-bottom:13px}
+  .p-porta b{display:block;font-family:var(--serif);font-size:19px;font-weight:500;
+    color:var(--ameixa-900);line-height:1.22}
+  .p-porta-s{display:block;font-size:12px;color:var(--muted);margin-top:4px;
+    line-height:1.5}
+  .p-porta-seta{position:absolute;top:20px;right:18px;color:var(--c);opacity:0;
+    transition:.18s;font-size:14px}
+  .p-porta:hover .p-porta-seta{opacity:1}
+
+  /* ---- atualização mais recente ---- */
+  .p-atual{margin-top:34px;background:var(--creme-2);border-radius:var(--r);
+    padding:16px 20px;display:flex;align-items:center;gap:14px}
+  .p-atual-i{width:28px;height:28px;border-radius:50%;flex:none;
+    background:var(--creme-3);color:var(--ameixa-700);display:flex;
+    align-items:center;justify-content:center;font-size:13px}
+  .p-atual div{flex:1;min-width:0}
+  .p-atual p{margin:0;font-size:13.5px;color:var(--texto-2)}
+  .p-atual time{font-size:11.5px;color:var(--muted);white-space:nowrap;
+    font-variant-numeric:lining-nums tabular-nums}
+
+  /* ---- subpáginas ---- */
+  .p-h2{font-family:var(--serif);font-weight:500;font-size:33px;color:var(--ameixa-900);
+    margin:2px 0 0;line-height:1.15}
+  .p-apoio{margin:9px 0 0;font-size:14.5px;color:var(--texto-2);max-width:60ch}
+  .p-sub{margin:34px 0 12px}
+  .p-caixa{background:var(--branco);border:1px solid var(--linha);
+    border-radius:var(--r);padding:24px 26px;box-shadow:var(--sombra)}
+  .p-vazio{font-size:14px;color:var(--muted);font-style:italic;margin:14px 0 0}
+  .p-resultado{margin:22px 0 0;padding:18px 22px;background:var(--ouro-100);
+    border-radius:var(--r);font-family:var(--serif);font-size:19px;
+    color:var(--ouro-800);line-height:1.5}
+  .p-play{width:38px;height:38px;border-radius:50%;background:rgba(255,255,255,.92);
+    color:var(--ameixa-800);display:flex;align-items:center;justify-content:center;
+    padding-left:3px}
+
+  /* jornada */
+  .p-etapas{display:flex;flex-direction:column;gap:9px;margin-top:16px}
+  .p-et{position:relative;display:flex;align-items:center;gap:14px;width:100%;
+    background:var(--branco);border:1px solid var(--linha);border-radius:var(--r-sm);
+    padding:16px 20px;cursor:pointer;font-family:var(--sans);text-align:left;
+    transition:.16s}
+  .p-et:hover{border-color:var(--ouro-500);transform:translateX(2px)}
+  .p-et b{flex:1;font-family:var(--serif);font-size:22px;font-weight:500;
+    color:var(--muted)}
+  .p-et.agora{border-color:var(--terracota-500);background:var(--terracota-100)}
+  .p-et.agora b{color:var(--terracota-700)}
+  .p-et.feita b{color:var(--ameixa-900)}
+  .p-et-s{font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;
+    color:var(--muted)}
+  .p-et.agora .p-et-s{color:var(--terracota-700)}
+  .p-et.feita .p-et-s{color:var(--verde-500)}
+  .p-et-seta{color:var(--muted);font-size:13px}
+
+  /* método ECO */
+  .p-eco{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));
+    gap:14px;margin-top:18px}
+  .p-eco-c{background:var(--branco);border:1px solid var(--linha);
+    border-top:3px solid var(--c);border-radius:0 0 var(--r) var(--r);padding:24px 22px}
+  .p-eco-l{font-family:var(--serif);font-size:46px;color:var(--c);line-height:1;
+    display:block;margin-bottom:8px}
+  .p-eco-c h3{font-family:var(--serif);font-weight:500;font-size:24px;
+    color:var(--ameixa-900);margin:0 0 8px}
+  .p-eco-c p{margin:0;font-size:14px;color:var(--texto-2);line-height:1.7}
+
+  /* conquistas */
+  .p-med{margin-top:18px}
+  .p-med-i{display:grid;grid-template-columns:60px minmax(0,1fr) auto;gap:18px;
+    align-items:start;padding:20px 0;border-bottom:1px solid var(--linha-2)}
+  .p-med-i:last-child{border-bottom:0}
+  .p-brasao{width:60px;height:60px;border-radius:50%;border:1px solid var(--ouro-500);
+    background:var(--ouro-100);display:flex;align-items:center;justify-content:center;
+    font-family:var(--serif);font-size:21px;color:var(--ouro-800);position:relative}
+  .p-brasao::after{content:"";position:absolute;inset:5px;border-radius:50%;
+    border:1px solid rgba(168,128,63,.32)}
+  .p-brasao-vazio{background:transparent;border-style:dashed;border-color:var(--linha);
+    color:var(--muted)}
+  .p-brasao-vazio::after{display:none}
+  .p-med-i h3{font-family:var(--serif);font-weight:500;font-size:23px;
+    color:var(--ameixa-900);margin:5px 0 3px;line-height:1.2}
+  .p-med-i p{margin:0;font-size:14px;color:var(--texto-2);line-height:1.6}
+  .p-med-i time{font-size:11.5px;color:var(--muted);white-space:nowrap;padding-top:10px;
+    font-variant-numeric:lining-nums tabular-nums}
+  .p-prox{margin-top:22px;background:var(--creme-2);border:1px dashed var(--linha);
+    border-radius:var(--r);padding:20px 22px;display:grid;
+    grid-template-columns:60px minmax(0,1fr);gap:18px;align-items:center}
+  .p-prox h3{font-family:var(--serif);font-weight:500;font-size:21px;
+    color:var(--ameixa-800);margin:0 0 2px}
+  .p-prox p{margin:0;font-size:13.5px;color:var(--texto-2)}
+
+  @media (max-width:760px){
+    .p-trio{grid-template-columns:minmax(0,1fr)}
+    .p-med-i{grid-template-columns:48px minmax(0,1fr)}
+    .p-med-i time{grid-column:2;padding-top:0}
+    .p-brasao{width:48px;height:48px;font-size:17px}
+  }
+
   .p-frentes{display:grid;grid-template-columns:repeat(auto-fit,minmax(178px,1fr));
     gap:14px;margin-top:16px}
   .p-fr{background:var(--branco);border:1px solid var(--linha);border-radius:var(--r);
@@ -336,11 +516,104 @@
       '<p class="muted" style="margin-top:12px">' + esc(msg) + '</p></div>'));
   }
 
+  function dataCurta(v) {
+    if (!v) return "";
+    var pp = String(v).slice(0, 10).split("-");
+    if (pp.length !== 3) return v;
+    var m = ["jan", "fev", "mar", "abr", "mai", "jun",
+             "jul", "ago", "set", "out", "nov", "dez"];
+    return pp[2] + " " + (m[parseInt(pp[1], 10) - 1] || "") + " " + pp[0];
+  }
+
+  /* ------------------------------------------------------ página inicial */
   function desenhar(d) {
     palco.innerHTML = "";
-    var r = d.resumo;
+    palco.appendChild(cabecalho(d));
 
-    /* a capa e a marca da empresa dele, do jeito que a B3 Sales escolheu */
+    var abertura = el('<div class="p-abertura">' +
+      '<h1>Sua empresa não precisa crescer <em class="grifo">no improviso.</em></h1>' +
+      '<p>Aqui você acompanha o que está sendo construído para tornar sua operação ' +
+      'mais clara, organizada e preparada para crescer.</p></div>');
+    palco.appendChild(abertura);
+
+    /* etapa, foco e próximo passo: três informações, três pesos visuais */
+    var trio = el('<div class="p-trio"></div>');
+    var esq = el('<div class="p-trio-esq"></div>');
+    esq.appendChild(el('<div class="p-etapa-c">' +
+      '<span class="p-rot">Etapa atual</span>' +
+      '<strong>' + esc(d.etapa_atual.nome) + '</strong></div>'));
+    if (d.foco_atual) {
+      esq.appendChild(el('<div class="p-foco-c">' +
+        '<span class="p-rot p-rot-azul">Foco atual</span>' +
+        '<p>' + esc(d.foco_atual) + '</p></div>'));
+    }
+    trio.appendChild(esq);
+
+    var selo = el('<button class="p-selo" type="button">' +
+      '<span class="p-selo-anel"><b>' + (d.conquistas || []).length + '</b></span>' +
+      '<span class="p-selo-t">Conquistas da jornada</span>' +
+      '<span class="p-selo-s">Veja o que sua operação já construiu</span></button>');
+    selo.onclick = function () { irPara("evolucao"); };
+    trio.appendChild(selo);
+    palco.appendChild(trio);
+
+    if (d.proximo_passo) {
+      palco.appendChild(el('<div class="p-passo">' +
+        '<span class="p-passo-i" aria-hidden="true">→</span><div>' +
+        '<span class="p-rot p-rot-terra">Próximo passo</span>' +
+        '<p>' + esc(d.proximo_passo.detalhe || d.proximo_passo.titulo) + '</p>' +
+        '</div></div>'));
+    }
+
+    /* o que já está sendo construído: nomes, nunca números */
+    var itens = d.construido || [];
+    var cores = ["var(--azul-800)", "var(--terracota-500)", "var(--ameixa-700)"];
+    var bloco = el('<div class="p-sec p-sec-fina"><span class="p-rot">' +
+      (itens.length ? "O que já está sendo construído" : "Sendo construído agora") +
+      '</span></div>');
+    palco.appendChild(bloco);
+    var grade = el('<div class="p-construido"></div>');
+    (itens.length ? itens : ["O retrato completo da sua operação comercial"])
+      .forEach(function (t, i) {
+        grade.appendChild(el('<div class="p-cons" style="--c:' +
+          cores[i % cores.length] + '"><span></span>' + esc(t) + '</div>'));
+      });
+    palco.appendChild(grade);
+
+    /* as cinco portas */
+    var portas = [
+      ["jornada", "Minha jornada", "Acompanhe as etapas da implementação", "◷",
+       "var(--azul-800)"],
+      ["eco", "Método ECO", "Estratégia, Condução e Operação", "◈", "var(--ameixa-800)"],
+      ["evolucao", "Minha evolução", "Veja o que sua operação já construiu", "✦",
+       "var(--ouro-600)"],
+      ["materiais", "Materiais e treinamentos", "Acesse os conteúdos liberados", "▤",
+       "var(--terracota-500)"],
+      ["conversa", "Fale com a equipe", "Envie mensagens e arquivos", "✉",
+       "var(--ameixa-700)"]
+    ];
+    var pg = el('<div class="p-portas"></div>');
+    portas.forEach(function (x) {
+      var b = el('<button class="p-porta" type="button" style="--c:' + x[4] + '">' +
+        '<span class="p-porta-i">' + x[3] + '</span>' +
+        '<b>' + esc(x[1]) + '</b><span class="p-porta-s">' + esc(x[2]) + '</span>' +
+        '<span class="p-porta-seta">→</span></button>');
+      b.onclick = function () { irPara(x[0]); };
+      pg.appendChild(b);
+    });
+    palco.appendChild(pg);
+
+    if (d.atualizacao) {
+      palco.appendChild(el('<div class="p-atual">' +
+        '<span class="p-atual-i" aria-hidden="true">◷</span>' +
+        '<div><span class="p-rot">Atualização mais recente</span>' +
+        '<p>' + esc(d.atualizacao.texto) + '</p></div>' +
+        '<time>' + dataBr(d.atualizacao.em) + '</time></div>'));
+    }
+  }
+
+  /* cabeçalho: área exclusiva do cliente, não uma página de cursos */
+  function cabecalho(d) {
     var capa = (d.capas || []).filter(function (x) { return x.id === d.capa; })[0];
     var fundo = capa ? capa.css : CAPAS.ameixa;
     if (d.capa_midia_id) {
@@ -351,52 +624,177 @@
         (ac.zoom && ac.zoom !== 100 ? ac.zoom + "% auto" : "cover") +
         " no-repeat, " + fundo;
     }
-    var hero = el('<div class="p-topo-cli" style="background:' + fundo + '">' +
-      '<div class="p-topo-veu"></div><div class="p-topo-in">' +
-      '<div class="p-topo-foto" style="' + estiloFoto(d) + '">' +
+    var h = el('<div class="p-cab" style="background:' + fundo + '">' +
+      '<div class="p-cab-veu"></div><div class="p-cab-in">' +
+      '<div class="p-cab-foto" style="' + estiloFoto(d) + '">' +
       (d.logo_midia_id ? '' : esc((d.empresa || "?").slice(0, 1).toUpperCase())) + '</div>' +
-      '<div class="p-topo-t"><div class="eyebrow" style="color:rgba(255,255,255,.7)">' +
-      esc(d.segmento || "Implementação comercial") + '</div>' +
-      '<h1>' + esc(d.empresa) + '</h1>' +
-      '<p>' + (d.responsavel ? "Olá, " + esc(d.responsavel.split(" ")[0]) + ". " : "") +
-      'Aqui está o que já foi construído na sua operação, e o que vem pela frente.</p>' +
-      '</div></div></div>');
-    palco.appendChild(hero);
+      '<div class="p-cab-t"><span class="p-cab-r">Painel de evolução comercial</span>' +
+      '<h2>' + esc(d.empresa) + '</h2>' +
+      '<p>' + (d.responsavel ? esc(d.responsavel) + "  ·  " : "") +
+      esc(d.segmento || "Implementação comercial") + '</p></div></div></div>');
+    return h;
+  }
 
-    palco.appendChild(el('<div class="p-sec"><div class="eyebrow">Onde a sua operação está</div>' +
-      '<h2>O retrato de <em class="grifo">hoje</em></h2></div>'));
-    var cx = el('<div class="p-frentes"></div>');
-    (d.frentes || []).forEach(function (f) {
-      cx.appendChild(el('<div class="p-fr">' +
-        '<div class="p-fr-anel">' + anel(f.pct, f.cor, 92) + '</div>' +
-        '<div class="p-fr-t"><span class="p-fr-i" style="color:' + f.cor + '">' +
-        f.icone + '</span>' + esc(f.nome) + '</div>' +
-        '<p class="p-fr-d">' + esc(f.detalhe) + '</p></div>'));
+  /* ------------------------------------------------------------ subpáginas */
+  function volta() {
+    var b = el('<button class="p-voltar">← Voltar ao painel</button>');
+    b.onclick = function () { irPara("inicio"); };
+    return b;
+  }
+
+  function tituloPag(rotulo, titulo, apoio) {
+    return el('<div class="p-sec" style="margin-top:6px">' +
+      '<span class="p-rot">' + esc(rotulo) + '</span>' +
+      '<h2 class="p-h2">' + titulo + '</h2>' +
+      (apoio ? '<p class="p-apoio">' + esc(apoio) + '</p>' : '') + '</div>');
+  }
+
+  function irPara(onde, arg) {
+    ONDE = onde;
+    palco.innerHTML = "";
+    palco.appendChild(cabecalho(DADOS));
+    if (onde !== "inicio") palco.appendChild(volta());
+    if (onde === "inicio") return desenhar(DADOS);
+    if (onde === "jornada") return telaJornada(DADOS);
+    if (onde === "eco") return telaEco(DADOS);
+    if (onde === "evolucao") return telaEvolucao(DADOS);
+    if (onde === "materiais") return telaMateriais(DADOS);
+    if (onde === "conversa") return telaConversa(DADOS);
+    if (onde === "mes") return telaMes(DADOS, arg);
+    window.scrollTo(0, 0);
+  }
+
+  function telaJornada(d) {
+    palco.appendChild(tituloPag("Minha jornada", 'A sua <em class="grifo">jornada</em>',
+      "Uma implementação construída etapa por etapa, de acordo com as prioridades " +
+      "da sua operação."));
+    var lista = el('<div class="p-etapas"></div>');
+    (d.etapas || []).forEach(function (e) {
+      var cls = e.situacao === "Concluída" ? "feita"
+              : e.situacao === "Em andamento" ? "agora" : "";
+      var it = el('<button class="p-et ' + cls + '" type="button">' +
+        '<b>' + esc(e.nome) + '</b>' +
+        '<span class="p-et-s">' + esc(e.situacao) + '</span>' +
+        '<span class="p-et-seta">→</span></button>');
+      it.onclick = function () { irPara("mes", e.ciclo); };
+      lista.appendChild(it);
     });
-    palco.appendChild(cx);
+    palco.appendChild(lista);
+    palco.appendChild(el('<p class="p-resultado">' + esc(d.resultado_jornada) + '</p>'));
+    window.scrollTo(0, 0);
+  }
 
-    /* a metodologia da casa, que é onde ele estuda */
+  function telaMes(d, ciclo) {
+    var c = (d.ciclos || []).filter(function (x) { return x.ciclo === ciclo; })[0];
+    var e = (d.etapas || []).filter(function (x) { return x.ciclo === ciclo; })[0] ||
+            { nome: ciclo, situacao: "Na sequência" };
+    palco.appendChild(tituloPag(e.situacao, esc(e.nome), ""));
+    var card = el('<div class="p-caixa"></div>');
+    if (c && c.objetivo) {
+      card.appendChild(el('<div class="p-foco-c" style="margin:0 0 18px">' +
+        '<span class="p-rot p-rot-azul">Objetivo desta etapa</span>' +
+        '<p>' + esc(c.objetivo) + '</p></div>'));
+    }
+    var ent = (c && c.entregas) || [];
+    if (!ent.length) {
+      card.appendChild(el('<p class="p-vazio">Esta etapa ainda está sendo construída ' +
+        'com você.</p>'));
+    }
+    ent.forEach(function (x) {
+      card.appendChild(el('<div class="p-entrega ' + (x.feito ? "ok" : "") + '">' +
+        '<span class="p-check">' + (x.feito ? "✓" : "") + '</span>' +
+        '<span>' + esc(x.titulo) + '</span>' +
+        (x.pilar ? '<span class="p-pilar">' + esc(x.pilar) + '</span>' : '') + '</div>'));
+    });
+    if (c && c.documentos) {
+      card.appendChild(el('<p class="small muted" style="margin:16px 0 0">' +
+        c.documentos + (c.documentos > 1 ? ' documentos' : ' documento') +
+        ' guardados nesta etapa</p>'));
+    }
+    palco.appendChild(card);
+    window.scrollTo(0, 0);
+  }
+
+  var ECO = [
+    ["Estratégia", "E", "var(--azul-800)",
+     "Define para quem a empresa existe, o que ela entrega e onde deve concentrar " +
+     "seus esforços. É escolher uma direção clara para crescer com intenção, em vez " +
+     "de tentar atender todo mundo e operar no improviso."],
+    ["Condução", "C", "var(--terracota-500)",
+     "Organiza o caminho desde o primeiro contato até a decisão do cliente. É a forma " +
+     "como cada pessoa é recebida, orientada, acompanhada e conduzida, seja para uma " +
+     "compra, contratação, consulta, procedimento ou projeto."],
+    ["Operação", "O", "var(--ouro-600)",
+     "Transforma a estratégia e a condução em uma rotina que funciona. Envolve " +
+     "processos claros, responsabilidades definidas, indicadores acompanhados e uma " +
+     "equipe preparada para executar sem depender o tempo todo da liderança."]
+  ];
+
+  function telaEco(d) {
+    palco.appendChild(tituloPag("Método ECO",
+      'Os três <em class="grifo">pilares</em>',
+      "O método que orienta cada etapa da implementação da sua operação."));
+    var g = el('<div class="p-eco"></div>');
+    ECO.forEach(function (x) {
+      g.appendChild(el('<div class="p-eco-c" style="--c:' + x[2] + '">' +
+        '<span class="p-eco-l">' + x[1] + '</span>' +
+        '<h3>' + esc(x[0]) + '</h3><p>' + esc(x[3]) + '</p></div>'));
+    });
+    palco.appendChild(g);
+    window.scrollTo(0, 0);
+  }
+
+  function telaEvolucao(d) {
+    palco.appendChild(tituloPag("Conquistas da jornada",
+      'O que sua operação <em class="grifo">já construiu</em>',
+      "Cada conquista registra uma nova capacidade que passou a fazer parte da " +
+      "rotina da sua empresa."));
+    var lista = el('<div class="p-med"></div>');
+    var feitas = (d.conquistas || []).slice();
+    if (!feitas.length) {
+      lista.appendChild(el('<p class="p-vazio">As primeiras conquistas aparecem ' +
+        'assim que a construção começar.</p>'));
+    }
+    var romanos = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X",
+                   "XI", "XII", "XIII", "XIV", "XV"];
+    feitas.forEach(function (m, i) {
+      lista.appendChild(el('<div class="p-med-i">' +
+        '<span class="p-brasao">' + (romanos[i] || "•") + '</span>' +
+        '<div><h3>' + esc(m.titulo) + '</h3><p>' + esc(m.texto) + '</p></div>' +
+        '<time>' + dataCurta(m.em) + '</time></div>'));
+    });
+    palco.appendChild(lista);
+    if (d.proxima_conquista) {
+      palco.appendChild(el('<div class="p-prox">' +
+        '<span class="p-brasao p-brasao-vazio">' +
+        (romanos[feitas.length] || "•") + '</span>' +
+        '<div><span class="p-rot">A próxima</span>' +
+        '<h3>' + esc(d.proxima_conquista.titulo) + '</h3>' +
+        '<p>' + esc(d.proxima_conquista.texto) + '</p></div></div>'));
+    }
+    window.scrollTo(0, 0);
+  }
+
+  function telaMateriais(d) {
+    palco.appendChild(tituloPag("Materiais e treinamentos",
+      'Os conteúdos <em class="grifo">liberados</em>',
+      "Tudo o que já está disponível para você e para a sua equipe consultar."));
+
     if ((d.metodologia || []).length) {
-      palco.appendChild(el('<div class="p-sec"><div class="eyebrow">Para estudar e aplicar</div>' +
-        '<h2>A <em class="grifo">metodologia</em></h2>' +
-        '<p class="small muted" style="margin:8px 0 0;max-width:62ch">O caminho completo do ' +
-        'método ECO, do diagnóstico à rotina de gestão. Abra qualquer página quando ' +
-        'precisar consultar.</p></div>'));
+      palco.appendChild(el('<div class="p-sub"><span class="p-rot">A metodologia</span>' +
+        '</div>'));
       var met = el('<div class="p-met"></div>');
-      d.metodologia.forEach(function (pg) {
+      d.metodologia.forEach(function (pgi) {
         var c = el('<div class="p-met-c"></div>');
         var capa = el('<div class="p-met-capa" style="background:' +
-          (CAPAS[pg.capa] || CAPAS.ameixa) + '"></div>');
-        capa.onclick = function () { abrirPagina(pg.id); };
-        var t = el('<div class="p-met-t">' + (pg.icone ? esc(pg.icone) + ' ' : '') +
-          esc(pg.titulo) + '</div>');
-        t.onclick = function () { abrirPagina(pg.id); };
+          (CAPAS[pgi.capa] || CAPAS.ameixa) + '"></div>');
+        var t = el('<div class="p-met-t">' + esc(pgi.titulo) + '</div>');
+        capa.onclick = t.onclick = function () { abrirPagina(pgi.id); };
         c.appendChild(capa); c.appendChild(t);
-        if ((pg.subpaginas || []).length) {
+        if ((pgi.subpaginas || []).length) {
           var sub = el('<div class="p-met-sub"></div>');
-          pg.subpaginas.forEach(function (sp) {
-            var b = el('<button type="button">' + (sp.icone ? esc(sp.icone) + ' ' : '') +
-              esc(sp.titulo) + '</button>');
+          pgi.subpaginas.forEach(function (sp) {
+            var b = el('<button type="button">' + esc(sp.titulo) + '</button>');
             b.onclick = function () { abrirPagina(sp.id); };
             sub.appendChild(b);
           });
@@ -407,39 +805,35 @@
       palco.appendChild(met);
     }
 
-    /* materiais liberados */
-    if (d.paginas.length) {
-      palco.appendChild(el('<div class="p-sec"><div class="eyebrow">Para consultar quando quiser</div>' +
-        '<h2>Os seus <em class="grifo">materiais</em></h2></div>'));
+    if ((d.paginas || []).length) {
+      palco.appendChild(el('<div class="p-sub"><span class="p-rot">' +
+        'Materiais da sua operação</span></div>'));
       var mat = el('<div class="p-mat"></div>');
-      d.paginas.forEach(function (pg) {
+      d.paginas.forEach(function (pgi) {
         var c = el('<div class="p-mat-c">' +
-          '<div class="p-mat-capa" style="background:' + (CAPAS[pg.capa] || CAPAS.creme) + '"></div>' +
-          '<div class="p-mat-t">' + esc(pg.titulo) + '</div></div>');
-        c.onclick = function () { abrirPagina(pg.id); };
+          '<div class="p-mat-capa" style="background:' +
+          (CAPAS[pgi.capa] || CAPAS.creme) + '"></div>' +
+          '<div class="p-mat-t">' + esc(pgi.titulo) + '</div></div>');
+        c.onclick = function () { abrirPagina(pgi.id); };
         mat.appendChild(c);
       });
       palco.appendChild(mat);
     }
 
-    /* cursos liberados */
     if ((d.cursos || []).length) {
-      palco.appendChild(el('<div class="p-sec"><div class="eyebrow">Para a sua equipe assistir</div>' +
-        '<h2>Os seus <em class="grifo">treinamentos</em></h2></div>'));
+      palco.appendChild(el('<div class="p-sub"><span class="p-rot">' +
+        'Treinamentos da sua equipe</span></div>'));
       var cur = el('<div class="p-mat"></div>');
       d.cursos.forEach(function (c) {
         var card = el('<div class="p-mat-c">' +
           '<div class="p-mat-capa" style="background:' +
-          (c.capa_midia_id ? "#000 url(/api/midia/" + esc(c.capa_midia_id) + ") center/cover"
-            : (CAPAS[c.capa] || CAPAS.ouro)) +
+          (c.capa_midia_id ? "#241030 url(/api/midia/" + esc(c.capa_midia_id) +
+            ") center/cover" : (CAPAS[c.capa] || CAPAS.ouro)) +
           ';display:flex;align-items:center;justify-content:center">' +
-          '<span style="width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,.9);' +
-          'color:var(--ameixa-800);display:flex;align-items:center;justify-content:center;' +
-          'padding-left:3px">▶</span></div>' +
+          '<span class="p-play">▶</span></div>' +
           '<div class="p-mat-t">' + esc(c.titulo) +
           '<div class="small muted" style="margin-top:3px">' + c.aulas +
-          (c.aulas === 1 ? " aula" : " aulas") +
-          (c.progresso ? "  ·  " + c.progresso + "%" : "") + '</div>' +
+          (c.aulas === 1 ? " aula" : " aulas") + '</div>' +
           '<div class="p-prog" style="margin-top:8px"><i style="width:' +
           (c.progresso || 0) + '%"></i></div></div></div>');
         card.onclick = function () { abrirCurso(c.id); };
@@ -448,147 +842,23 @@
       palco.appendChild(cur);
     }
 
-    /* linha do tempo */
-    palco.appendChild(el('<div class="p-sec"><div class="eyebrow">Mês a mês</div>' +
-      '<h2>A sua <em class="grifo">jornada</em></h2></div>'));
-
-    var linha = el('<div class="p-linha"></div>');
-    var primeiroAberto = d.ciclos.filter(function (c) { return !c.concluido; })[0];
-    d.ciclos.forEach(function (c) {
-      var estado = c.concluido ? "ok" : (primeiroAberto && c.ciclo === primeiroAberto.ciclo ? "agora" : "");
-      var et = el('<div class="p-etapa ' + estado + '"><div class="p-bola">' +
-        (c.concluido ? "✓" : "") + '</div><div class="p-card"></div></div>');
-      var card = et.querySelector(".p-card");
-      card.appendChild(el('<div class="p-quando">' + esc(c.ciclo) +
-        (c.enviado_em ? ' · ' + dataBr(c.enviado_em) : '') + '</div>'));
-      card.appendChild(el('<h3>' + esc(c.titulo) + '</h3>'));
-
-      if (c.objetivo) {
-        card.appendChild(el('<div class="p-obj"><b>Objetivo do mês</b>' + esc(c.objetivo) + '</div>'));
-      }
-
-      if (c.entregas.length) {
-        var ul = el('<div class="p-entregas"></div>');
-        c.entregas.forEach(function (e) {
-          ul.appendChild(el('<div class="p-entrega ' + (e.feito ? "ok" : "") + '">' +
-            '<span class="p-check">' + (e.feito ? "✓" : "") + '</span>' +
-            '<span>' + esc(e.titulo) + '</span>' +
-            (e.pilar ? '<span class="p-pilar">' + esc(e.pilar) + '</span>' : '') +
-            '</div>'));
-        });
-        card.appendChild(ul);
-      } else {
-        card.appendChild(el('<p class="p-vazio" style="margin:14px 0 0">' +
-          (c.concluido ? 'Ciclo respondido. As ações deste mês serão definidas na reunião.'
-                       : 'Ainda vamos construir as ações deste ciclo juntos.') + '</p>'));
-      }
-
-      if (c.documentos) {
-        card.appendChild(el('<p class="small muted" style="margin:14px 0 0">' +
-          c.documentos + (c.documentos > 1 ? ' documentos enviados' : ' documento enviado') +
-          ' neste ciclo</p>'));
-      }
-      card.appendChild(el('<span class="p-abrir">Abrir este mês →</span>'));
-      card.classList.add("p-card-link");
-      card.onclick = function () { abrirCiclo(c.ciclo); };
-      linha.appendChild(et);
-    });
-    palco.appendChild(linha);
-
-    palco.appendChild(secaoFalar(d));
-
-    palco.appendChild(el('<p class="small muted" style="text-align:center;margin-top:40px">' +
-      'Este acompanhamento é atualizado pela equipe do Grupo B3 Sales conforme a ' +
-      'implementação avança.</p>'));
-  }
-
-  /* Um mês da jornada em página própria, com tudo o que foi construído nele. */
-  function abrirCiclo(ciclo) {
-    var c = (DADOS.ciclos || []).filter(function (x) { return x.ciclo === ciclo; })[0];
-    if (!c) return;
-    palco.innerHTML = "";
-    var v = el('<button class="p-voltar">← Voltar ao acompanhamento</button>');
-    v.onclick = function () { desenhar(DADOS); window.scrollTo(0, 0); };
-    palco.appendChild(v);
-    palco.appendChild(el('<div class="p-sec" style="margin-top:0">' +
-      '<div class="eyebrow">' + esc(c.ciclo) +
-      (c.enviado_em ? ' · ' + dataBr(c.enviado_em) : '') + '</div>' +
-      '<h2>' + esc(c.titulo) + '</h2></div>'));
-
-    var cartao = el('<div class="p-fala" style="margin-top:4px"></div>');
-    if (c.objetivo) {
-      cartao.appendChild(el('<div class="p-obj"><b>Objetivo do mês</b>' +
-        esc(c.objetivo) + '</div>'));
+    if (!(d.metodologia || []).length && !(d.paginas || []).length &&
+        !(d.cursos || []).length) {
+      palco.appendChild(el('<p class="p-vazio">Os primeiros conteúdos aparecem aqui ' +
+        'assim que forem liberados para você.</p>'));
     }
-    var feitas = c.entregas.filter(function (e) { return e.feito; }).length;
-    cartao.appendChild(el('<div class="p-fr-anel" style="justify-content:flex-start;' +
-      'margin:16px 0 6px">' + anel(c.entregas.length ?
-        Math.round(feitas / c.entregas.length * 100) : 0, "var(--terracota-500)", 88) +
-      '</div>'));
-    cartao.appendChild(el('<p class="small muted" style="margin:0 0 14px">' +
-      (c.entregas.length ? feitas + " de " + c.entregas.length + " entregas concluídas"
-                         : "As entregas deste mês ainda serão definidas") + '</p>'));
-    if (c.entregas.length) {
-      var ul = el('<div class="p-entregas"></div>');
-      c.entregas.forEach(function (e) {
-        ul.appendChild(el('<div class="p-entrega ' + (e.feito ? "ok" : "") + '">' +
-          '<span class="p-check">' + (e.feito ? "✓" : "") + '</span>' +
-          '<span>' + esc(e.titulo) + '</span>' +
-          (e.pilar ? '<span class="p-pilar">' + esc(e.pilar) + '</span>' : '') +
-          '</div>'));
-      });
-      cartao.appendChild(ul);
-    }
-    if (c.documentos) {
-      cartao.appendChild(el('<p class="small muted" style="margin:16px 0 0">' +
-        c.documentos + (c.documentos > 1 ? ' documentos enviados' : ' documento enviado') +
-        ' neste ciclo</p>'));
-    }
-    palco.appendChild(cartao);
-    palco.appendChild(secaoFalar(DADOS, c.ciclo));
     window.scrollTo(0, 0);
   }
 
-  /* Envio em pedaços de 4MB: sem isso, um vídeo grande derruba a página.
-     Assim não existe limite de tamanho, só o espaço do servidor. */
-  var PEDACO = 4 * 1024 * 1024;
 
-  function enviarArquivoPortal(file, aoProgredir) {
-    var envio = "p" + Date.now() + Math.random().toString(36).slice(2, 8);
-    var total = Math.max(1, Math.ceil(file.size / PEDACO));
-    var i = 0;
-    function proximo() {
-      var fatia = file.slice(i * PEDACO, (i + 1) * PEDACO);
-      return new Promise(function (ok, nao) {
-        var fr = new FileReader();
-        fr.onload = function () { ok(fr.result); };
-        fr.onerror = function () { nao(new Error("Não deu para ler o arquivo.")); };
-        fr.readAsDataURL(fatia);
-      }).then(function (dados) {
-        return fetch("/api/c/" + encodeURIComponent(token) + "/recado-pedaco", {
-          method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ envio_id: envio, indice: i, total: total,
-            dados: dados, nome: file.name, tipo: file.type,
-            categoria: "recado" })
-        }).then(function (r) { return r.json(); });
-      }).then(function (r) {
-        if (r.erro) throw new Error(r.erro);
-        i += 1;
-        if (aoProgredir) aoProgredir(Math.round(i / total * 100));
-        return r.pronto ? r : proximo();
-      });
-    }
-    return proximo();
-  }
-
-  /* O cliente fala com o CS dele: pedido, observação ou informação. */
-  function secaoFalar(d, ciclo) {
+  /* O cliente fala com a equipe: pedido, dúvida, arquivo ou informação. */
+  function telaConversa(d) {
+    var ciclo = (d.etapa_atual || {}).ciclo || "";
+    palco.appendChild(tituloPag("Fale com a equipe",
+      'Converse com o <em class="grifo">seu time</em>',
+      "Pedido, dúvida, observação ou um arquivo que a gente precisa receber. " +
+      "Chega direto para quem acompanha a sua conta."));
     var caixa = el('<div></div>');
-    caixa.appendChild(el('<div class="p-sec"><div class="eyebrow">Fale com a gente</div>' +
-      '<h2>O seu canal com o <em class="grifo">time</em></h2>' +
-      '<p class="small muted" style="margin:8px 0 0;max-width:62ch">Pedido, dúvida, ' +
-      'observação ou uma informação que a gente precisa saber. Chega direto para quem ' +
-      'acompanha a sua conta.</p></div>'));
     var f = el('<div class="p-fala">' +
       '<label for="fa_assunto">Assunto</label>' +
       '<input type="text" id="fa_assunto" placeholder="Sobre o que você quer falar">' +
@@ -667,7 +937,7 @@
       antes.slice().reverse().forEach(function (m) {
         var daCasa = m.de === "b3sales";
         var i = el('<div class="p-fala-i ' + (daCasa ? "casa" : "meu") + '">' +
-          '<b>' + (daCasa ? "Grupo B3 Sales" : "Você") + '</b>' +
+          '<b>' + (daCasa ? "Grupo B3 Sales" : "Você") + '</b> ' +
           '<span class="p-fala-d">' + dataBr(m.criado_em) + '</span>' +
           (m.assunto ? '<span class="small muted"> · ' + esc(m.assunto) + '</span>' : '') +
           (m.texto ? '<p>' + esc(m.texto) + '</p>' : '') + '</div>');
@@ -684,10 +954,11 @@
       f.appendChild(h);
     }
     caixa.appendChild(f);
-    return caixa;
+    palco.appendChild(caixa);
+    window.scrollTo(0, 0);
   }
 
-  var DADOS = {};
+  var DADOS = {}, ONDE = "inicio";
   var CURSO = null, AULA = null;
 
   function marcarVista(aula, visto) {
@@ -722,8 +993,9 @@
 
   function desenharCurso() {
     palco.innerHTML = "";
-    var v = el('<button class="p-voltar">← Voltar ao acompanhamento</button>');
-    v.onclick = carregar;
+    palco.appendChild(cabecalho(DADOS));
+    var v = el('<button class="p-voltar">← Voltar aos materiais</button>');
+    v.onclick = function () { irPara("materiais"); };
     palco.appendChild(v);
 
     var fundo = CURSO.banner_midia_id
@@ -863,8 +1135,9 @@
       .then(function (pag) {
         if (pag.erro) return alert(pag.erro);
         palco.innerHTML = "";
-        var v = el('<button class="p-voltar">← Voltar ao acompanhamento</button>');
-        v.onclick = carregar;
+        palco.appendChild(cabecalho(DADOS));
+        var v = el('<button class="p-voltar">← Voltar aos materiais</button>');
+        v.onclick = function () { irPara("materiais"); };
         palco.appendChild(v);
         palco.appendChild(el('<div style="height:120px;border-radius:var(--r);background:' +
           (CAPAS[pag.capa] || CAPAS.creme) + ';margin-bottom:22px"></div>'));

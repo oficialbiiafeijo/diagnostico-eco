@@ -29,6 +29,7 @@ import analise
 import forms
 import questions
 import rota
+import conquistas
 import workspace
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -287,6 +288,7 @@ COLUNAS_NOVAS = [
     ("clientes", "instagram_pessoal", "TEXT"),
     ("recados", "midia_ids", "TEXT"),
     ("recados", "link", "TEXT"),
+    ("ciclos", "foco", "TEXT"),
     ("clientes", "tipo_servico", "TEXT DEFAULT ''"),
     ("clientes", "contrato_inicio", "TEXT"),
     ("clientes", "contrato_fim", "TEXT"),
@@ -875,6 +877,8 @@ class Handler(BaseHTTPRequestHandler):
             return self.api_recado_apagar()
         if p == "/api/admin/acesso-pessoa":
             return self.api_acesso_pessoa()
+        if p == "/api/admin/ciclo-foco":
+            return self.api_ciclo_foco()
         if p == "/api/admin/status":
             return self.api_set_status()
         if p == "/api/admin/ciclo-novo":
@@ -1271,13 +1275,19 @@ class Handler(BaseHTTPRequestHandler):
         if not c:
             return None
         cid = c["id"]
+        # o time dele: serve para separar o que depende dele do que é nosso
+        nomes_dele = {(r["nome"] or "").strip().lower() for r in db().execute(
+            "SELECT nome FROM equipe WHERE cliente_id=? AND ativo=1", (cid,))}
+        nomes_dele.add("cliente")
+        nomes_dele.add((c["responsavel"] or "").strip().lower())
+        nomes_dele.discard("")
         ciclos = []
         for r in db().execute("SELECT * FROM ciclos WHERE cliente_id=? ORDER BY rowid",
                               (cid,)):
             ciclo = r["ciclo"]
             feitas = [dict(x) for x in db().execute(
-                "SELECT titulo, pilar, status FROM acoes WHERE cliente_id=? AND ciclo=? "
-                "ORDER BY ordem", (cid, ciclo))]
+                "SELECT titulo, pilar, status, responsavel FROM acoes "
+                "WHERE cliente_id=? AND ciclo=? ORDER BY ordem", (cid, ciclo))]
             docs = db().execute("SELECT COUNT(*) n FROM anexos WHERE cliente_id=? AND ciclo=?",
                                 (cid, ciclo)).fetchone()["n"]
             ciclos.append({
@@ -1290,7 +1300,10 @@ class Handler(BaseHTTPRequestHandler):
                 "entregas": [{"titulo": a["titulo"],
                               "pilar": analise.PILARES.get(a["pilar"] or "", ""),
                               "feito": a["status"] == "Concluída"}
-                             for a in feitas if a["status"] != "Cancelada"],
+                             for a in feitas
+                             if a["status"] != "Cancelada"
+                             and (a["status"] == "Concluída"
+                                  or (a["responsavel"] or "").strip().lower() in nomes_dele)],
                 "documentos": docs,
             })
         paginas = [dict(r) for r in db().execute(
@@ -1358,9 +1371,33 @@ class Handler(BaseHTTPRequestHandler):
                        str(docs_tot) + " arquivos guardados", "⇩", "var(--azul-800)"),
         ]
 
+        feitas_c, proxima_c = conquistas.calcular(db(), cid)
+        etapas = conquistas.etapas(db(), cid)
+        atual_e = ([e for e in etapas if e["situacao"] == "Em andamento"] or etapas)[0]
+        foco = db().execute("SELECT foco FROM ciclos WHERE cliente_id=? AND ciclo=?",
+                            (cid, atual_e["ciclo"])).fetchone()
+        foco_txt = (foco["foco"] if foco else "") or ""
+        if not foco_txt and atual:
+            foco_txt = atual.get("objetivo") or ""
+        # o próximo passo sai da rota, filtrando o que depende dele.
+        # assim nunca envelhece: some sozinho quando a ação é concluída.
+        passo = db().execute(
+            "SELECT titulo, detalhe FROM acoes WHERE cliente_id=? "
+            "AND status NOT IN ('Concluída','Cancelada') AND TRIM(LOWER(responsavel)) IN "
+            "(%s) ORDER BY ordem LIMIT 1" % (",".join("?" * len(nomes_dele)) or "''"),
+            [cid] + sorted(nomes_dele)).fetchone() if nomes_dele else None
+
         return {
             "empresa": c["empresa"], "responsavel": c["responsavel"] or "",
             "frentes": frentes,
+            "conquistas": feitas_c, "proxima_conquista": proxima_c,
+            "etapas": etapas, "etapa_atual": atual_e,
+            "resultado_jornada": conquistas.RESULTADO,
+            "foco_atual": foco_txt,
+            "proximo_passo": ({"titulo": passo["titulo"],
+                               "detalhe": passo["detalhe"] or ""} if passo else None),
+            "construido": conquistas.inventario(db(), cid),
+            "atualizacao": self.ultima_atualizacao(cid),
             "segmento": c["segmento"] or "",
             "capa": c["capa"] or "", "logo_midia_id": c["logo_midia_id"] or "",
             "logo_ajuste": c["logo_ajuste"] or "",
@@ -1378,6 +1415,30 @@ class Handler(BaseHTTPRequestHandler):
                        "ciclos_feitos": len([x for x in ciclos if x["concluido"]])},
             "evolucao": self.portal_evolucao(cid),
         }
+
+    def ultima_atualizacao(self, cid):
+        """O último movimento real, escrito para o cliente. Sai sozinho."""
+        cand = []
+        r = db().execute("SELECT titulo, atualizado_em em FROM ws_paginas "
+                         "WHERE cliente_id=? AND visivel_cliente=1 "
+                         "ORDER BY atualizado_em DESC LIMIT 1", (cid,)).fetchone()
+        if r and r["em"]:
+            cand.append((r["em"], "O material " + r["titulo"] +
+                         " foi liberado no seu acervo."))
+        r = db().execute("SELECT titulo, atualizado_em em FROM acoes WHERE cliente_id=? "
+                         "AND status='Concluída' ORDER BY atualizado_em DESC LIMIT 1",
+                         (cid,)).fetchone()
+        if r and r["em"]:
+            cand.append((r["em"], r["titulo"] + " foi concluído na sua operação."))
+        r = db().execute("SELECT criado_em em FROM recados WHERE cliente_id=? "
+                         "AND de='b3sales' ORDER BY criado_em DESC LIMIT 1",
+                         (cid,)).fetchone()
+        if r and r["em"]:
+            cand.append((r["em"], "A equipe deixou uma mensagem para você."))
+        if not cand:
+            return None
+        cand.sort(reverse=True)
+        return {"em": cand[0][0], "texto": cand[0][1]}
 
     def portal_evolucao(self, cid):
         """Compara os números do Dia 0 com o ciclo mais recente que tenha número."""
@@ -2946,6 +3007,16 @@ class Handler(BaseHTTPRequestHandler):
     def api_nota_anexo(self):
         b = self.body()
         db().execute("UPDATE anexos SET nota=? WHERE id=?", (b.get("nota", ""), b.get("id")))
+        db().commit()
+        return self.json({"ok": True})
+
+    def api_ciclo_foco(self):
+        """A frase que o cliente lê no painel dele, guardada por ciclo."""
+        b = self.body()
+        cid, ciclo = b.get("cliente_id"), b.get("ciclo")
+        garantir_ciclo(cid, ciclo)
+        db().execute("UPDATE ciclos SET foco=? WHERE cliente_id=? AND ciclo=?",
+                     ((b.get("foco") or "").strip()[:600], cid, ciclo))
         db().commit()
         return self.json({"ok": True})
 
