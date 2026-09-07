@@ -1552,6 +1552,206 @@
     });
   }
 
+
+  /* ------------------------------------------- painel do cliente */
+  var COR_FRENTE = {
+    diagnostico: "var(--ameixa-600)", jornada: "var(--ouro-600)",
+    rota: "var(--terracota-500)", materiais: "var(--ameixa-400)",
+    treinamento: "#3E7D5A", arquivos: "var(--ouro-800)"
+  };
+
+  function anel(pct, cor, tamanho) {
+    var R = tamanho / 2, r = R * 0.66, cx = R, cy = R;
+    var meio = '<text x="' + cx + '" y="' + (cy + R * 0.14) + '" text-anchor="middle" ' +
+      'style="font-family:var(--serif);font-size:' + (R * 0.62) +
+      'px;fill:var(--ameixa-900)">' + pct + '</text>';
+    if (pct <= 0) {
+      return '<svg viewBox="0 0 ' + tamanho + ' ' + tamanho + '" width="' + tamanho +
+        '" height="' + tamanho + '"><circle cx="' + cx + '" cy="' + cy + '" r="' +
+        ((R + r) / 2) + '" fill="none" stroke="var(--creme-3)" stroke-width="' +
+        (R - r) + '"/>' + meio + '</svg>';
+    }
+    var fundo = '<circle cx="' + cx + '" cy="' + cy + '" r="' + ((R + r) / 2) +
+      '" fill="none" stroke="var(--creme-3)" stroke-width="' + (R - r) + '"/>';
+    if (pct >= 100) {
+      return '<svg viewBox="0 0 ' + tamanho + ' ' + tamanho + '" width="' + tamanho +
+        '" height="' + tamanho + '">' + fundo + '<circle cx="' + cx + '" cy="' + cy +
+        '" r="' + ((R + r) / 2) + '" fill="none" stroke="' + cor + '" stroke-width="' +
+        (R - r) + '"/>' + meio + '</svg>';
+    }
+    var ang = -Math.PI / 2, fim = ang + pct / 100 * Math.PI * 2;
+    var grande = pct > 50 ? 1 : 0;
+    var x1 = cx + R * Math.cos(ang), y1 = cy + R * Math.sin(ang);
+    var x2 = cx + R * Math.cos(fim), y2 = cy + R * Math.sin(fim);
+    var x3 = cx + r * Math.cos(fim), y3 = cy + r * Math.sin(fim);
+    var x4 = cx + r * Math.cos(ang), y4 = cy + r * Math.sin(ang);
+    return '<svg viewBox="0 0 ' + tamanho + ' ' + tamanho + '" width="' + tamanho +
+      '" height="' + tamanho + '">' + fundo +
+      '<path d="M' + x1 + ' ' + y1 + ' A' + R + ' ' + R + ' 0 ' + grande + ' 1 ' +
+      x2 + ' ' + y2 + ' L' + x3 + ' ' + y3 + ' A' + r + ' ' + r + ' 0 ' + grande + ' 0 ' +
+      x4 + ' ' + y4 + ' Z" fill="' + cor + '"/>' + meio + '</svg>';
+  }
+
+  function telaCliente(d) {
+    var c = d.cliente;
+    var wrap = document.createElement("div");
+    CAPA_CSS = {};
+    (d.capas || []).forEach(function (x) { CAPA_CSS[x.id] = x.css; });
+
+    var volta = el('<button class="p-voltar" style="margin-bottom:14px">← Todos os clientes</button>');
+    volta.onclick = function () { abrirCliente(c.id, d.ciclo); };
+    wrap.appendChild(volta);
+
+    /* capa com a marca do cliente */
+    var fundo = CAPA_CSS[c.capa] || "linear-gradient(135deg,#241030,#5A3A6E 62%,#8E6FA3)";
+    var capa = el('<div class="cli-capa" style="background:' + fundo + '"></div>');
+    var trocaCapa = el('<div class="ws-capa-troca"></div>');
+    (d.capas || []).forEach(function (cp) {
+      var b = el('<button type="button" title="' + esc(cp.nome) + '" style="background:' +
+        cp.css + '"></button>');
+      b.onclick = function () {
+        api("/api/admin/cliente-editar", { id: c.id, capa: cp.id })
+          .then(function () { abrirCliente(c.id, S.ciclo); });
+      };
+      trocaCapa.appendChild(b);
+    });
+    capa.appendChild(trocaCapa);
+    wrap.appendChild(capa);
+
+    /* cabeçalho com logo, nome e o que importa de relance */
+    var cab = el('<div class="cli-cab"></div>');
+    var logo = el('<div class="cli-logo" style="' +
+      (c.logo_midia_id ? 'background:#fff url(/api/midia/' + esc(c.logo_midia_id) +
+        ') center/contain no-repeat' : 'background:' + corDaEmpresa(c.empresa)) + '">' +
+      (c.logo_midia_id ? '' : esc((c.empresa || "?").slice(0, 1).toUpperCase())) + '</div>');
+    var envLogo = botaoEnviar("↑ Logo", c.id, "logo", function (r) {
+      api("/api/admin/cliente-editar", { id: c.id, logo_midia_id: r.id })
+        .then(function () { abrirCliente(c.id, S.ciclo); });
+    }, "image/*");
+    envLogo.classList.add("cli-logo-env");
+    logo.appendChild(envLogo);
+    cab.appendChild(logo);
+
+    var selos = "";
+    if (d.dias_contrato != null) {
+      var cls = d.dias_contrato < 0 ? "kan-venceu"
+              : d.dias_contrato <= 30 ? "kan-alerta" : "kan-prazo";
+      selos += '<span class="' + cls + '">' + (d.dias_contrato < 0
+        ? "contrato vencido" : d.dias_contrato + " dias de contrato") + '</span>';
+    }
+    if (d.dias_contato != null && d.dias_contato > 7) {
+      selos += '<span class="kan-alerta">' + d.dias_contato + ' dias sem falar</span>';
+    }
+    if (d.score) {
+      selos += '<span class="selo selo-entrada">entrada: ' + esc(d.score.entrada_nome) + '</span>';
+    }
+    cab.appendChild(el('<div class="cli-id">' +
+      '<div class="eyebrow">' + esc(c.tipo_servico || c.segmento || "Cliente") + '</div>' +
+      '<h1 class="serif cli-nome">' + esc(c.empresa) + '</h1>' +
+      '<p class="cli-sub">' + esc([c.responsavel, c.cargo, c.contato, c.email]
+        .filter(Boolean).join("  ·  ")) + '</p>' +
+      '<div class="cli-selos">' + selos + '</div></div>'));
+    wrap.appendChild(cab);
+
+    /* ações principais e o resto num canto */
+    var acoes = el('<div class="cli-acoes"></div>');
+    var bMat = el('<button class="btn btn-ouro btn-sm">Materiais e metodologia</button>');
+    bMat.onclick = function () { abrirMateriais(c.id); };
+    var bPortal = el('<button class="btn btn-linha btn-sm">' +
+      (c.portal_ativo ? "Link do cliente" : "Abrir acompanhamento") + '</button>');
+    bPortal.onclick = function () { modalPortal(c); };
+    var bEd = el('<button class="btn btn-linha btn-sm">Editar dados</button>');
+    bEd.onclick = function () { modalEditar(c); };
+    var bCiclo = el('<button class="btn btn-ameixa btn-sm">+ Novo ciclo</button>');
+    bCiclo.onclick = function () { modalNovoCiclo(S.det); };
+    acoes.appendChild(bMat); acoes.appendChild(bPortal);
+    acoes.appendChild(bEd); acoes.appendChild(bCiclo);
+
+    var mais = el('<div class="cli-mais"><button class="btn btn-fantasma btn-sm">⋯</button>' +
+      '<div class="cli-menu"></div></div>');
+    var menu = mais.querySelector(".cli-menu");
+    menu.appendChild(el('<a href="/api/admin/exportar/' + c.id + '">Exportar JSON</a>'));
+    menu.appendChild(el('<a href="/api/admin/exportar-csv/' + c.id + '">Exportar CSV</a>'));
+    var bArq = el('<a href="#">' + (c.arquivado ? "Reativar" : "Arquivar") + '</a>');
+    bArq.onclick = function (e) {
+      e.preventDefault();
+      api("/api/admin/cliente-editar", { id: c.id, arquivado: !c.arquivado })
+        .then(function () {
+          toast(c.arquivado ? "Cliente reativado" : "Cliente arquivado");
+          S.arquivados = false; S.rota = "lista"; carregar();
+        });
+    };
+    var bDel = el('<a href="#" class="perigo">Excluir</a>');
+    bDel.onclick = function (e) { e.preventDefault(); modalExcluir(c); };
+    menu.appendChild(bArq); menu.appendChild(bDel);
+    mais.querySelector("button").onclick = function () { mais.classList.toggle("on"); };
+    acoes.appendChild(mais);
+    wrap.appendChild(acoes);
+
+    /* ponto de alerta */
+    var alerta = el('<div class="cli-alerta"><div class="eyebrow">Ponto de atenção</div>' +
+      '<textarea placeholder="O que preocupa nesta operação agora"></textarea></div>');
+    var ta = alerta.querySelector("textarea");
+    ta.value = c.alerta || "";
+    ta.oninput = function () {
+      clearTimeout(ta._t);
+      ta._t = setTimeout(function () {
+        api("/api/admin/cliente-editar", { id: c.id, alerta: ta.value })
+          .then(function () { toast("Anotado"); });
+      }, 900);
+    };
+    if (c.alerta) alerta.classList.add("on");
+    wrap.appendChild(alerta);
+
+    /* as frentes, cada uma com sua rosca */
+    wrap.appendChild(el('<div class="p-sec" style="margin:26px 0 14px">' +
+      '<div class="eyebrow">Onde este cliente está</div>' +
+      '<h2 class="serif tit-card" style="margin-bottom:0">As frentes da ' +
+      '<em class="grifo">implementação</em></h2></div>'));
+
+    var grade = el('<div class="cli-frentes"></div>');
+    var destinos = {
+      diagnostico: function () { S.aba = "respostas"; abrirDetalhe(c.id); },
+      jornada: function () { S.aba = "respostas"; abrirDetalhe(c.id); },
+      rota: function () { S.aba = "rota"; abrirDetalhe(c.id); },
+      materiais: function () { abrirMateriais(c.id); },
+      treinamento: function () { abrirCursos(); },
+      arquivos: function () { S.aba = "respostas"; abrirDetalhe(c.id); }
+    };
+    d.frentes.forEach(function (f) {
+      var cor = COR_FRENTE[f.chave] || "var(--ouro-600)";
+      var card = el('<div class="cli-frente">' +
+        '<div class="cli-anel">' + anel(f.pct, cor, 92) + '</div>' +
+        '<div class="cli-f-t"><span class="cli-f-i" style="color:' + cor + '">' +
+        f.icone + '</span><strong>' + esc(f.nome) + '</strong></div>' +
+        '<div class="small muted">' + esc(f.detalhe) + '</div></div>');
+      card.onclick = destinos[f.chave] || function () {};
+      grade.appendChild(card);
+    });
+    wrap.appendChild(grade);
+
+    /* atalho para as abas de trabalho */
+    var abas = el('<div class="cli-abas"></div>');
+    [["respostas", "Respostas do diagnóstico"], ["rota", "Rota do ciclo"],
+     ["equipe", "Equipe do cliente"], ["diagnostico", "Diagnóstico interno"],
+     ["notas", "Análise da B3 Sales"], ["historico", "Histórico"]].forEach(function (t) {
+      var b = el('<button class="cli-aba">' + t[1] + '</button>');
+      b.onclick = function () { S.aba = t[0]; abrirDetalhe(c.id); };
+      abas.appendChild(b);
+    });
+    wrap.appendChild(abas);
+    return wrap;
+  }
+
+  function abrirCliente(cid, ciclo) {
+    api("/api/admin/cliente-painel/" + cid).then(function (d) {
+      if (d.erro) return toast(d.erro);
+      S.cid = cid; S.ciclo = ciclo || null; S.rota = "cliente";
+      api("/api/admin/cliente/" + cid + (ciclo ? "?ciclo=" + encodeURIComponent(ciclo) : ""))
+        .then(function (det) { S.det = det; S.ciclo = det.ciclo; shell(telaCliente(d)); });
+    });
+  }
+
   /* ------------------------------------------------------- visão geral */
   var CORES_CICLO = ["#472B60", "#5A3A6E", "#8E6FA3", "#C09052",
                      "#CFA467", "#C2683F", "#9C4A2F"];
@@ -1862,9 +2062,9 @@
   }
 
   /* -------------------------------------------------------- detalhe */
-  function abrirCliente(cid, ciclo) {
-    S.cid = cid; S.ciclo = ciclo || null;
-    api("/api/admin/cliente/" + cid + (ciclo ? "?ciclo=" + encodeURIComponent(ciclo) : ""))
+  function abrirDetalhe(cid, ciclo) {
+    S.cid = cid; S.ciclo = ciclo || S.ciclo || null;
+    api("/api/admin/cliente/" + cid + (S.ciclo ? "?ciclo=" + encodeURIComponent(S.ciclo) : ""))
       .then(function (d) {
         if (d.erro) return toast(d.erro);
         S.det = d; S.ciclo = d.ciclo; S.rota = "detalhe";
@@ -1920,7 +2120,7 @@
     d.ciclos.forEach(function (x) {
       var b = el('<button class="' + (x.ciclo === d.ciclo ? "at" : "") + '">' + esc(x.ciclo) +
         ' · ' + x.progresso + '%</button>');
-      b.onclick = function () { abrirCliente(c.id, x.ciclo); };
+      b.onclick = function () { abrirDetalhe(c.id, x.ciclo); };
       ab.appendChild(b);
     });
     if (d.ciclos.length > 1) {
