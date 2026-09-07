@@ -779,6 +779,10 @@ class Handler(BaseHTTPRequestHandler):
             if not self.exige_admin():
                 return
             return self.api_acessos_pessoa()
+        if p == "/api/admin/notificacoes":
+            if not self.exige_admin():
+                return
+            return self.api_notificacoes()
         if p == "/api/admin/clientes":
             if not self.exige_admin():
                 return
@@ -1828,6 +1832,19 @@ class Handler(BaseHTTPRequestHandler):
                     m["anexos"].append(dict(r))
             m.pop("midia_ids", None)
         return linhas
+
+    def api_notificacoes(self):
+        """O que pede atenção agora: mensagem nova e tarefa atrasada.
+
+        Leve de propósito, porque a tela chama isto sozinha de tempos em
+        tempos enquanto o sistema fica aberto.
+        """
+        conn = db()
+        mensagens = conn.execute(
+            "SELECT COUNT(*) n FROM recados r JOIN clientes c ON c.id = r.cliente_id "
+            "WHERE r.de='cliente' AND r.lido=0 AND c.arquivado=0").fetchone()["n"]
+        atrasados = central.resumo(central.listar(conn, None, {}))["atrasados"]
+        return self.json({"mensagens": mensagens, "atrasados": atrasados})
 
     # --------------------------------------------------- Central de Ação
     def api_central(self):

@@ -28,6 +28,26 @@
     color:var(--ouro-300);border-left:1px solid rgba(230,203,152,.35);padding-left:16px}
   .barra .btn-fantasma{color:rgba(255,255,255,.78)}
   .barra .btn-fantasma:hover{color:#fff;background:rgba(255,255,255,.12)}
+
+  .sino-wrap{position:relative}
+  .sino{width:34px;height:34px;border-radius:10px;border:1px solid rgba(255,255,255,.18);
+    background:rgba(255,255,255,.06);color:rgba(255,255,255,.85);font-size:15px;
+    display:flex;align-items:center;justify-content:center;cursor:pointer;position:relative}
+  .sino:hover{background:rgba(255,255,255,.14);color:#fff}
+  .sino-selo{position:absolute;top:-5px;right:-5px;min-width:16px;height:16px;padding:0 3px;
+    border-radius:99px;background:linear-gradient(135deg,var(--terracota-500),var(--terracota-700));
+    color:#fff;font-size:9.5px;font-weight:600;display:flex;align-items:center;
+    justify-content:center;font-variant-numeric:lining-nums tabular-nums;
+    border:1.5px solid var(--ameixa-800)}
+  .sino-drop{position:absolute;top:44px;left:0;width:270px;background:var(--branco);
+    border:1px solid var(--linha-2);border-radius:var(--r-sm);box-shadow:var(--sombra-lg);
+    padding:8px;z-index:80;color:var(--texto)}
+  .sino-item{display:block;width:100%;text-align:left;background:none;border:none;
+    padding:11px 12px;border-radius:8px;font-family:var(--sans);font-size:13px;cursor:pointer;
+    color:var(--texto)}
+  .sino-item:hover{background:var(--creme-2)}
+  .sino-item b{color:var(--terracota-700)}
+  .sino-vazio{padding:14px 12px;font-size:12.5px;color:var(--muted);font-style:italic}
   .palco{max-width:1280px;margin:0 auto;padding:30px 26px 90px}
 
   .painel-topo{display:flex;justify-content:space-between;align-items:flex-end;
