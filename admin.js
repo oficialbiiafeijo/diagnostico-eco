@@ -336,43 +336,54 @@
     corpo.querySelector("#rg_lado").value = item ? item.lado : "b3sales";
     if (daOrigem) corpo.querySelector("#rg_cli").disabled = true;
 
-    /* anexos: arquivo, print ou documento junto do registro */
+    /* Anexos em qualquer item. O arquivo é guardado onde o item mora:
+       no registro, na ação, ou como bloco dentro da página. Nunca num
+       segundo lugar só da Central. */
     var anexados = (item && item.anexos ? item.anexos.slice() : []);
     var ax = corpo.querySelector("#rg_anexos");
-    var podeAnexar = !daOrigem;
     ax.appendChild(el('<label class="small ca-lb">Anexos</label>'));
+    if (daOrigem) {
+      ax.appendChild(el('<p class="small muted" style="margin:0 0 8px">' +
+        'O arquivo é guardado em ' + esc(item.origem_nome) +
+        ', então aparece lá também.</p>'));
+    }
     var listaAx = el('<div class="fala-ax-lista"></div>');
     function pintarAx() {
       listaAx.innerHTML = "";
       if (!anexados.length) {
-        listaAx.appendChild(el('<span class="small muted">' +
-          (podeAnexar ? "Nenhum arquivo ainda."
-                      : "Os arquivos deste item ficam na aba de origem.") +
-          '</span>'));
+        listaAx.appendChild(el('<span class="small muted">Nenhum arquivo ainda.</span>'));
       }
       anexados.forEach(function (a, n) {
         var t = el('<span class="fala-ax-t"><a href="/api/midia/' + esc(a.id) +
           '" target="_blank" rel="noopener">' + esc(a.nome) + '</a>' +
-          (podeAnexar ? ' <button type="button">×</button>' : '') + '</span>');
-        if (podeAnexar) {
-          t.querySelector("button").onclick = function () {
-            anexados.splice(n, 1); pintarAx();
-          };
-        }
+          ' <button type="button" title="Tirar">×</button></span>');
+        t.querySelector("button").onclick = function () {
+          if (item) {
+            api("/api/admin/central-anexar",
+                { id: item.id, midia_id: a.id, remover: true }).then(function (rr) {
+              if (rr.erro) return toast(rr.erro);
+              anexados.splice(n, 1); pintarAx(); toast("Arquivo retirado");
+            });
+          } else { anexados.splice(n, 1); pintarAx(); }
+        };
         listaAx.appendChild(t);
       });
     }
     pintarAx();
     ax.appendChild(listaAx);
-    if (podeAnexar) {
-      var envAx = botaoEnviar("↑ Anexar arquivo",
-        (item ? item.cliente_id : corpo.querySelector("#rg_cli").value) || null,
-        "central", function (rr) {
-          anexados.push({ id: rr.id, nome: rr.nome }); pintarAx();
-        });
-      envAx.style.marginTop = "9px";
-      ax.appendChild(envAx);
-    }
+    var envAx = botaoEnviar("↑ Anexar arquivo",
+      (item ? item.cliente_id : corpo.querySelector("#rg_cli").value) || null,
+      "central", function (rr) {
+        if (!item) { anexados.push({ id: rr.id, nome: rr.nome }); pintarAx(); return; }
+        api("/api/admin/central-anexar", { id: item.id, midia_id: rr.id })
+          .then(function (x) {
+            if (x.erro) return toast(x.erro);
+            anexados.push({ id: rr.id, nome: rr.nome }); pintarAx();
+            toast("Arquivo anexado");
+          });
+      });
+    envAx.style.marginTop = "9px";
+    ax.appendChild(envAx);
 
     var bs = el('<button class="btn btn-ouro">Salvar</button>');
     var acoes = [bs];
@@ -635,7 +646,14 @@
           '<div class="acao-txt"><strong>' + esc(a.titulo) + '</strong>' +
           (a.detalhe ? '<div class="small muted">' + esc(a.detalhe) + '</div>' : '') +
           (a.responsavel ? '<div class="small" style="color:var(--ouro-700);margin-top:3px">' +
-            esc(a.responsavel) + '</div>' : '') + '</div></div>');
+            esc(a.responsavel) + '</div>' : '') +
+          ((a.anexos || []).length
+            ? '<div class="fala-ax-lista" style="margin-top:6px">' +
+              a.anexos.map(function (x) {
+                return '<span class="fala-ax-t"><a href="/api/midia/' + esc(x.id) +
+                  '" target="_blank" rel="noopener">⇩ ' + esc(x.nome) + '</a></span>';
+              }).join("") + '</div>'
+            : '') + '</div></div>');
         var sel = document.createElement("select");
         sel.className = "acao-status";
         r.status_possiveis.forEach(function (st) {

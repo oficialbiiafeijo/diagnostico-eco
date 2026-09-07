@@ -315,6 +315,7 @@ COLUNAS_NOVAS = [
     ("ciclos", "foco", "TEXT"),
     ("acoes", "prazo", "TEXT"),
     ("acoes", "prioridade", "TEXT DEFAULT ''"),
+    ("acoes", "midia_ids", "TEXT DEFAULT ''"),
     ("clientes", "tipo_servico", "TEXT DEFAULT ''"),
     ("clientes", "contrato_inicio", "TEXT"),
     ("clientes", "contrato_fim", "TEXT"),
@@ -909,6 +910,8 @@ class Handler(BaseHTTPRequestHandler):
             return self.api_acesso_pessoa()
         if p == "/api/admin/central-salvar":
             return self.api_central_salvar()
+        if p == "/api/admin/central-anexar":
+            return self.api_central_anexar()
         if p == "/api/admin/central-apagar":
             return self.api_central_apagar()
         if p == "/api/admin/central-nota":
@@ -1715,6 +1718,78 @@ class Handler(BaseHTTPRequestHandler):
                       titulo, eu, agora))
         db().commit()
         return self.json({"ok": True, "id": "registro:" + rid})
+
+    def acoes_com_anexos(self, cid, ciclo):
+        acoes = rota.listar(db(), cid, ciclo)
+        for a in acoes:
+            a["anexos"] = []
+            for mid in [x for x in (a.get("midia_ids") or "").split(",") if x]:
+                r = db().execute("SELECT id, nome, tipo FROM midia WHERE id=?",
+                                 (mid,)).fetchone()
+                if r:
+                    a["anexos"].append(dict(r))
+        return acoes
+
+    def api_central_anexar(self):
+        """Anexa um arquivo a qualquer item, sempre guardando onde ele mora.
+
+        Registro guarda no próprio registro. Ação guarda na ação. Página
+        vira um bloco de arquivo dentro dela, que é o jeito nativo da
+        página segurar um arquivo. Assim o arquivo aparece na aba de origem
+        também, e não existe segundo lugar para o mesmo arquivo.
+        """
+        b = self.body()
+        item = b.get("id") or ""
+        mid = (b.get("midia_id") or "").strip()
+        tirar = bool(b.get("remover"))
+        if ":" not in item or not mid:
+            return self.erro("Informe o item e o arquivo.")
+        origem, oid = item.split(":", 1)
+        agora = now()
+
+        if origem in ("material", "metodologia"):
+            if tirar:
+                for r in db().execute(
+                        "SELECT id, conteudo FROM ws_blocos WHERE pagina_id=? "
+                        "AND tipo IN ('arquivo','imagem')", (oid,)):
+                    try:
+                        c = json.loads(r["conteudo"] or "{}")
+                    except ValueError:
+                        continue
+                    if c.get("midia_id") == mid:
+                        db().execute("DELETE FROM ws_blocos WHERE id=?", (r["id"],))
+                db().commit()
+                return self.json({"ok": True})
+            m = db().execute("SELECT nome, tipo FROM midia WHERE id=?", (mid,)).fetchone()
+            if not m:
+                return self.erro("Arquivo não encontrado.", 404)
+            ordem = db().execute("SELECT COALESCE(MAX(ordem),0)+1 n FROM ws_blocos "
+                                 "WHERE pagina_id=?", (oid,)).fetchone()["n"]
+            db().execute(
+                "INSERT INTO ws_blocos(id,pagina_id,tipo,ordem,conteudo,atualizado_em) "
+                "VALUES(?,?,?,?,?,?)",
+                (novo_token()[:16], oid,
+                 "imagem" if (m["tipo"] or "").startswith("image/") else "arquivo",
+                 ordem, json.dumps({"midia_id": mid, "titulo": m["nome"]}), agora))
+            db().execute("UPDATE ws_paginas SET atualizado_em=? WHERE id=?", (agora, oid))
+            db().commit()
+            return self.json({"ok": True})
+
+        tabela = "registros" if origem == "registro" else "acoes"
+        if origem not in ("registro", "rota"):
+            return self.erro("Origem desconhecida.")
+        r = db().execute(f"SELECT midia_ids FROM {tabela} WHERE id=?", (oid,)).fetchone()
+        if not r:
+            return self.erro("Item não encontrado.", 404)
+        atuais = [x for x in (r["midia_ids"] or "").split(",") if x]
+        if tirar:
+            atuais = [x for x in atuais if x != mid]
+        elif mid not in atuais:
+            atuais.append(mid)
+        db().execute(f"UPDATE {tabela} SET midia_ids=?, atualizado_em=? WHERE id=?",
+                     (",".join(atuais)[:400], agora, oid))
+        db().commit()
+        return self.json({"ok": True})
 
     def api_central_apagar(self):
         b = self.body()
@@ -2807,7 +2882,7 @@ class Handler(BaseHTTPRequestHandler):
         if not cliente_dict(cid):
             return self.erro("Cliente não encontrado.", 404)
         ans = respostas_de(cid, ciclo)
-        return self.json({"ciclo": ciclo, "acoes": rota.listar(db(), cid, ciclo),
+        return self.json({"ciclo": ciclo, "acoes": self.acoes_com_anexos(cid, ciclo),
                           "sugestoes": rota.sugerir(ans),
                           "status_possiveis": ["Não iniciada", "Em andamento",
                                                "Concluída", "Bloqueada", "Cancelada"],
@@ -2825,7 +2900,7 @@ class Handler(BaseHTTPRequestHandler):
             return self.erro("A rota nasce do diagnóstico do Dia 0. "
                              "Gere a rota a partir do ciclo inicial.")
         r = rota.gerar(db(), cid, ciclo, ans, now(), bool(b.get("substituir")))
-        return self.json({"ok": True, **r, "acoes": rota.listar(db(), cid, ciclo)})
+        return self.json({"ok": True, **r, "acoes": self.acoes_com_anexos(cid, ciclo)})
 
     def api_acao_salvar(self):
         b = self.body()

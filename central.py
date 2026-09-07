@@ -79,6 +79,7 @@ def _de_acao(r, nomes_dele):
         "prioridade": (r["prioridade"] if "prioridade" in r.keys() else "") or "Média",
         "status": DE_ACAO.get(r["status"], r["status"] or "Não iniciado"),
         "visibilidade": "interno",
+        "midia_ids": (r["midia_ids"] if "midia_ids" in r.keys() else "") or "",
         "criado_em": r["criado_em"], "atualizado_em": r["atualizado_em"],
     })
 
@@ -94,6 +95,7 @@ def _de_pagina(r, nomes_dele):
         "prazo": r["prazo"], "prioridade": r["prioridade"] or "Média",
         "status": DE_PAGINA.get(r["status"], r["status"] or "Não iniciado"),
         "visibilidade": "cliente" if r["visivel_cliente"] else "interno",
+        "midia_ids": "",
         "criado_em": r["criado_em"], "atualizado_em": r["atualizado_em"],
     })
 
@@ -111,6 +113,34 @@ def _de_registro(r):
         "midia_ids": r["midia_ids"] or "", "obs": r["obs"] or "",
         "criado_em": r["criado_em"], "atualizado_em": r["atualizado_em"],
     })
+
+
+def anexos_de(conn, item):
+    """Os arquivos de um item, sempre lidos de onde eles realmente moram."""
+    fora = []
+    if item["origem"] in ("material", "metodologia"):
+        import json as _json
+        for b in conn.execute(
+                "SELECT conteudo FROM ws_blocos WHERE pagina_id=? "
+                "AND tipo IN ('arquivo','imagem') ORDER BY ordem",
+                (item["origem_id"],)):
+            try:
+                c = _json.loads(b["conteudo"] or "{}")
+            except ValueError:
+                continue
+            mid = c.get("midia_id")
+            if not mid:
+                continue
+            r = conn.execute("SELECT id, nome, tipo FROM midia WHERE id=?",
+                             (mid,)).fetchone()
+            if r:
+                fora.append(dict(r))
+        return fora
+    for mid in [x for x in (item.get("midia_ids") or "").split(",") if x]:
+        r = conn.execute("SELECT id, nome, tipo FROM midia WHERE id=?", (mid,)).fetchone()
+        if r:
+            fora.append(dict(r))
+    return fora
 
 
 def time_do_cliente(conn, cid):
@@ -166,13 +196,7 @@ def listar(conn, cliente_id=None, filtros=None):
         itens.append(_de_registro(r))
 
     for i in itens:
-        # os anexos do registro, com o nome de cada arquivo
-        i["anexos"] = []
-        for mid in [x for x in (i.get("midia_ids") or "").split(",") if x]:
-            r = conn.execute("SELECT id, nome, tipo FROM midia WHERE id=?",
-                             (mid,)).fetchone()
-            if r:
-                i["anexos"].append(dict(r))
+        i["anexos"] = anexos_de(conn, i)
         i["cliente_nome"] = clientes.get(i["cliente_id"], "")
         i["origem_nome"] = ORIGENS.get(i["origem"], i["origem"])
         i["pilar_nome"] = PILARES.get(i["pilar"], "")
@@ -265,7 +289,8 @@ def gravar(conn, item_id, campos, agora):
     if origem == "rota":
         mapa = {"titulo": "titulo", "descricao": "detalhe",
                 "responsavel": "responsavel", "prazo": "prazo",
-                "prioridade": "prioridade", "pilar": "pilar"}
+                "prioridade": "prioridade", "pilar": "pilar",
+                "midia_ids": "midia_ids"}
         sets, vals = [], []
         for k, col in mapa.items():
             if k in campos:
