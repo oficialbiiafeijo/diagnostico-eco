@@ -2099,8 +2099,10 @@
 
     /* cabeçalho com logo, nome e o que importa de relance */
     var cab = el('<div class="cli-cab"></div>');
+    var colFoto = el('<div class="cli-foto-col"></div>');
     var logo = el('<div class="cli-logo" style="' + estiloLogo(c, 82) + '">' +
       (c.logo_midia_id ? '' : esc((c.empresa || "?").slice(0, 1).toUpperCase())) + '</div>');
+    colFoto.appendChild(logo);
     var acoesLogo = el('<div class="cli-logo-env"></div>');
     var envLogo = botaoEnviar(c.logo_midia_id ? "↑ Trocar" : "↑ Foto ou logo", c.id, "logo",
       function (r) {
@@ -2119,8 +2121,8 @@
       };
       acoesLogo.appendChild(bAj);
     }
-    logo.appendChild(acoesLogo);
-    cab.appendChild(logo);
+    colFoto.appendChild(acoesLogo);
+    cab.appendChild(colFoto);
 
     var selos = "";
     if (d.dias_contrato != null) {

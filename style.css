@@ -706,8 +706,7 @@ select.fmt-men{width:auto;margin:0;padding:4px 26px 4px 9px;font-size:12px;
 .cli-logo{width:82px;height:82px;border-radius:18px;flex:none;display:flex;
   align-items:center;justify-content:center;font-family:var(--serif);font-size:34px;
   color:#fff;border:3px solid var(--creme);box-shadow:var(--sombra);position:relative}
-.cli-logo-env{position:absolute;left:0;top:100%;margin-top:7px;white-space:nowrap}
-.cli-logo-env .btn{font-size:11px;padding:5px 11px}
+
 .cli-id{flex:1;min-width:0;padding-top:40px}
 .cli-nome{font-size:34px;color:var(--ameixa-900);margin:3px 0 0;line-height:1.1}
 .cli-sub{font-size:13px;color:var(--texto-2);margin:6px 0 0}
@@ -951,10 +950,7 @@ select.fmt-men{width:auto;margin:0;padding:4px 26px 4px 9px;font-size:12px;
 
 /* a foto do cliente: sempre o mesmo enquadramento */
 .cli-logo{background-size:cover;background-position:center;overflow:visible}
-.cli-logo-env{position:absolute;left:0;top:100%;margin-top:8px;display:flex;gap:6px;
-  white-space:nowrap}
-.cli-logo-env .btn{font-size:11px;padding:5px 11px}
-.cli-logo-env .env-st,.cli-logo-env .env-barra{display:none}
+
 
 .q-ident-foto{width:58px;height:58px;border-radius:15px;background-size:cover;
   background-position:center;display:flex;align-items:center;justify-content:center;
@@ -1034,3 +1030,13 @@ select.fmt-men{width:auto;margin:0;padding:4px 26px 4px 9px;font-size:12px;
 
 .env-med{display:flex;flex-direction:column;gap:0}
 .env-med .med-dica{margin:8px 0 0}
+
+
+/* a foto do cliente e os seus botões, em coluna, sem passar por cima de nada */
+.cli-foto-col{display:flex;flex-direction:column;align-items:flex-start;gap:9px;flex:none}
+.cli-logo-env{display:flex;gap:6px;flex-wrap:wrap;max-width:190px}
+.cli-logo-env .btn{font-size:11px;padding:5px 11px;white-space:nowrap}
+.cli-logo-env .env{gap:0}
+.cli-logo-env .env-st,.cli-logo-env .env-barra{display:none}
+.cli-cab{align-items:flex-start}
+.cli-id{padding-top:44px}
