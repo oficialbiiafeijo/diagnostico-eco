@@ -629,6 +629,9 @@ class Handler(BaseHTTPRequestHandler):
             return self.static(p[len("/static/"):])
         if p == "/saude":
             return self.json({"ok": True, "em": now()})
+        if p == "/api/marca":
+            # publica de proposito: as telas do cliente tambem usam a marca
+            return self.json({"logo_midia_id": cfg_get("logo_midia_id") or ""})
 
         # -------- API do cliente
         m = re.fullmatch(r"/api/d/([\w\-]+)", p)
@@ -672,7 +675,8 @@ class Handler(BaseHTTPRequestHandler):
             if not self.exige_admin():
                 return
             return self.json({"api_key": cfg_get("api_key"),
-                              "usuario": cfg_get("admin_usuario")})
+                              "usuario": cfg_get("admin_usuario"),
+                              "logo_midia_id": cfg_get("logo_midia_id") or ""})
         m = re.fullmatch(r"/api/c/([\w\-]+)", p)
         if m:
             return self.api_portal(m.group(1))
@@ -830,6 +834,8 @@ class Handler(BaseHTTPRequestHandler):
             return self.api_aula_excluir()
         if p == "/api/admin/curso-acesso":
             return self.api_curso_acesso()
+        if p == "/api/admin/marca":
+            return self.api_marca_salvar()
         if p == "/api/admin/midia-pedaco":
             return self.api_midia_pedaco()
         if p == "/api/admin/midia-excluir":
@@ -1566,6 +1572,12 @@ class Handler(BaseHTTPRequestHandler):
                 d["origem_tabela"] = "anexos"
                 arquivos.append(d)
         return self.json({"arquivos": arquivos})
+
+    def api_marca_salvar(self):
+        """Guarda o arquivo do logo da B3 Sales, usado em todas as telas."""
+        b = self.body()
+        cfg_set("logo_midia_id", b.get("logo_midia_id") or "")
+        return self.json({"ok": True})
 
     def api_midia_pedaco(self):
         """Recebe um arquivo grande em pedaços.

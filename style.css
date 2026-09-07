@@ -745,3 +745,9 @@ select.fmt-men{width:auto;margin:0;padding:4px 26px 4px 9px;font-size:12px;
   .cli-nome{font-size:26px}
   .cli-mais{margin-left:0}
 }
+
+.marca-img{height:38px;width:auto;max-width:190px;object-fit:contain;display:block}
+.barra .marca-img,.p-topo .marca-img{filter:brightness(0) invert(1)}
+.marca-previa{padding:16px;border-radius:var(--r-sm);background:var(--creme-2);
+  border:1px solid var(--linha);margin-bottom:10px;display:flex;justify-content:center}
+.marca-previa img{max-height:64px;max-width:100%;object-fit:contain}

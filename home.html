@@ -24,5 +24,15 @@
   <hr class="filete" style="margin:44px auto;max-width:280px">
   <p class="small muted">Se você recebeu um link de diagnóstico, abra o endereço que a equipe enviou.</p>
 </div>
+<script>
+/* troca o simbolo desenhado pelo logo enviado pela B3 Sales, quando existir */
+fetch("/api/marca").then(function (r) { return r.json(); }).then(function (m) {
+  if (!m.logo_midia_id) return;
+  document.querySelectorAll(".marca").forEach(function (el) {
+    el.innerHTML = '<img class="marca-img" src="/api/midia/' + m.logo_midia_id +
+      '" alt="Grupo B3 Sales">';
+  });
+}).catch(function () {});
+</script>
 </body>
 </html>

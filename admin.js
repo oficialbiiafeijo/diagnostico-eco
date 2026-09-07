@@ -3,6 +3,7 @@
   "use strict";
   var app = document.getElementById("app");
   var toastEl = document.getElementById("toast"), toastTxt = document.getElementById("toastTxt");
+  var MARCA_IMG = null;
   var S = { rota: "lista", cid: null, ciclo: null, det: null, lista: null,
             aba: "respostas", arquivados: false };
 
@@ -55,7 +56,7 @@
     app.innerHTML = "";
     var box = el('<div style="min-height:100vh;display:grid;place-items:center;padding:24px">' +
       '<div class="card card-pad" style="width:min(430px,100%)">' +
-      '<div class="marca" style="margin-bottom:26px"><span class="marca-b3"><svg viewBox="0 0 58 56" aria-label="B3 Sales Group"><text class="mb" x="0" y="47">B</text><text class="m3" x="17" y="47">3</text></svg></span><span class="marca-fio"></span>' +
+      marcaHtml() +
       '<div><div class="marca-txt">Sales</div><div class="marca-sub">Group</div></div></div>' +
       '<div class="eyebrow">Diagnóstico Comercial ECO</div>' +
       '<h1 class="serif" style="font-size:34px;color:var(--ameixa-900);margin:10px 0 6px">Área interna</h1>' +
@@ -83,13 +84,28 @@
   }
 
   /* ---------------------------------------------------------------- shell */
+
+  /* A marca da casa: se a B3 Sales enviou o arquivo do logo, ele manda.
+     Senão, desenhamos o B com o 3, que é o mais próximo do original. */
+  function marcaHtml() {
+    if (MARCA_IMG) {
+      return '<div class="marca"><img class="marca-img" src="/api/midia/' +
+        esc(MARCA_IMG) + '" alt="Grupo B3 Sales"></div>';
+    }
+    return '<div class="marca"><span class="marca-b3">' +
+      '<svg viewBox="0 0 58 56" aria-label="B3 Sales Group">' +
+      '<text class="mb" x="0" y="47">B</text>' +
+      '<text class="m3" x="17" y="47">3</text></svg></span>' +
+      '<span class="marca-fio"></span>' +
+      '<div><div class="marca-txt">Sales</div>' +
+      '<div class="marca-sub">Group</div></div></div>';
+  }
+
   function shell(conteudo) {
     app.innerHTML = "";
     var barra = el('<div class="barra"><div class="barra-in">' +
       '<div style="display:flex;align-items:center;gap:18px">' +
-      '<div class="marca"><span class="marca-b3"><svg viewBox="0 0 58 56" aria-label="B3 Sales Group"><text class="mb" x="0" y="47">B</text><text class="m3" x="17" y="47">3</text></svg></span><span class="marca-fio"></span>' +
-      '<div><div class="marca-txt">Sales</div>' +
-      '<div class="marca-sub">Group</div></div></div>' +
+      marcaHtml() +
       '<div class="barra-tag">Diagnóstico ECO · Área interna</div></div>' +
       '<div style="display:flex;gap:6px"></div></div></div>');
     var dir = barra.querySelector(".barra-in > div:last-child");
@@ -2752,6 +2768,13 @@
     api("/api/admin/config").then(function (cfg) {
       var base = location.origin;
       var corpo = el('<div>' +
+        '<h3 class="serif" style="font-size:22px;color:var(--ameixa-900);margin-bottom:4px">' +
+        'A marca do Grupo B3 Sales</h3>' +
+        '<p class="small muted" style="margin:0 0 12px">Envie o arquivo do seu logo. Ele passa ' +
+        'a aparecer no painel, no formulário do cliente e no acompanhamento. ' +
+        'PNG com fundo transparente fica melhor.</p>' +
+        '<div id="cf_marca" style="margin-bottom:8px"></div>' +
+        '<hr class="filete">' +
         '<h3 class="serif" style="font-size:22px;color:var(--ameixa-900);margin-bottom:6px">Acesso da equipe</h3>' +
         campoTexto("cf_user", "Usuário", "", cfg.usuario) +
         '<div class="campo" style="margin-bottom:14px"><label class="small" style="color:var(--ameixa-700);margin-bottom:5px;display:block">Senha atual</label>' +
@@ -2768,6 +2791,36 @@
         '<div style="background:var(--creme-2);border:1px solid var(--linha-2);border-radius:10px;' +
         'padding:12px;word-break:break-all;font-size:11.5px">' + esc(base) + '/api/dados?chave=' + esc(cfg.api_key) + '</div>' +
         '</div>');
+      var marcaId = cfg.logo_midia_id || "";
+      var areaM = corpo.querySelector("#cf_marca");
+      function pintarMarca() {
+        areaM.innerHTML = "";
+        if (marcaId) {
+          areaM.appendChild(el('<div class="marca-previa"><img src="/api/midia/' +
+            esc(marcaId) + '" alt=""></div>'));
+        }
+        var linha = el('<div style="display:flex;gap:9px;align-items:center;flex-wrap:wrap"></div>');
+        linha.appendChild(botaoEnviar(marcaId ? "↑ Trocar o logo" : "↑ Enviar o logo",
+          null, "marca", function (r) {
+            marcaId = r.id;
+            api("/api/admin/marca", { logo_midia_id: marcaId }).then(function () {
+              MARCA_IMG = marcaId; toast("Marca atualizada"); pintarMarca();
+            });
+          }, "image/*"));
+        if (marcaId) {
+          var bl = el('<button class="btn btn-fantasma btn-sm">Voltar ao desenho</button>');
+          bl.onclick = function () {
+            marcaId = "";
+            api("/api/admin/marca", { logo_midia_id: "" }).then(function () {
+              MARCA_IMG = null; toast("Voltou ao símbolo desenhado"); pintarMarca();
+            });
+          };
+          linha.appendChild(bl);
+        }
+        areaM.appendChild(linha);
+      }
+      pintarMarca();
+
       var bch = el('<button class="btn btn-linha">Copiar endereço</button>');
       bch.onclick = function () { copiar(base + "/api/dados?chave=" + cfg.api_key, "Endereço copiado"); };
       var bsv = el('<button class="btn btn-ouro">Salvar senha</button>');
@@ -2797,6 +2850,10 @@
       telaLogin("Não foi possível conectar ao servidor.");
     });
   }
-  api("/api/admin/sessao").then(function (s) { s.logado ? abrirPainel() : telaLogin(); })
+  fetch("/api/marca").then(function (r) { return r.json(); })
+    .then(function (m) { MARCA_IMG = m.logo_midia_id || null; })
+    .catch(function () {})
+    .then(function () { return api("/api/admin/sessao"); })
+    .then(function (s) { s.logado ? abrirPainel() : telaLogin(); })
     .catch(function () { telaLogin("Não foi possível conectar ao servidor."); });
 })();
