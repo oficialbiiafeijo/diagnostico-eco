@@ -428,8 +428,10 @@
       var linha = el('<div style="display:flex;gap:8px;flex-wrap:wrap"></div>');
       linha.appendChild(bc); linha.appendChild(bv); linha.appendChild(bn); linha.appendChild(bf);
       caixa.appendChild(linha);
-      caixa.appendChild(el('<p class="small muted" style="margin-top:14px">Para escolher o que ' +
-        'ele vê, marque as páginas em Materiais e metodologia.</p>'));
+      caixa.appendChild(el('<p class="small muted" style="margin-top:14px">' +
+        'Ele só vê as páginas que você liberou. Os materiais dele ficam em ' +
+        '<strong>Materiais e metodologia</strong>. A metodologia da casa é liberada ' +
+        'na aba <strong>Metodologia</strong>, dentro de cada página.</p>'));
     }
 
     pintar(c.token_portal || "", c.portal_ativo ? 1 : 0);
