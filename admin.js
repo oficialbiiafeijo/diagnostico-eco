@@ -1069,6 +1069,108 @@
     });
   }
 
+
+  /* ---------------------------------------------------------- imagens
+     Onde cada imagem entra, em que proporção e com que medida.
+     Serve para a B3 Sales criar as artes já no tamanho certo. */
+  var MEDIDAS = {
+    logo_casa:    { nome: "Logo do Grupo B3 Sales", w: 600, h: 200, prop: "3:1",
+                    onde: "Configurações", nota: "PNG com fundo transparente" },
+    logo_cliente: { nome: "Foto ou logo do cliente", w: 400, h: 400, prop: "1:1",
+                    onde: "Ficha do cliente", nota: "Quadrada, como foto de perfil" },
+    capa_cliente: { nome: "Capa do cliente", w: 1600, h: 400, prop: "4:1",
+                    onde: "Topo da ficha do cliente", nota: "Faixa larga e baixa" },
+    capa_pagina:  { nome: "Capa da página", w: 1600, h: 400, prop: "4:1",
+                    onde: "Materiais e Metodologia", nota: "Faixa larga e baixa" },
+    capa_curso:   { nome: "Capa do curso", w: 600, h: 800, prop: "3:4",
+                    onde: "Cartão na lista de cursos", nota: "Em pé, como capa de livro" },
+    banner_curso: { nome: "Banner do curso", w: 1600, h: 500, prop: "16:5",
+                    onde: "Topo do curso, admin e cliente", nota: "Faixa larga" },
+    capa_aula:    { nome: "Capa da aula", w: 640, h: 360, prop: "16:9",
+                    onde: "Cartão de cada aula", nota: "Formato de vídeo" },
+    capa_prova:   { nome: "Capa da prova social", w: 800, h: 450, prop: "16:9",
+                    onde: "Cartão em Prova social", nota: "Formato de vídeo" }
+  };
+
+  function dicaMedida(chave) {
+    var m = MEDIDAS[chave];
+    if (!m) return "";
+    return '<p class="med-dica"><span class="med-p">' + m.prop + '</span>' +
+      '<strong>' + m.w + ' × ' + m.h + ' px</strong>' +
+      '<span class="small muted">' + esc(m.nota) + '</span></p>';
+  }
+
+  /* Enquadramento de qualquer imagem: zoom e posição, com prévia no
+     formato real do lugar onde ela vai aparecer. */
+  function modalMoldura(titulo, chave, midiaId, ajusteAtual, aoSalvar) {
+    var a = {};
+    try { a = JSON.parse(ajusteAtual || "{}") || {}; } catch (e) { a = {}; }
+    var z = a.zoom || 100, x = a.x == null ? 50 : a.x, y = a.y == null ? 50 : a.y;
+    var m = MEDIDAS[chave] || { w: 800, h: 450, prop: "16:9", nome: titulo, nota: "" };
+
+    var corpo = el('<div>' +
+      '<p class="small muted" style="margin:0 0 14px;line-height:1.7">Ajuste até ficar ' +
+      'do jeito que você quer. A prévia mostra exatamente o formato do lugar onde ' +
+      'esta imagem aparece.</p>' +
+      dicaMedida(chave) +
+      '<div class="mol-previa"><div class="mol-img"></div></div>' +
+      '<div class="enq-ctrl"></div></div>');
+
+    var prev = corpo.querySelector(".mol-previa");
+    prev.style.aspectRatio = m.w + " / " + m.h;
+    var img = corpo.querySelector(".mol-img");
+    function pintar() {
+      img.style.cssText = "background-image:url(/api/midia/" + esc(midiaId) + ");" +
+        "background-size:" + z + "% auto;background-position:" + x + "% " + y + "%;" +
+        "background-repeat:no-repeat;background-color:#fff";
+    }
+    pintar();
+
+    var ctrl = corpo.querySelector(".enq-ctrl");
+    function faixa(rot, valor, min, max, aplicar) {
+      var l = el('<div class="enq-linha"><span class="small">' + rot + '</span></div>');
+      var i = document.createElement("input");
+      i.type = "range"; i.min = min; i.max = max; i.value = valor;
+      i.oninput = function () { aplicar(parseInt(i.value, 10)); pintar(); };
+      l.appendChild(i); ctrl.appendChild(l);
+    }
+    faixa("Zoom", z, 60, 300, function (v) { z = v; });
+    faixa("Horizontal", x, 0, 100, function (v) { x = v; });
+    faixa("Vertical", y, 0, 100, function (v) { y = v; });
+    var bC = el('<button class="btn btn-fantasma btn-sm">Centralizar</button>');
+    bC.onclick = function () {
+      z = 100; x = 50; y = 50; pintar();
+      ctrl.querySelectorAll("input").forEach(function (i, k) { i.value = [100, 50, 50][k]; });
+    };
+    ctrl.appendChild(bC);
+
+    var bs = el('<button class="btn btn-ouro">Salvar enquadramento</button>');
+    var f = modal("Enquadrar a imagem", titulo, corpo, [bs]);
+    bs.onclick = function () {
+      aoSalvar(JSON.stringify({ zoom: z, x: x, y: y }));
+      f.remove();
+    };
+  }
+
+  /* o estilo de fundo de qualquer imagem com ajuste */
+  function fundoImagem(midiaId, ajuste, alternativa) {
+    if (!midiaId) return alternativa || "background:var(--creme-3)";
+    var a = {};
+    try { a = JSON.parse(ajuste || "{}") || {}; } catch (e) { a = {}; }
+    var z = a.zoom || 100, x = a.x == null ? 50 : a.x, y = a.y == null ? 50 : a.y;
+    return "background-image:url(/api/midia/" + esc(midiaId) + ");" +
+      "background-size:" + z + "% auto;background-position:" + x + "% " + y + "%;" +
+      "background-repeat:no-repeat;background-color:#241030";
+  }
+
+  /* botão de enviar já com a medida do lugar escrita embaixo */
+  function envioComMedida(rotulo, chave, cid, categoria, aoTerminar) {
+    var cx = el('<div class="env-med"></div>');
+    cx.appendChild(botaoEnviar(rotulo, cid, categoria, aoTerminar, "image/*"));
+    cx.appendChild(el(dicaMedida(chave)));
+    return cx;
+  }
+
   /* ------------------------------------------------- envio de arquivos */
   var TIPOS_ACEITOS = "image/*,video/*,audio/*,application/pdf,.doc,.docx,.xls,.xlsx," +
     ".ppt,.pptx,.csv,.txt,.zip";
@@ -1632,10 +1734,10 @@
       }
 
       /* capa: cor da casa ou imagem enviada */
-      var fundoCapa = pag.capa_midia_id
-        ? "#241030 url(/api/midia/" + esc(pag.capa_midia_id) + ") center/cover"
-        : (CAPA_CSS[pag.capa] || "var(--creme-3)");
-      var capa = el('<div class="ws-capa" style="background:' + fundoCapa + '"></div>');
+      var capa = el('<div class="ws-capa" style="' +
+        (pag.capa_midia_id
+          ? fundoImagem(pag.capa_midia_id, pag.capa_ajuste)
+          : "background:" + (CAPA_CSS[pag.capa] || "var(--creme-3)")) + '"></div>');
       var trocar = el('<div class="ws-capa-troca"></div>');
       dados.capas.forEach(function (c) {
         var b = el('<button type="button" title="' + esc(c.nome) + '" style="background:' + c.css + '"></button>');
@@ -1645,10 +1747,22 @@
         trocar.appendChild(b);
       });
       var envCapa = botaoEnviar("↑ Imagem de capa", pag.cliente_id, "capa", function (r) {
-        api("/api/admin/ws-pagina", { id: paginaId, capa_midia_id: r.id }).then(redesenhar);
+        api("/api/admin/ws-pagina", { id: paginaId, capa_midia_id: r.id, capa_ajuste: "" })
+          .then(redesenhar);
       }, "image/*");
       envCapa.classList.add("ws-capa-env");
+      envCapa.title = "Capa: 1600 × 400 px";
       trocar.appendChild(envCapa);
+      if (pag.capa_midia_id) {
+        var bMol = el('<button type="button" class="ws-capa-lim" title="Enquadrar">⛶</button>');
+        bMol.onclick = function () {
+          modalMoldura("Capa da página", "capa_pagina", pag.capa_midia_id,
+            pag.capa_ajuste, function (aj) {
+              api("/api/admin/ws-pagina", { id: paginaId, capa_ajuste: aj }).then(redesenhar);
+            });
+        };
+        trocar.appendChild(bMol);
+      }
       if (pag.capa_midia_id) {
         var limpar = el('<button type="button" class="ws-capa-lim" title="Tirar a imagem">×</button>');
         limpar.onclick = function () {
@@ -1996,7 +2110,13 @@
     acoesLogo.appendChild(envLogo);
     if (c.logo_midia_id) {
       var bAj = el('<button class="btn btn-linha btn-sm">Enquadrar</button>');
-      bAj.onclick = function () { modalEnquadrar(c); };
+      bAj.onclick = function () {
+        modalMoldura("Foto de " + c.empresa, "logo_cliente", c.logo_midia_id,
+          c.logo_ajuste, function (aj) {
+            api("/api/admin/cliente-editar", { id: c.id, logo_ajuste: aj })
+              .then(function () { toast("Enquadramento salvo"); abrirCliente(c.id, S.ciclo); });
+          });
+      };
       acoesLogo.appendChild(bAj);
     }
     logo.appendChild(acoesLogo);

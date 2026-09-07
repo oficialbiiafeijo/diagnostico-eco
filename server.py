@@ -280,6 +280,13 @@ COLUNAS_NOVAS = [
     ("clientes", "capa", "TEXT DEFAULT ''"),
     ("clientes", "alerta", "TEXT DEFAULT ''"),
     ("clientes", "logo_ajuste", "TEXT DEFAULT ''"),
+    ("clientes", "capa_midia_id", "TEXT"),
+    ("clientes", "capa_ajuste", "TEXT DEFAULT ''"),
+    ("ws_paginas", "capa_ajuste", "TEXT DEFAULT ''"),
+    ("cursos", "capa_ajuste", "TEXT DEFAULT ''"),
+    ("cursos", "banner_ajuste", "TEXT DEFAULT ''"),
+    ("aulas", "capa_ajuste", "TEXT DEFAULT ''"),
+    ("provas", "capa_ajuste", "TEXT DEFAULT ''"),
     ("clientes", "portal_ativo", "INTEGER DEFAULT 0"),
 ]
 
@@ -1108,9 +1115,7 @@ class Handler(BaseHTTPRequestHandler):
         if not f.is_file():
             return self._send(404, "arquivo removido", "text/plain; charset=utf-8")
         ctype = r["tipo"] or mimetypes.guess_type(r["nome"])[0] or "application/octet-stream"
-        nome = re.sub(r'[";\r\n]', "_", r["nome"])
-        return self._send(200, f.read_bytes(), ctype,
-                          {"Content-Disposition": f'attachment; filename="{nome}"'})
+        return self.enviar_arquivo(f, r["nome"], ctype)
 
     # ---------------------------------------------------------------- admin
     def api_login(self):
@@ -1448,8 +1453,8 @@ class Handler(BaseHTTPRequestHandler):
                 nome = c["empresa"]
                 seg = c["segmento"] or ""
         campos = ("titulo", "descricao", "categoria", "formato", "midia_id", "url",
-                  "capa_midia_id", "metrica", "antes", "depois", "frase", "autor",
-                  "autor_cargo", "data", "autorizado")
+                  "capa_midia_id", "capa_ajuste", "metrica", "antes", "depois", "frase",
+                  "autor", "autor_cargo", "data", "autorizado")
         if b.get("id"):
             sets = ", ".join(f"{k}=?" for k in campos)
             vals = [b.get(k, "") for k in campos]
@@ -1579,11 +1584,12 @@ class Handler(BaseHTTPRequestHandler):
         conn = db()
         if b.get("id"):
             conn.execute("UPDATE cursos SET titulo=?, descricao=?, capa=?, trilha=?, "
-                         "capa_midia_id=?, banner_midia_id=?, publicado=?, atualizado_em=? "
-                         "WHERE id=?",
+                         "capa_midia_id=?, banner_midia_id=?, capa_ajuste=?, "
+                         "banner_ajuste=?, publicado=?, atualizado_em=? WHERE id=?",
                          (titulo, b.get("descricao", ""), b.get("capa", ""),
                           b.get("trilha", ""), b.get("capa_midia_id", ""),
-                          b.get("banner_midia_id", ""),
+                          b.get("banner_midia_id", ""), b.get("capa_ajuste", ""),
+                          b.get("banner_ajuste", ""),
                           1 if b.get("publicado", 1) else 0, now(), b["id"]))
             cid_curso = b["id"]
         else:
@@ -1612,7 +1618,7 @@ class Handler(BaseHTTPRequestHandler):
             return self.erro("Dê um nome à aula.")
         conn = db()
         campos = ("titulo", "descricao", "url", "midia_id", "capa_midia_id",
-                  "duracao", "material_midia_id", "modulo_id")
+                  "duracao", "material_midia_id", "modulo_id", "capa_ajuste")
         if b.get("id"):
             sets = ", ".join(f"{k}=?" for k in campos)
             vals = [b.get(k, "") for k in campos] + [b["id"]]
@@ -1621,13 +1627,13 @@ class Handler(BaseHTTPRequestHandler):
             prox = conn.execute("SELECT COALESCE(MAX(ordem),0)+1 n FROM aulas "
                                 "WHERE curso_id=?", (b.get("curso_id"),)).fetchone()["n"]
             conn.execute("INSERT INTO aulas(id,curso_id,titulo,descricao,url,midia_id,"
-                         "capa_midia_id,duracao,material_midia_id,modulo_id,ordem,criado_em) "
-                         "VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
+                         "capa_midia_id,duracao,material_midia_id,modulo_id,capa_ajuste,"
+                         "ordem,criado_em) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)",
                          (secrets.token_hex(8), b.get("curso_id"), titulo,
                           b.get("descricao", ""), b.get("url", ""), b.get("midia_id", ""),
                           b.get("capa_midia_id", ""), b.get("duracao", ""),
                           b.get("material_midia_id", ""), b.get("modulo_id") or None,
-                          prox, now()))
+                          b.get("capa_ajuste", ""), prox, now()))
         conn.commit()
         return self.json({"ok": True})
 
@@ -1821,6 +1827,60 @@ class Handler(BaseHTTPRequestHandler):
         db().commit()
         return self.json({"ok": True})
 
+    def enviar_arquivo(self, f, nome, tipo):
+        """Entrega o arquivo em pedaços, sem carregar tudo na memória.
+
+        Ler um vídeo de um giga de uma vez derruba o servidor, que tem pouca
+        memória. Aqui vai de 64 KB em 64 KB. E respondemos a Range, que é o
+        que permite ao player pular para o meio da aula sem baixar o resto.
+        """
+        tamanho = f.stat().st_size
+        inline = tipo.split("/")[0] in ("image", "audio", "video") or tipo == "application/pdf"
+        disp = "inline" if inline else "attachment"
+        nome_seguro = re.sub(r'["\r\n]', "", nome)[:120]
+
+        faixa = self.headers.get("Range") or ""
+        ini, fim = 0, tamanho - 1
+        parcial = False
+        m = re.match(r"bytes=(\d*)-(\d*)", faixa)
+        if m and tamanho:
+            a, b = m.group(1), m.group(2)
+            if a:
+                ini = min(int(a), tamanho - 1)
+                fim = min(int(b), tamanho - 1) if b else tamanho - 1
+            elif b:
+                ini = max(tamanho - int(b), 0)
+            if ini <= fim:
+                parcial = True
+            else:
+                ini, fim = 0, tamanho - 1
+
+        corpo = fim - ini + 1
+        try:
+            self.send_response(206 if parcial else 200)
+            self.send_header("Content-Type", tipo)
+            self.send_header("Content-Length", str(corpo))
+            self.send_header("Accept-Ranges", "bytes")
+            self.send_header("Content-Disposition", f'{disp}; filename="{nome_seguro}"')
+            self.send_header("Cache-Control", "private, max-age=86400")
+            self.send_header("X-Content-Type-Options", "nosniff")
+            if parcial:
+                self.send_header("Content-Range", f"bytes {ini}-{fim}/{tamanho}")
+            self.end_headers()
+            if self.command == "HEAD":
+                return
+            with open(f, "rb") as fh:
+                fh.seek(ini)
+                falta = corpo
+                while falta > 0:
+                    pedaco = fh.read(min(65536, falta))
+                    if not pedaco:
+                        break
+                    self.wfile.write(pedaco)
+                    falta -= len(pedaco)
+        except (BrokenPipeError, ConnectionResetError):
+            pass   # o navegador desistiu no meio, e normal em video
+
     def api_baixar_midia(self, mid):
         r = db().execute("SELECT * FROM midia WHERE id=?", (mid,)).fetchone()
         if not r:
@@ -1829,12 +1889,7 @@ class Handler(BaseHTTPRequestHandler):
         if not f.is_file():
             return self.erro("Arquivo não está mais no servidor.", 404)
         tipo = r["tipo"] or mimetypes.guess_type(r["nome"])[0] or "application/octet-stream"
-        # imagem, audio e video abrem na propria pagina; o resto baixa
-        inline = tipo.split("/")[0] in ("image", "audio", "video") or tipo == "application/pdf"
-        disp = "inline" if inline else "attachment"
-        return self._send(200, f.read_bytes(), tipo, {
-            "Content-Disposition": f'{disp}; filename="{r["nome"]}"',
-            "Cache-Control": "private, max-age=86400"})
+        return self.enviar_arquivo(f, r["nome"], tipo)
 
     # ------------------------------------------------------ metodologia
     def api_metodologia(self):
@@ -1952,7 +2007,7 @@ class Handler(BaseHTTPRequestHandler):
             sets, vals = [], []
             for k in ("titulo", "capa", "icone", "visivel_cliente", "ordem", "pai_id",
                       "status", "prioridade", "responsavel", "setor", "prazo",
-                      "capa_midia_id"):
+                      "capa_midia_id", "capa_ajuste"):
                 if k in b:
                     sets.append(f"{k}=?")
                     vals.append(int(b[k]) if k in ("visivel_cliente", "ordem") else b[k])
@@ -2439,7 +2494,7 @@ class Handler(BaseHTTPRequestHandler):
         campos = ["empresa", "responsavel", "cargo", "segmento", "contato", "email",
                   "obs_internas", "tipo_servico", "contrato_inicio", "contrato_fim",
                   "contrato_midia_id", "valor_contrato", "logo_midia_id", "capa",
-                  "alerta", "logo_ajuste"]
+                  "alerta", "logo_ajuste", "capa_midia_id", "capa_ajuste"]
         sets, vals = [], []
         for k in campos:
             if k in b:
