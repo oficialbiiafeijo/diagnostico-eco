@@ -55,7 +55,7 @@
     app.innerHTML = "";
     var box = el('<div style="min-height:100vh;display:grid;place-items:center;padding:24px">' +
       '<div class="card card-pad" style="width:min(430px,100%)">' +
-      '<div class="marca" style="margin-bottom:26px"><div class="marca-b">B</div>' +
+      '<div class="marca" style="margin-bottom:26px"><span class="marca-b3"><svg viewBox="0 0 58 56" aria-label="B3 Sales Group"><text class="mb" x="0" y="47">B</text><text class="m3" x="17" y="47">3</text></svg></span><span class="marca-fio"></span>' +
       '<div><div class="marca-txt">Sales</div><div class="marca-sub">Group</div></div></div>' +
       '<div class="eyebrow">Diagnóstico Comercial ECO</div>' +
       '<h1 class="serif" style="font-size:34px;color:var(--ameixa-900);margin:10px 0 6px">Área interna</h1>' +
@@ -87,7 +87,8 @@
     app.innerHTML = "";
     var barra = el('<div class="barra"><div class="barra-in">' +
       '<div style="display:flex;align-items:center;gap:18px">' +
-      '<div class="marca"><div class="marca-b">B</div><div><div class="marca-txt">Sales</div>' +
+      '<div class="marca"><span class="marca-b3"><svg viewBox="0 0 58 56" aria-label="B3 Sales Group"><text class="mb" x="0" y="47">B</text><text class="m3" x="17" y="47">3</text></svg></span><span class="marca-fio"></span>' +
+      '<div><div class="marca-txt">Sales</div>' +
       '<div class="marca-sub">Group</div></div></div>' +
       '<div class="barra-tag">Diagnóstico ECO · Área interna</div></div>' +
       '<div style="display:flex;gap:6px"></div></div></div>');
@@ -99,6 +100,7 @@
     var bp = el('<button class="btn btn-fantasma btn-sm' +
       (S.rota === "lista" ? " at" : "") + '">Clientes</button>');
     bp.onclick = function () { S.rota = "lista"; carregar(); };
+    dir.appendChild(bp);
     var bmet = el('<button class="btn btn-fantasma btn-sm' +
       (S.rota === "metodologia" ? " at" : "") + '">Metodologia</button>');
     bmet.onclick = function () { abrirMetodologia(); };
@@ -107,14 +109,14 @@
       (S.rota === "cursos" ? " at" : "") + '">Cursos</button>');
     bcur.onclick = function () { abrirCursos(); };
     dir.appendChild(bcur);
-    var bu = el('<button class="btn btn-fantasma btn-sm">Pessoas com acesso</button>');
+    var bu = el('<button class="btn btn-fantasma btn-sm">Acessos</button>');
     bu.onclick = modalUsuarios;
     dir.appendChild(bu);
     var bc = el('<button class="btn btn-fantasma btn-sm">Configurações</button>');
     bc.onclick = modalConfig;
     var bs = el('<button class="btn btn-fantasma btn-sm">Sair</button>');
     bs.onclick = function () { api("/api/admin/sair", {}).then(function () { telaLogin(); }); };
-    dir.appendChild(bp); dir.appendChild(bc); dir.appendChild(bs);
+    dir.appendChild(bc); dir.appendChild(bs);
     app.appendChild(barra);
     var palco = el('<div class="palco"></div>');
     palco.appendChild(conteudo);
@@ -687,22 +689,41 @@
     return (b / 1048576).toFixed(1) + " MB";
   }
 
-  function enviarArquivo(file, cid, categoria) {
+  var PEDACO = 4 * 1024 * 1024;   /* mesmo tamanho que o servidor espera */
+
+  function lerPedaco(blob) {
     return new Promise(function (ok, falha) {
-      if (file.size > 120 * 1024 * 1024) {
-        return falha(new Error("Passa de 120 MB. Para vídeo longo, use o bloco de " +
-          "Vídeo com o link do Panda, YouTube ou Vimeo."));
-      }
       var fr = new FileReader();
       fr.onerror = function () { falha(new Error("Não consegui ler o arquivo.")); };
-      fr.onload = function () {
-        api("/api/admin/midia-enviar", {
-          cliente_id: cid || null, nome: file.name, tipo: file.type,
-          categoria: categoria || "material", dados: fr.result
-        }).then(function (r) { r.erro ? falha(new Error(r.erro)) : ok(r); });
-      };
-      fr.readAsDataURL(file);
+      fr.onload = function () { ok(fr.result); };
+      fr.readAsDataURL(blob);
     });
+  }
+
+  /* Arquivo grande vai em pedaços: cada um sobe sozinho e o servidor
+     encaixa no disco. Assim uma aula de duas horas passa sem derrubar nada. */
+  function enviarArquivo(file, cid, categoria, aoProgredir) {
+    var envio = "e" + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+    var total = Math.max(1, Math.ceil(file.size / PEDACO));
+    var i = 0;
+
+    function proximo() {
+      if (i >= total) return Promise.reject(new Error("Envio incompleto."));
+      var ini = i * PEDACO;
+      return lerPedaco(file.slice(ini, ini + PEDACO)).then(function (dados) {
+        return api("/api/admin/midia-pedaco", {
+          envio_id: envio, indice: i, total: total, dados: dados,
+          nome: file.name, tipo: file.type, cliente_id: cid || null,
+          categoria: categoria || "material"
+        });
+      }).then(function (r) {
+        if (r.erro) throw new Error(r.erro);
+        i++;
+        if (aoProgredir) aoProgredir(Math.round(i / total * 100));
+        return r.pronto ? r : proximo();
+      });
+    }
+    return proximo();
   }
 
   /* botao de enviar que vira barra de progresso */
@@ -713,23 +734,31 @@
     var b = el('<button type="button" class="btn btn-ouro btn-sm">' + rotulo + '</button>');
     var st = el('<span class="env-st"></span>');
     b.onclick = function () { inp.click(); };
+    var barra = el('<div class="env-barra"><i></i></div>');
     inp.onchange = function () {
       var f = inp.files[0];
       if (!f) return;
       b.disabled = true;
+      var grande = f.size > PEDACO;
       st.textContent = "Enviando " + f.name + " (" + tamanhoBonito(f.size) + ")…";
       st.className = "env-st on";
-      enviarArquivo(f, cid, categoria)
+      if (grande) { barra.classList.add("on"); barra.firstChild.style.width = "0%"; }
+      enviarArquivo(f, cid, categoria, function (pct) {
+        barra.firstChild.style.width = pct + "%";
+        st.textContent = "Enviando " + f.name + "  ·  " + pct + "%";
+      })
         .then(function (r) {
           st.textContent = "Enviado"; b.disabled = false; inp.value = "";
+          barra.classList.remove("on");
           setTimeout(function () { st.className = "env-st"; }, 1600);
           aoTerminar(r);
         })
         .catch(function (e) {
-          st.textContent = e.message; st.className = "env-st erro"; b.disabled = false;
+          st.textContent = e.message; st.className = "env-st erro";
+          b.disabled = false; barra.classList.remove("on");
         });
     };
-    cx.appendChild(b); cx.appendChild(st); cx.appendChild(inp);
+    cx.appendChild(b); cx.appendChild(st); cx.appendChild(inp); cx.appendChild(barra);
     return cx;
   }
 
@@ -937,7 +966,11 @@
       var ref = b.conteudo.midia_id || b.conteudo.anexo_id;
       var base = b.conteudo.midia_id ? "/api/midia/" : "/api/anexo/";
       if (ref && ehImg) {
-        cx.appendChild(el('<img class="ws-img" src="' + base + esc(ref) + '" alt="">'));
+        var fig = el('<div class="ws-img-cx"></div>');
+        fig.appendChild(el('<img class="ws-img" src="' + base + esc(ref) + '" alt="">'));
+        fig.appendChild(el('<a class="ws-img-abrir" href="' + base + esc(ref) +
+          '" target="_blank" rel="noopener">Abrir em tamanho real ↗</a>'));
+        cx.appendChild(fig);
       } else if (ref) {
         cx.appendChild(el('<a class="ws-arq" href="' + base + esc(ref) + '" target="_blank">' +
           '<span class="ws-arq-i">⇩</span><span>' +
@@ -989,9 +1022,9 @@
       uv.oninput = function () { b.conteudo.url = uv.value; salvarBloco(b); };
       uv.onblur = function () { if (uv.value) redesenhar(); };
       vx.appendChild(uv);
-      vx.appendChild(el('<p class="small muted" style="margin:2px 0 0">Para aula longa, ' +
-        'o link é melhor que o arquivo: carrega mais rápido e não pesa no servidor.</p>'));
-      vx.appendChild(botaoEnviar("↑ Ou enviar um vídeo curto", pag.cliente_id, "video",
+      vx.appendChild(el('<p class="small muted" style="margin:2px 0 0">Link do Meet, ' +
+        'Panda, YouTube ou Vimeo. Ou envie o arquivo abaixo, de qualquer tamanho.</p>'));
+      vx.appendChild(botaoEnviar("↑ Enviar o vídeo", pag.cliente_id, "video",
         function (r) {
           b.conteudo.midia_id = r.id; b.conteudo.url = "";
           if (!b.conteudo.titulo) b.conteudo.titulo = r.nome;
@@ -1144,7 +1177,9 @@
         '<span class="ws-pag-t">' + esc(pg.titulo) + '</span>' +
         (pg.visivel_cliente ? '<span class="ws-olho" title="O cliente vê esta página">◉</span>' : '') +
         '</div>');
-      it.onclick = function () { abrirMateriais(cid, pg.id); };
+      it.onclick = function () {
+        daCasa ? abrirMetodologia(pg.id) : abrirMateriais(cid, pg.id);
+      };
       lat.appendChild(it);
     });
     if (!dados.paginas.length) {
@@ -1196,9 +1231,20 @@
         daCasa ? abrirMetodologia(paginaId) : abrirMateriais(cid, paginaId);
       }
 
-      /* capa */
-      var capa = el('<div class="ws-capa" style="background:' +
-        (CAPA_CSS[pag.capa] || "var(--creme-3)") + '"></div>');
+      /* voltar, quando está dentro de uma subpágina */
+      if (pag.pai_id) {
+        var volt = el('<button class="ws-voltar">← Voltar para a página anterior</button>');
+        volt.onclick = function () {
+          daCasa ? abrirMetodologia(pag.pai_id) : abrirMateriais(cid, pag.pai_id);
+        };
+        col.appendChild(volt);
+      }
+
+      /* capa: cor da casa ou imagem enviada */
+      var fundoCapa = pag.capa_midia_id
+        ? "#241030 url(/api/midia/" + esc(pag.capa_midia_id) + ") center/cover"
+        : (CAPA_CSS[pag.capa] || "var(--creme-3)");
+      var capa = el('<div class="ws-capa" style="background:' + fundoCapa + '"></div>');
       var trocar = el('<div class="ws-capa-troca"></div>');
       dados.capas.forEach(function (c) {
         var b = el('<button type="button" title="' + esc(c.nome) + '" style="background:' + c.css + '"></button>');
@@ -1207,6 +1253,18 @@
         };
         trocar.appendChild(b);
       });
+      var envCapa = botaoEnviar("↑ Imagem de capa", pag.cliente_id, "capa", function (r) {
+        api("/api/admin/ws-pagina", { id: paginaId, capa_midia_id: r.id }).then(redesenhar);
+      }, "image/*");
+      envCapa.classList.add("ws-capa-env");
+      trocar.appendChild(envCapa);
+      if (pag.capa_midia_id) {
+        var limpar = el('<button type="button" class="ws-capa-lim" title="Tirar a imagem">×</button>');
+        limpar.onclick = function () {
+          api("/api/admin/ws-pagina", { id: paginaId, capa_midia_id: "" }).then(redesenhar);
+        };
+        trocar.appendChild(limpar);
+      }
       capa.appendChild(trocar);
       col.appendChild(capa);
 

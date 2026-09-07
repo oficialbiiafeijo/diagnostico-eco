@@ -41,8 +41,9 @@ DATA_DIR.mkdir(parents=True, exist_ok=True)
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 MAX_UPLOAD = 20 * 1024 * 1024          # 20 MB por arquivo do cliente
-MAX_UPLOAD_ADMIN = 120 * 1024 * 1024   # 120 MB quando quem envia e a B3 Sales
-MAX_BODY = 170 * 1024 * 1024           # margem para o base64
+MAX_UPLOAD_ADMIN = 120 * 1024 * 1024   # limite so do envio de uma vez so
+PEDACO = 4 * 1024 * 1024               # arquivo grande sobe em pedacos deste tamanho
+MAX_BODY = 24 * 1024 * 1024            # cabe um pedaco em base64, com folga
 SESSION_HOURS = 12
 _local = threading.local()
 
@@ -57,6 +58,15 @@ def db() -> sqlite3.Connection:
         conn.execute("PRAGMA foreign_keys=ON")
         _local.conn = conn
     return conn
+
+
+def espaco_livre():
+    """Quanto ainda cabe no disco onde os arquivos moram."""
+    try:
+        st = os.statvfs(DATA_DIR)
+        return st.f_bavail * st.f_frsize
+    except (OSError, AttributeError):
+        return None
 
 
 def now() -> str:
@@ -240,6 +250,7 @@ COLUNAS_NOVAS = [
     ("ws_paginas", "setor", "TEXT DEFAULT ''"),
     ("ws_paginas", "prazo", "TEXT"),
     ("ws_paginas", "concluido_em", "TEXT"),
+    ("ws_paginas", "capa_midia_id", "TEXT"),
     ("clientes", "portal_ativo", "INTEGER DEFAULT 0"),
 ]
 
@@ -647,6 +658,10 @@ class Handler(BaseHTTPRequestHandler):
             if not self.exige_admin():
                 return
             return self.api_midia()
+        if p == "/api/admin/espaco":
+            if not self.exige_admin():
+                return
+            return self.api_espaco()
         if p == "/api/admin/metodologia":
             if not self.exige_admin():
                 return
@@ -757,6 +772,8 @@ class Handler(BaseHTTPRequestHandler):
             return self.api_aula_excluir()
         if p == "/api/admin/curso-acesso":
             return self.api_curso_acesso()
+        if p == "/api/admin/midia-pedaco":
+            return self.api_midia_pedaco()
         if p == "/api/admin/midia-enviar":
             return self.api_midia_enviar()
         if p == "/api/admin/midia-excluir":
@@ -1357,6 +1374,71 @@ class Handler(BaseHTTPRequestHandler):
         return self.json({"ok": True, "id": mid, "nome": nome,
                           "tipo": b.get("tipo") or "", "tamanho": len(bin_)})
 
+    def api_midia_pedaco(self):
+        """Recebe um arquivo grande em pedaços.
+
+        Aula de uma hora e meia passa de um giga. Mandar isso de uma vez
+        derruba o servidor, porque o arquivo inteiro precisaria caber na
+        memória. Aqui cada pedaço chega, vai direto para o disco e é
+        esquecido. Assim o limite passa a ser o tamanho do disco.
+        """
+        b = self.body()
+        envio = re.sub(r"[^\w\-]", "", (b.get("envio_id") or ""))[:40]
+        if not envio:
+            return self.erro("Envio inválido.")
+        indice = int(b.get("indice") or 0)
+        total = int(b.get("total") or 1)
+        dados = b.get("dados") or ""
+        if "," in dados[:200]:
+            dados = dados.split(",", 1)[1]
+        try:
+            pedaco = base64.b64decode(dados)
+        except Exception:
+            return self.erro("Pedaço inválido.")
+        parciais = UPLOAD_DIR / "_parciais"
+        parciais.mkdir(parents=True, exist_ok=True)
+        alvo = parciais / envio
+        if indice == 0 and alvo.exists():
+            alvo.unlink()
+        with open(alvo, "ab") as f:
+            f.write(pedaco)
+        if indice + 1 < total:
+            return self.json({"ok": True, "recebido": indice + 1, "de": total})
+
+        # ultimo pedaco: o arquivo esta inteiro, agora vira midia
+        nome = (b.get("nome") or "arquivo")[:180]
+        cid = b.get("cliente_id") or None
+        if cid and not cliente_dict(cid):
+            return self.erro("Cliente não encontrado.", 404)
+        tamanho = alvo.stat().st_size
+        livre = espaco_livre()
+        if livre is not None and livre < tamanho:
+            alvo.unlink(missing_ok=True)
+            return self.erro("Não há espaço no servidor para este arquivo.")
+        mid = secrets.token_urlsafe(12)
+        pasta = UPLOAD_DIR / (cid or "_biblioteca")
+        pasta.mkdir(parents=True, exist_ok=True)
+        seguro = re.sub(r"[^\w\.\- ]", "_", nome)[:120]
+        destino = pasta / f"{mid}__{seguro}"
+        alvo.replace(destino)
+        db().execute("INSERT INTO midia(id,cliente_id,nome,tipo,categoria,tamanho,arquivo,"
+                     "titulo,descricao,enviado_em,enviado_por) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+                     (mid, cid, nome, b.get("tipo") or "", b.get("categoria") or "material",
+                      tamanho, str(destino.relative_to(DATA_DIR)), b.get("titulo", ""),
+                      b.get("descricao", ""), now(), self.admin_user() or ""))
+        db().commit()
+        return self.json({"ok": True, "id": mid, "nome": nome,
+                          "tipo": b.get("tipo") or "", "tamanho": tamanho, "pronto": True})
+
+    def api_espaco(self):
+        livre = espaco_livre()
+        usado = 0
+        for r in db().execute("SELECT COALESCE(SUM(tamanho),0) n FROM midia"):
+            usado = r["n"] or 0
+        for r in db().execute("SELECT COALESCE(SUM(tamanho),0) n FROM anexos"):
+            usado += r["n"] or 0
+        return self.json({"livre": livre, "usado": usado})
+
     def api_midia_excluir(self):
         b = self.body()
         r = db().execute("SELECT * FROM midia WHERE id=?", (b.get("id"),)).fetchone()
@@ -1500,7 +1582,8 @@ class Handler(BaseHTTPRequestHandler):
         if b.get("id"):
             sets, vals = [], []
             for k in ("titulo", "capa", "icone", "visivel_cliente", "ordem", "pai_id",
-                      "status", "prioridade", "responsavel", "setor", "prazo"):
+                      "status", "prioridade", "responsavel", "setor", "prazo",
+                      "capa_midia_id"):
                 if k in b:
                     sets.append(f"{k}=?")
                     vals.append(int(b[k]) if k in ("visivel_cliente", "ordem") else b[k])

@@ -628,3 +628,43 @@ select.fmt-men{width:auto;margin:0;padding:4px 26px 4px 9px;font-size:12px;
 .capa-esc button{width:44px;height:32px;border-radius:8px;cursor:pointer;
   border:2px solid transparent}
 .capa-esc button.on{border-color:var(--ameixa-700)}
+
+.env-barra{display:none;width:100%;height:5px;border-radius:99px;background:var(--creme-3);
+  overflow:hidden;margin-top:8px;flex-basis:100%}
+.env-barra.on{display:block}
+.env-barra i{display:block;height:100%;width:0;border-radius:99px;
+  background:linear-gradient(90deg,var(--ouro-600),var(--terracota-500));
+  transition:width .25s ease}
+
+.ws-voltar{background:none;border:none;color:var(--ameixa-700);cursor:pointer;
+  font-family:var(--sans);font-size:13.5px;padding:14px 34px 0;display:block}
+.ws-voltar:hover{color:var(--ouro-700)}
+
+.ws-capa-env{position:absolute;right:14px;bottom:52px}
+.ws-capa-env .btn{font-size:12px;padding:7px 13px}
+.ws-capa-lim{width:26px;height:26px;border-radius:7px;border:2px solid rgba(255,255,255,.75);
+  background:rgba(0,0,0,.35);color:#fff;cursor:pointer;font-size:15px;line-height:1}
+
+.ws-img-cx{display:flex;flex-direction:column;gap:6px;align-items:flex-start}
+.ws-img{max-width:100%;max-height:340px;width:auto;border-radius:var(--r-sm);
+  border:1px solid var(--linha);display:block;object-fit:contain}
+.ws-img-abrir{font-size:12.5px;color:var(--ouro-700);text-decoration:none}
+.ws-img-abrir:hover{text-decoration:underline}
+
+/* ================================================================
+   Marca do Grupo B3 Sales
+   ================================================================ */
+.marca-b3{display:block;flex:none;width:44px;height:40px}
+.marca-b3 svg{width:100%;height:100%;display:block;overflow:visible}
+.marca-b3 .mb{font-family:var(--serif);font-size:58px;font-weight:600;
+  fill:var(--ameixa-700)}
+.marca-b3 .m3{font-family:var(--serif);font-size:52px;font-weight:500;
+  fill:var(--ouro-700)}
+
+.marca-fio{width:1px;height:34px;background:var(--ouro-500);opacity:.6;flex:none;
+  margin:0 3px}
+
+/* na barra escura a marca clareia */
+.barra .marca-b3 .mb,.p-topo .marca-b3 .mb{fill:#FFFCF9}
+.barra .marca-b3 .m3,.p-topo .marca-b3 .m3{fill:var(--ouro-300)}
+.barra .marca-fio,.p-topo .marca-fio{background:var(--ouro-300);opacity:.55}
