@@ -264,6 +264,9 @@ COLUNAS_NOVAS = [
     ("ws_paginas", "capa_midia_id", "TEXT"),
     ("aulas", "modulo_id", "TEXT"),
     ("cursos", "banner_midia_id", "TEXT"),
+    ("clientes", "logo_midia_id", "TEXT"),
+    ("clientes", "capa", "TEXT DEFAULT ''"),
+    ("clientes", "alerta", "TEXT DEFAULT ''"),
     ("clientes", "portal_ativo", "INTEGER DEFAULT 0"),
 ]
 
@@ -279,11 +282,32 @@ def migrar(conn):
     conn.commit()
 
 
+MARCA_DISCO = DATA_DIR / "disco-desde.txt"
+
+
+def marcar_disco():
+    """Grava quando este disco foi usado pela primeira vez.
+
+    Se esta data mudar a cada publicacao, o disco nao e persistente e os
+    dados estao sendo apagados a cada deploy. E o jeito mais direto de
+    provar isso sem depender do painel do Render.
+    """
+    try:
+        if MARCA_DISCO.exists():
+            return MARCA_DISCO.read_text(encoding="utf-8").strip()
+        marca = now()
+        MARCA_DISCO.write_text(marca, encoding="utf-8")
+        return marca
+    except OSError:
+        return None
+
+
 def init_db():
     conn = db()
     conn.executescript(SCHEMA)
     conn.commit()
     migrar(conn)
+    marcar_disco()
     if not cfg_get("admin_hash"):
         senha = os.getenv("ECO_ADMIN_SENHA") or "B3Sales@2026"
         cfg_set("admin_hash", hash_password(senha))
@@ -671,6 +695,10 @@ class Handler(BaseHTTPRequestHandler):
             if not self.exige_admin():
                 return
             return self.api_midia()
+        if p == "/api/admin/armazenamento":
+            if not self.exige_admin():
+                return
+            return self.api_armazenamento()
         if p == "/api/admin/espaco":
             if not self.exige_admin():
                 return
@@ -697,6 +725,11 @@ class Handler(BaseHTTPRequestHandler):
             if not self.exige_admin():
                 return
             return self.api_usuarios()
+        m = re.fullmatch(r"/api/admin/cliente-painel/([\w\-]+)", p)
+        if m:
+            if not self.exige_admin():
+                return
+            return self.api_cliente_painel(m.group(1))
         m = re.fullmatch(r"/api/admin/rota/([\w\-]+)", p)
         if m:
             if not self.exige_admin():
@@ -1590,6 +1623,47 @@ class Handler(BaseHTTPRequestHandler):
         return self.json({"ok": True, "id": mid, "nome": nome,
                           "tipo": b.get("tipo") or "", "tamanho": tamanho, "pronto": True})
 
+    def api_armazenamento(self):
+        """Onde os dados estao e se eles sobrevivem a uma publicacao."""
+        conn = db()
+        contagens = {}
+        for t in ("clientes", "respostas", "anexos", "midia", "ws_paginas",
+                  "cursos", "aulas", "acoes", "equipe"):
+            try:
+                contagens[t] = conn.execute(f"SELECT COUNT(*) n FROM {t}").fetchone()["n"]
+            except sqlite3.Error:
+                contagens[t] = None
+
+        env = os.getenv("ECO_DATA_DIR")
+        banco = DB_PATH.stat().st_size if DB_PATH.exists() else 0
+        arquivos = 0
+        try:
+            for f in UPLOAD_DIR.rglob("*"):
+                if f.is_file():
+                    arquivos += f.stat().st_size
+        except OSError:
+            pass
+
+        # o disco e persistente se ele veio montado de fora do container
+        montado = None
+        try:
+            montado = os.path.ismount(str(DATA_DIR)) or os.path.ismount(
+                str(DATA_DIR.parent))
+        except OSError:
+            pass
+
+        return self.json({
+            "pasta": str(DATA_DIR),
+            "variavel_ECO_DATA_DIR": env,
+            "disco_montado": montado,
+            "disco_desde": marcar_disco(),
+            "banco_bytes": banco,
+            "arquivos_bytes": arquivos,
+            "livre": espaco_livre(),
+            "contagens": contagens,
+            "agora": now(),
+        })
+
     def api_espaco(self):
         livre = espaco_livre()
         usado = 0
@@ -1931,6 +2005,89 @@ class Handler(BaseHTTPRequestHandler):
             "ciclos": questions.CICLOS,
         })
 
+    def api_cliente_painel(self, cid):
+        """O retrato do cliente em frentes, cada uma com o quanto já andou."""
+        c = cliente_dict(cid)
+        if not c:
+            return self.erro("Cliente não encontrado.", 404)
+        conn = db()
+        ciclos = [dict(r) for r in conn.execute(
+            "SELECT * FROM ciclos WHERE cliente_id=? ORDER BY rowid", (cid,))]
+        atual = ciclos[-1] if ciclos else None
+
+        feitos = len([x for x in ciclos if x["enviado_em"]])
+        acoes = [dict(r) for r in conn.execute(
+            "SELECT status FROM acoes WHERE cliente_id=?", (cid,))]
+        concl = len([a for a in acoes if a["status"] == "Concluída"])
+        paginas = [dict(r) for r in conn.execute(
+            "SELECT status, visivel_cliente FROM ws_paginas WHERE cliente_id=?", (cid,))]
+        prontas = len([p for p in paginas if p["status"] == "Concluído"])
+        liberadas = len([p for p in paginas if p["visivel_cliente"]])
+        equipe = conn.execute("SELECT COUNT(*) n FROM equipe WHERE cliente_id=? AND ativo=1",
+                              (cid,)).fetchone()["n"]
+        docs_cliente = conn.execute("SELECT COUNT(*) n FROM anexos WHERE cliente_id=?",
+                                    (cid,)).fetchone()["n"]
+        docs_nossos = conn.execute("SELECT COUNT(*) n FROM midia WHERE cliente_id=?",
+                                   (cid,)).fetchone()["n"]
+        cursos = [dict(r) for r in conn.execute(
+            "SELECT c.id, c.titulo, "
+            "(SELECT COUNT(*) FROM aulas WHERE curso_id=c.id) aulas "
+            "FROM cursos c JOIN curso_acesso a ON a.curso_id=c.id WHERE a.cliente_id=?",
+            (cid,))]
+        aulas_tot = sum(x["aulas"] for x in cursos)
+        aulas_vistas = conn.execute(
+            "SELECT COUNT(*) n FROM aula_vista WHERE cliente_id=?", (cid,)).fetchone()["n"]
+
+        ans = respostas_de(cid, questions.CICLOS[0])
+        sc = analise.score(ans)
+        progresso_diag = atual["progresso"] if atual else 0
+
+        def frente(chave, nome, feito, total, detalhe, icone):
+            return {"chave": chave, "nome": nome, "feito": feito, "total": total,
+                    "pct": round(feito / total * 100) if total else 0,
+                    "detalhe": detalhe, "icone": icone}
+
+        frentes = [
+            frente("diagnostico", "Diagnóstico", progresso_diag, 100,
+                   (atual["ciclo"] if atual else "Dia 0") + ", " +
+                   (atual["status"].lower() if atual else "não iniciado"), "◍"),
+            frente("jornada", "Jornada", feitos, len(questions.CICLOS),
+                   str(feitos) + " de " + str(len(questions.CICLOS)) + " ciclos respondidos", "◷"),
+            frente("rota", "Implantação", concl, len(acoes),
+                   str(concl) + " de " + str(len(acoes)) + " ações concluídas", "◆"),
+            frente("materiais", "Materiais", prontas, len(paginas),
+                   str(len(paginas)) + " páginas, " + str(liberadas) + " liberadas", "▤"),
+            frente("treinamento", "Treinamento", aulas_vistas, aulas_tot,
+                   str(len(cursos)) + " cursos, " + str(aulas_vistas) + " de " +
+                   str(aulas_tot) + " aulas vistas", "▶"),
+            frente("arquivos", "Acervo", docs_cliente + docs_nossos,
+                   docs_cliente + docs_nossos,
+                   str(docs_cliente) + " do cliente, " + str(docs_nossos) + " nossos", "⇩"),
+        ]
+
+        dias_contrato = None
+        if c.get("contrato_fim"):
+            try:
+                dias_contrato = (datetime.fromisoformat(c["contrato_fim"]) -
+                                 datetime.now()).days
+            except ValueError:
+                dias_contrato = None
+        ultimo = conn.execute("SELECT MAX(ultimo_acesso) u FROM links WHERE cliente_id=?",
+                              (cid,)).fetchone()["u"]
+        dias_contato = None
+        if ultimo:
+            try:
+                dias_contato = (datetime.now() - datetime.fromisoformat(ultimo)).days
+            except ValueError:
+                dias_contato = None
+
+        return self.json({
+            "cliente": c, "frentes": frentes, "equipe": equipe,
+            "ciclos": ciclos, "cursos": cursos,
+            "score": sc, "dias_contrato": dias_contrato, "dias_contato": dias_contato,
+            "capas": workspace.CAPAS,
+        })
+
     # ---------------------------------------------- rota de implementação
     def api_rota(self, cid):
         ciclo = self.q1("ciclo") or questions.CICLOS[0]
@@ -2118,7 +2275,8 @@ class Handler(BaseHTTPRequestHandler):
             return self.erro("Cliente não encontrado.", 404)
         campos = ["empresa", "responsavel", "cargo", "segmento", "contato", "email",
                   "obs_internas", "tipo_servico", "contrato_inicio", "contrato_fim",
-                  "contrato_midia_id", "valor_contrato"]
+                  "contrato_midia_id", "valor_contrato", "logo_midia_id", "capa",
+                  "alerta"]
         sets, vals = [], []
         for k in campos:
             if k in b:
@@ -2365,6 +2523,17 @@ def main():
     print(f"  Área interna : http://127.0.0.1:{port}/admin")
     print(f"  Usuário      : {cfg_get('admin_usuario')}")
     print(f"  Dados        : {DATA_DIR}")
+    print(f"  ECO_DATA_DIR : {os.getenv('ECO_DATA_DIR') or '(nao definida)'}")
+    try:
+        print(f"  Disco montado: {os.path.ismount(str(DATA_DIR))}")
+    except OSError:
+        pass
+    print(f"  Disco desde  : {marcar_disco()}")
+    try:
+        n = db().execute("SELECT COUNT(*) n FROM clientes").fetchone()["n"]
+        print(f"  Clientes     : {n}")
+    except sqlite3.Error:
+        pass
     print("  " + "─" * 52)
     print("  Para encerrar, feche esta janela ou pressione Ctrl+C.\n")
     try:
