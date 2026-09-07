@@ -64,9 +64,8 @@
   function telaLogin(erro) {
     app.innerHTML = "";
     var box = el('<div style="min-height:100vh;display:grid;place-items:center;padding:24px">' +
-      '<div class="card card-pad" style="width:min(430px,100%)">' +
-      marcaHtml() +
-      '<div><div class="marca-txt">Sales</div><div class="marca-sub">Group</div></div></div>' +
+      '<div class="card card-pad entrada" style="width:min(430px,100%)">' +
+      '<div class="entrada-marca">' + marcaHtml() + '</div>' +
       '<div class="eyebrow">Diagnóstico Comercial ECO</div>' +
       '<h1 class="serif" style="font-size:34px;color:var(--ameixa-900);margin:10px 0 6px">Área interna</h1>' +
       '<p class="small muted" style="margin-bottom:22px">Acesso restrito à equipe do Grupo B3 Sales.</p>' +
@@ -102,9 +101,9 @@
         esc(MARCA_IMG) + '" alt="Grupo B3 Sales"></div>';
     }
     return '<div class="marca"><span class="marca-b3">' +
-      '<svg viewBox="0 0 58 56" aria-label="B3 Sales Group">' +
-      '<text class="mb" x="0" y="47">B</text>' +
-      '<text class="m3" x="17" y="47">3</text></svg></span>' +
+      '<svg viewBox="0 0 56 56" aria-label="B3 Sales Group">' +
+      '<text class="mb" x="0" y="45">B</text>' +
+      '<text class="m3" x="13" y="41">3</text></svg></span>' +
       '<span class="marca-fio"></span>' +
       '<div><div class="marca-txt">Sales</div>' +
       '<div class="marca-sub">Group</div></div></div>';

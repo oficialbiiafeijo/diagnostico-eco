@@ -665,10 +665,13 @@ select.fmt-men{width:auto;margin:0;padding:4px 26px 4px 9px;font-size:12px;
    ================================================================ */
 .marca-b3{display:block;flex:none;width:44px;height:40px}
 .marca-b3 svg{width:100%;height:100%;display:block;overflow:visible}
-.marca-b3 .mb{font-family:var(--serif);font-size:58px;font-weight:600;
+.marca-b3 .mb{font-family:var(--serif);font-size:56px;font-weight:600;
   fill:var(--ameixa-700)}
-.marca-b3 .m3{font-family:var(--serif);font-size:52px;font-weight:500;
-  fill:var(--ouro-700)}
+.marca-b3 .m3{font-family:var(--serif);font-size:38px;font-weight:500;
+  fill:var(--ouro-600)}
+/* SALES em ameixa escuro, GROUP em dourado, como na marca original */
+.marca-txt{color:var(--ameixa-900)}
+.marca-sub{color:var(--ouro-700)}
 
 .marca-fio{width:1px;height:34px;background:var(--ouro-500);opacity:.6;flex:none;
   margin:0 3px}
@@ -934,3 +937,9 @@ select.fmt-men{width:auto;margin:0;padding:4px 26px 4px 9px;font-size:12px;
 
 @media (max-width:1080px){ .q-troca{grid-column:span 6} }
 @media (max-width:680px){ .q-troca{grid-column:span 6} }
+
+/* a tela de entrada: tudo dentro de um quadro só */
+.entrada{text-align:center;padding:38px 34px 32px}
+.entrada-marca{display:flex;justify-content:center;margin-bottom:24px}
+.entrada .campo{text-align:left}
+.entrada label{display:block;margin-bottom:6px}

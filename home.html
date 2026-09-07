@@ -3,29 +3,126 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Diagnóstico Comercial ECO · Grupo B3 Sales</title>
+<title>Grupo B3 Sales · Diagnóstico Comercial ECO</title>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/static/style.css">
+<style>
+  .h-topo{padding:26px 0;border-bottom:1px solid var(--linha)}
+  .h-topo-in{max-width:1080px;margin:0 auto;padding:0 26px;display:flex;
+    align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap}
+
+  .h-palco{max-width:1080px;margin:0 auto;padding:70px 26px 90px}
+
+  .h-capa{text-align:center;max-width:720px;margin:0 auto}
+  .h-capa h1{font-size:clamp(40px,6.4vw,62px);color:var(--ameixa-900);line-height:1.05;
+    margin:16px 0 20px}
+  .h-capa p{font-size:17px;color:var(--texto-2);max-width:56ch;margin:0 auto;line-height:1.75}
+
+  .h-acoes{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:34px}
+
+  .h-pilares{display:grid;grid-template-columns:repeat(auto-fit,minmax(248px,1fr));
+    gap:18px;margin-top:74px}
+  .h-pilar{background:var(--branco);border:1px solid var(--linha);border-radius:var(--r);
+    padding:28px 26px;box-shadow:var(--sombra);position:relative;overflow:hidden}
+  .h-pilar::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;
+    background:var(--c)}
+  .h-letra{font-family:var(--serif);font-size:46px;color:var(--c);line-height:1;
+    display:block;margin-bottom:10px}
+  .h-pilar h3{font-family:var(--serif);font-size:24px;color:var(--ameixa-900);margin:0 0 8px}
+  .h-pilar p{font-size:14px;color:var(--texto-2);line-height:1.7;margin:0}
+
+  .h-jornada{margin-top:74px;background:var(--branco);border:1px solid var(--linha);
+    border-radius:var(--r);padding:34px 30px;box-shadow:var(--sombra)}
+  .h-passos{display:flex;gap:8px;margin-top:22px;flex-wrap:wrap}
+  .h-passo{flex:1 1 96px;text-align:center}
+  .h-bola{width:38px;height:38px;border-radius:50%;margin:0 auto 9px;display:flex;
+    align-items:center;justify-content:center;font-family:var(--serif);font-size:15px;
+    color:#fff;background:var(--c)}
+  .h-passo span{display:block;font-size:11.5px;color:var(--texto-2);line-height:1.4}
+  .h-passo b{display:block;font-size:10px;letter-spacing:.13em;text-transform:uppercase;
+    color:var(--muted);margin-bottom:3px}
+
+  .h-pe{margin-top:70px;text-align:center;padding-top:34px;border-top:1px solid var(--linha)}
+</style>
 </head>
 <body>
-<div style="max-width:640px;margin:0 auto;padding:96px 24px;text-align:center">
-  <div class="marca" style="justify-content:center;margin-bottom:40px">
-    <span class="marca-b3"><svg viewBox="0 0 58 56" aria-label="B3 Sales Group"><text class="mb" x="0" y="47">B</text><text class="m3" x="17" y="47">3</text></svg></span><span class="marca-fio"></span>
-    <div style="text-align:left"><div class="marca-txt">Sales</div><div class="marca-sub">Group</div></div>
+
+<div class="h-topo"><div class="h-topo-in">
+  <div class="marca">
+    <span class="marca-b3"><svg viewBox="0 0 56 56" aria-label="B3 Sales Group"><text class="mb" x="0" y="45">B</text><text class="m3" x="13" y="41">3</text></svg></span><span class="marca-fio"></span>
+    <div><div class="marca-txt">Sales</div><div class="marca-sub">Group</div></div>
   </div>
-  <div class="eyebrow">Método ECO · Estratégia · Condução · Operação</div>
-  <h1 style="font-size:clamp(38px,6vw,58px);color:var(--ameixa-900);margin:14px 0 16px">
-    Diagnóstico <em class="grifo">Comercial</em></h1>
-  <p class="muted" style="max-width:48ch;margin:0 auto 34px">
-    Esta é a página inicial do sistema. O diagnóstico de cada empresa é acessado
-    por um link individual e exclusivo, enviado pela equipe do Grupo B3 Sales.</p>
-  <a class="btn btn-ameixa" href="/admin">Área interna do Grupo B3 Sales →</a>
-  <hr class="filete" style="margin:44px auto;max-width:280px">
-  <p class="small muted">Se você recebeu um link de diagnóstico, abra o endereço que a equipe enviou.</p>
+  <a class="btn btn-linha btn-sm" href="/admin">Área interna →</a>
+</div></div>
+
+<div class="h-palco">
+
+  <div class="h-capa">
+    <div class="eyebrow">Método ECO</div>
+    <h1>Diagnóstico <em class="grifo">Comercial</em></h1>
+    <p>Um retrato honesto da operação comercial da sua empresa, e uma jornada de
+      seis meses para transformar o que ele mostrar. Sem achismo, com número.</p>
+    <div class="h-acoes">
+      <a class="btn btn-ameixa" href="/admin">Entrar na área interna</a>
+    </div>
+  </div>
+
+  <div class="h-pilares">
+    <div class="h-pilar" style="--c:var(--azul-500)">
+      <span class="h-letra">E</span>
+      <h3>Estratégia</h3>
+      <p>Quem é o cliente certo, o que a empresa vende, por qual canal e com qual
+        meta. Onde estamos e para onde vamos.</p>
+    </div>
+    <div class="h-pilar" style="--c:var(--ouro-600)">
+      <span class="h-letra">C</span>
+      <h3>Condução</h3>
+      <p>Como cada oportunidade é recebida, qualificada, conduzida e levada à
+        decisão. Do primeiro contato ao fechamento.</p>
+    </div>
+    <div class="h-pilar" style="--c:var(--terracota-500)">
+      <span class="h-letra">O</span>
+      <h3>Operação</h3>
+      <p>Processo, pessoas, indicadores e rotina. O que faz o resultado se
+        repetir sem depender de uma pessoa só.</p>
+    </div>
+  </div>
+
+  <div class="h-jornada">
+    <div class="eyebrow">Como funciona</div>
+    <h2 class="serif" style="font-size:29px;color:var(--ameixa-900);margin:5px 0 0">
+      Seis meses, <em class="grifo">mês a mês</em></h2>
+    <p class="small muted" style="margin:8px 0 0;max-width:60ch">
+      O Dia 0 registra o cenário. Os acompanhamentos medem o que mudou de verdade,
+      até a consolidação.</p>
+    <div class="h-passos">
+      <div class="h-passo" style="--c:var(--ameixa-800)"><div class="h-bola">0</div>
+        <b>Dia 0</b><span>Diagnóstico</span></div>
+      <div class="h-passo" style="--c:var(--azul-700)"><div class="h-bola">1</div>
+        <b>Dia 30</b><span>Direção</span></div>
+      <div class="h-passo" style="--c:var(--azul-500)"><div class="h-bola">2</div>
+        <b>Dia 60</b><span>Processos</span></div>
+      <div class="h-passo" style="--c:var(--ouro-700)"><div class="h-bola">3</div>
+        <b>Dia 90</b><span>Time</span></div>
+      <div class="h-passo" style="--c:var(--ouro-500)"><div class="h-bola">4</div>
+        <b>Dia 120</b><span>Gestão</span></div>
+      <div class="h-passo" style="--c:var(--terracota-500)"><div class="h-bola">5</div>
+        <b>Dia 150</b><span>Autonomia</span></div>
+      <div class="h-passo" style="--c:var(--verde-500)"><div class="h-bola">6</div>
+        <b>Dia 180</b><span>Consolidação</span></div>
+    </div>
+  </div>
+
+  <div class="h-pe">
+    <p class="small muted">Se você recebeu um link de diagnóstico, abra o endereço
+      que a equipe enviou. Cada empresa tem o seu, individual e exclusivo.</p>
+  </div>
+
 </div>
+
 <script>
-/* troca o simbolo desenhado pelo logo enviado pela B3 Sales, quando existir */
+/* troca o símbolo desenhado pelo logo enviado pela B3 Sales, quando existir */
 fetch("/api/marca").then(function (r) { return r.json(); }).then(function (m) {
   if (!m.logo_midia_id) return;
   document.querySelectorAll(".marca").forEach(function (el) {
