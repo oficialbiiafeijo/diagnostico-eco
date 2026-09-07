@@ -49,6 +49,40 @@ COR_STATUS = {
     "Aguardando cliente": "terracota", "Concluído": "ok", "Pausado": "muted",
 }
 
+# Prova social. As pastas seguem o que de fato convence quem está decidindo:
+# número primeiro, depois transformação, depois processo.
+CATEGORIAS_PROVA = [
+    {"id": "resultado", "nome": "Resultado em número",
+     "sub": "Faturamento, conversão, ticket. A prova mais forte que existe.",
+     "cor": "#3E7D5A", "icone": "↗"},
+    {"id": "antes_depois", "nome": "Antes e depois",
+     "sub": "Print do painel, do CRM, da agenda. Mostra a virada sem precisar falar.",
+     "cor": "#A8803F", "icone": "⇄"},
+    {"id": "depoimento", "nome": "Depoimento do cliente",
+     "sub": "Vídeo ou áudio com a pessoa falando. Vende pela emoção.",
+     "cor": "#472B60", "icone": "❝"},
+    {"id": "processo", "nome": "Processo instalado",
+     "sub": "Script, funil, rotina. Prova que existe método, não sorte.",
+     "cor": "#C2683F", "icone": "▤"},
+    {"id": "time", "nome": "Time e gestão",
+     "sub": "Contratação, treinamento, equipe performando.",
+     "cor": "#8E6FA3", "icone": "◐"},
+    {"id": "autonomia", "nome": "Autonomia da liderança",
+     "sub": "A dona saiu do operacional. O argumento que mais dói na dor certa.",
+     "cor": "#7E3A24", "icone": "◈"},
+    {"id": "recomendacao", "nome": "Recomendação e indicação",
+     "sub": "Quem indica já comprou duas vezes.",
+     "cor": "#CFA467", "icone": "★"},
+]
+
+FORMATOS_PROVA = [
+    {"id": "video", "nome": "Vídeo"},
+    {"id": "audio", "nome": "Áudio"},
+    {"id": "imagem", "nome": "Imagem ou print"},
+    {"id": "texto", "nome": "Texto"},
+    {"id": "arquivo", "nome": "Arquivo"},
+]
+
 # Capas padrão por pilar, para a página já nascer com cara de material da casa.
 CAPAS = [
     {"id": "estrategia", "nome": "Estratégia",

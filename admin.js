@@ -30,6 +30,15 @@
     return fetch(url, o).then(function (r) { return r.json(); });
   }
   function dataBr(s) { return s ? s.replace("T", " · ").slice(0, 16) : "—"; }
+  /* só a data, escrita como a gente fala */
+  function dataCurta(s) {
+    if (!s) return "";
+    var p = String(s).slice(0, 10).split("-");
+    if (p.length !== 3) return s;
+    var meses = ["jan", "fev", "mar", "abr", "mai", "jun",
+                 "jul", "ago", "set", "out", "nov", "dez"];
+    return p[2] + " " + (meses[parseInt(p[1], 10) - 1] || "") + " " + p[0];
+  }
   function linkDe(t) { return location.origin + "/d/" + t; }
   function copiar(txt, msg) {
     (navigator.clipboard ? navigator.clipboard.writeText(txt) : Promise.reject())
@@ -125,6 +134,10 @@
       (S.rota === "cursos" ? " at" : "") + '">Cursos</button>');
     bcur.onclick = function () { abrirCursos(); };
     dir.appendChild(bcur);
+    var bpr = el('<button class="btn btn-fantasma btn-sm' +
+      (S.rota === "provas" ? " at" : "") + '">Prova social</button>');
+    bpr.onclick = function () { abrirProvas(); };
+    dir.appendChild(bpr);
     var bu = el('<button class="btn btn-fantasma btn-sm">Acessos</button>');
     bu.onclick = modalUsuarios;
     dir.appendChild(bu);
@@ -420,6 +433,245 @@
 
 
 
+
+  /* ------------------------------------------------------ prova social */
+  var PROVA_CAT = null, PROVA_ORDEM = "recente", PROVA_CLI = "";
+
+  function telaProvas(d) {
+    var wrap = document.createElement("div");
+    var mapa = {};
+    d.categorias.forEach(function (c) { mapa[c.id] = c; });
+
+    wrap.appendChild(el('<div class="painel-topo"><div>' +
+      '<div class="eyebrow">Arsenal comercial</div>' +
+      '<h1 class="serif">Prova <em class="grifo">social</em></h1>' +
+      '<p class="muted small" style="margin-top:6px">O que você mostra quando precisa ' +
+      'convencer. Número primeiro, transformação depois, processo por último.</p></div>' +
+      '<div style="display:flex;gap:10px;align-items:center"></div></div>'));
+    var bNova = el('<button class="btn btn-ouro btn-sm">+ Nova prova</button>');
+    bNova.onclick = function () { modalProva(null, d); };
+    wrap.querySelector(".painel-topo > div:last-child").appendChild(bNova);
+
+    /* quem já autorizou virar caso, vindo do Dia 180 */
+    if ((d.autorizados || []).length) {
+      var aut = el('<div class="pr-aut"><span class="pr-aut-i">★</span>' +
+        '<div><strong>' + d.autorizados.length +
+        (d.autorizados.length === 1 ? ' cliente já autorizou' : ' clientes já autorizaram') +
+        ' virar estudo de caso</strong>' +
+        '<div class="small muted">' + d.autorizados.map(function (a) {
+          return esc(a.empresa) + (a.como.indexOf("anonimiz") > 0 ? " (anonimizado)" : "");
+        }).join("  ·  ") + '</div></div></div>');
+      wrap.appendChild(aut);
+    }
+
+    /* as pastas */
+    var pastas = el('<div class="pr-pastas"></div>');
+    var todas = el('<div class="pr-pasta' + (!PROVA_CAT ? " on" : "") + '" ' +
+      'style="--c:var(--ameixa-700)"><span class="pr-i">◆</span>' +
+      '<strong>Tudo</strong><b>' + d.total + '</b></div>');
+    todas.onclick = function () { PROVA_CAT = null; abrirProvas(); };
+    pastas.appendChild(todas);
+    d.categorias.forEach(function (c) {
+      var n = d.contagem[c.id] || 0;
+      var it = el('<div class="pr-pasta' + (PROVA_CAT === c.id ? " on" : "") + '" ' +
+        'style="--c:' + c.cor + '"><span class="pr-i">' + c.icone + '</span>' +
+        '<strong>' + esc(c.nome) + '</strong><b>' + n + '</b>' +
+        '<span class="pr-sub">' + esc(c.sub) + '</span></div>');
+      it.onclick = function () { PROVA_CAT = c.id; abrirProvas(); };
+      pastas.appendChild(it);
+    });
+    wrap.appendChild(pastas);
+
+    /* filtros */
+    var filtros = el('<div class="pr-filtros"></div>');
+    var selC = document.createElement("select");
+    selC.appendChild(el('<option value="">Todos os clientes</option>'));
+    (d.clientes || []).forEach(function (c) {
+      var o = document.createElement("option");
+      o.value = c.id; o.textContent = c.empresa;
+      if (PROVA_CLI === c.id) o.selected = true;
+      selC.appendChild(o);
+    });
+    selC.onchange = function () { PROVA_CLI = selC.value; abrirProvas(); };
+    var selO = document.createElement("select");
+    [["recente", "Mais recentes primeiro"], ["antiga", "Mais antigas primeiro"]]
+      .forEach(function (x) {
+        var o = document.createElement("option");
+        o.value = x[0]; o.textContent = x[1];
+        if (PROVA_ORDEM === x[0]) o.selected = true;
+        selO.appendChild(o);
+      });
+    selO.onchange = function () { PROVA_ORDEM = selO.value; abrirProvas(); };
+    filtros.appendChild(selC); filtros.appendChild(selO);
+    wrap.appendChild(filtros);
+
+    if (!d.provas.length) {
+      wrap.appendChild(el('<div class="card card-pad center" style="padding:52px 24px">' +
+        '<h2 class="serif" style="font-size:25px;color:var(--ameixa-900)">' +
+        'Nada guardado nesta pasta ainda</h2>' +
+        '<p class="muted small" style="margin-top:8px;max-width:520px;margin-left:auto;' +
+        'margin-right:auto">Toda vez que um cliente mandar um áudio elogiando, um print ' +
+        'do faturamento ou falar um número bom numa reunião, guarde aqui. ' +
+        'Na hora de vender, você não vai lembrar de procurar.</p></div>'));
+      return wrap;
+    }
+
+    var grade = el('<div class="pr-grade"></div>');
+    d.provas.forEach(function (pv) {
+      var cat = mapa[pv.categoria] || { cor: "var(--muted)", nome: "Sem pasta", icone: "◆" };
+      var capa = pv.capa_midia_id
+        ? "#241030 url(/api/midia/" + esc(pv.capa_midia_id) + ") center/cover"
+        : (pv.formato === "imagem" && pv.midia_id
+            ? "#241030 url(/api/midia/" + esc(pv.midia_id) + ") center/cover"
+            : "linear-gradient(140deg," + cat.cor + ",var(--ameixa-900))");
+      var card = el('<div class="pr-card">' +
+        '<div class="pr-capa" style="background:' + capa + '">' +
+        '<span class="pr-tipo">' + ({ video: "▶", audio: "♪", imagem: "▣",
+          texto: "❝", arquivo: "⇩" })[pv.formato || "texto"] + '</span>' +
+        (pv.destaque ? '<span class="pr-estrela">★</span>' : '') +
+        '</div>' +
+        '<div class="pr-corpo">' +
+        '<span class="pr-cat" style="color:' + cat.cor + '">' + esc(cat.nome) + '</span>' +
+        '<strong>' + esc(pv.titulo) + '</strong>' +
+        (pv.metrica ? '<div class="pr-metrica">' + esc(pv.metrica) + '</div>' : '') +
+        (pv.antes || pv.depois
+          ? '<div class="pr-ad"><span>' + esc(pv.antes || "—") + '</span>' +
+            '<i>→</i><span>' + esc(pv.depois || "—") + '</span></div>' : '') +
+        (pv.frase ? '<p class="pr-frase">' + esc(pv.frase) + '</p>' : '') +
+        (pv.descricao ? '<p class="small muted">' + esc(pv.descricao) + '</p>' : '') +
+        '<div class="pr-pe"><span>' + esc(pv.cliente_nome || "Sem cliente") + '</span>' +
+        '<span>' + (pv.data ? dataBr(pv.data) : "") + '</span></div>' +
+        '</div></div>');
+      card.onclick = function () { modalProva(pv, d); };
+      grade.appendChild(card);
+    });
+    wrap.appendChild(grade);
+    return wrap;
+  }
+
+  function modalProva(pv, d) {
+    pv = pv || {};
+    function selHtml(id, rot, opts, val, vazio) {
+      var h = '<div class="campo" style="margin-bottom:14px"><label class="small" ' +
+        'style="color:var(--ameixa-700);margin-bottom:5px;display:block">' + rot + '</label>' +
+        '<select id="' + id + '"><option value="">' + (vazio || "Escolher") + '</option>';
+      opts.forEach(function (o) {
+        h += '<option value="' + esc(o.id) + '"' + (val === o.id ? " selected" : "") +
+          '>' + esc(o.nome) + '</option>';
+      });
+      return h + '</select></div>';
+    }
+    var corpo = el('<div>' +
+      campoTexto("pv_tit", "Nome desta prova", "Ex: Clínica dobrou o faturamento", pv.titulo) +
+      selHtml("pv_cat", "Pasta", d.categorias, pv.categoria) +
+      selHtml("pv_cli", "De qual cliente", (d.clientes || []).map(function (c) {
+        return { id: c.id, nome: c.empresa }; }), pv.cliente_id, "Nenhum cliente") +
+      selHtml("pv_fmt", "Formato", d.formatos, pv.formato || "texto") +
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">' +
+      campoTexto("pv_antes", "Antes", "Ex: R$ 40 mil", pv.antes) +
+      campoTexto("pv_depois", "Depois", "Ex: R$ 118 mil", pv.depois) + '</div>' +
+      campoTexto("pv_met", "O número em uma linha", "Ex: 3x o faturamento em 6 meses", pv.metrica) +
+      '<div class="campo" style="margin-bottom:14px"><label class="small" ' +
+      'style="color:var(--ameixa-700);margin-bottom:5px;display:block">' +
+      'A frase do cliente</label><textarea id="pv_frase" style="min-height:70px" ' +
+      'placeholder="Do jeito que ele falou. Não edite.">' + esc(pv.frase || "") +
+      '</textarea></div>' +
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">' +
+      campoTexto("pv_autor", "Quem falou", "Nome", pv.autor) +
+      campoTexto("pv_cargo", "Cargo", "Ex: Sócia", pv.autor_cargo) + '</div>' +
+      '<div class="campo" style="margin-bottom:14px"><label class="small" ' +
+      'style="color:var(--ameixa-700);margin-bottom:5px;display:block">Quando foi</label>' +
+      '<input type="date" id="pv_data" value="' + esc(pv.data || "") + '"></div>' +
+      campoTexto("pv_url", "Link, se houver", "Panda, YouTube, Drive", pv.url) +
+      '<div class="campo" style="margin-bottom:14px"><label class="small" ' +
+      'style="color:var(--ameixa-700);margin-bottom:5px;display:block">Observação</label>' +
+      '<textarea id="pv_desc" style="min-height:60px" placeholder="Onde usar, para quem ' +
+      'serve">' + esc(pv.descricao || "") + '</textarea></div>' +
+      '<div id="pv_arq" style="margin-bottom:14px"></div>' +
+      '<div id="pv_capa" style="margin-bottom:14px"></div>' +
+      '<label class="ws-vis"><input type="checkbox" id="pv_dest"' +
+      (pv.destaque ? " checked" : "") + '> <span>Marcar como destaque</span></label>' +
+      '</div>');
+
+    var midId = pv.midia_id || "", capaId = pv.capa_midia_id || "";
+    var aArq = corpo.querySelector("#pv_arq"), aCapa = corpo.querySelector("#pv_capa");
+    function pintarArq() {
+      aArq.innerHTML = "";
+      aArq.appendChild(el('<label class="small" style="color:var(--ameixa-700);' +
+        'margin-bottom:6px;display:block">Arquivo: vídeo, áudio, print ou documento</label>'));
+      if (midId) {
+        aArq.appendChild(el('<a class="ws-arq" style="margin-bottom:8px" href="/api/midia/' +
+          esc(midId) + '" target="_blank"><span class="ws-arq-i">⇩</span>' +
+          '<span>Ver o arquivo</span></a>'));
+      }
+      aArq.appendChild(botaoEnviar(midId ? "↑ Trocar" : "↑ Enviar arquivo", null, "prova",
+        function (r) { midId = r.id; pintarArq(); }));
+    }
+    function pintarCapa() {
+      aCapa.innerHTML = "";
+      aCapa.appendChild(el('<label class="small" style="color:var(--ameixa-700);' +
+        'margin-bottom:6px;display:block">Capa do cartão</label>'));
+      if (capaId) {
+        aCapa.appendChild(el('<img src="/api/midia/' + esc(capaId) + '" ' +
+          'style="max-height:72px;border-radius:var(--r-sm);margin-bottom:8px;display:block">'));
+      }
+      aCapa.appendChild(botaoEnviar(capaId ? "↑ Trocar a capa" : "↑ Enviar uma capa",
+        null, "prova", function (r) { capaId = r.id; pintarCapa(); }, "image/*"));
+    }
+    pintarArq(); pintarCapa();
+
+    var bs = el('<button class="btn btn-ouro">Salvar</button>');
+    var acoes = [bs];
+    if (pv.id) {
+      var bx = el('<button class="btn btn-fantasma">Excluir</button>');
+      bx.onclick = function () {
+        if (!confirm('Excluir "' + pv.titulo + '"?')) return;
+        api("/api/admin/prova-excluir", { id: pv.id }).then(function () {
+          document.querySelector(".modal-fundo").remove();
+          toast("Prova excluída"); abrirProvas();
+        });
+      };
+      acoes.unshift(bx);
+    }
+    var f = modal(pv.id ? "Editar prova" : "Nova prova social", "Arsenal comercial",
+                  corpo, acoes);
+    bs.onclick = function () {
+      var t = f.querySelector("#pv_tit").value.trim();
+      if (!t) return toast("Dê um nome a esta prova");
+      api("/api/admin/prova-salvar", { id: pv.id, titulo: t,
+        categoria: f.querySelector("#pv_cat").value,
+        cliente_id: f.querySelector("#pv_cli").value,
+        formato: f.querySelector("#pv_fmt").value,
+        antes: f.querySelector("#pv_antes").value,
+        depois: f.querySelector("#pv_depois").value,
+        metrica: f.querySelector("#pv_met").value,
+        frase: f.querySelector("#pv_frase").value,
+        autor: f.querySelector("#pv_autor").value,
+        autor_cargo: f.querySelector("#pv_cargo").value,
+        data: f.querySelector("#pv_data").value,
+        url: f.querySelector("#pv_url").value,
+        descricao: f.querySelector("#pv_desc").value,
+        midia_id: midId, capa_midia_id: capaId,
+        destaque: f.querySelector("#pv_dest").checked })
+        .then(function (r) {
+          if (r.erro) return toast(r.erro);
+          f.remove(); toast("Prova guardada"); abrirProvas();
+        });
+    };
+  }
+
+  function abrirProvas() {
+    var q = [];
+    if (PROVA_CAT) q.push("categoria=" + encodeURIComponent(PROVA_CAT));
+    if (PROVA_CLI) q.push("cliente=" + encodeURIComponent(PROVA_CLI));
+    q.push("ordem=" + PROVA_ORDEM);
+    api("/api/admin/provas?" + q.join("&")).then(function (d) {
+      if (d.erro) return toast(d.erro);
+      S.rota = "provas";
+      shell(telaProvas(d));
+    });
+  }
+
   /* ------------------------------------------------------------ cursos */
   function telaCursos(d, cursoAberto) {
     var wrap = document.createElement("div");
@@ -456,20 +708,35 @@
         '<h2 class="serif tit-card" style="margin-bottom:0">' + esc(t) + '</h2></div>'));
       var grade = el('<div class="cur-grade"></div>');
       trilhas[t].forEach(function (c) {
-        var card = el('<div class="cur-card">' +
-          '<div class="cur-capa" style="background:' +
-          (c.capa_midia_id ? "#000 url(/api/midia/" + esc(c.capa_midia_id) +
-            ") center/cover" : (CAPA_CSS[c.capa] || "var(--creme-3)")) + '">' +
-          '<span class="cur-play">▶</span></div>' +
-          '<div class="cur-corpo"><strong>' + esc(c.titulo) + '</strong>' +
-          (c.descricao ? '<div class="small muted">' + esc(c.descricao) + '</div>' : '') +
-          '<div class="cur-pe"><span>' + c.aulas +
-          (c.aulas === 1 ? " aula" : " aulas") + '</span>' +
+        var fundo = c.capa_midia_id
+          ? "#241030 url(/api/midia/" + esc(c.capa_midia_id) + ") center/cover"
+          : (CAPA_CSS[c.capa] || "var(--creme-3)");
+        var card = el('<div class="cur-card" style="background:' + fundo + '">' +
+          '<div class="cur-veu"></div>' +
+          '<div class="cur-topo">' +
           '<span class="' + (c.clientes.length ? "cur-lib" : "cur-fech") + '">' +
-          (c.clientes.length ? c.clientes.length + " com acesso" : "ninguém vê ainda") +
-          '</span></div></div>');
+          (c.clientes.length ? c.clientes.length + " com acesso" : "ninguém vê") +
+          '</span></div>' +
+          '<div class="cur-in">' +
+          '<div class="cur-trilha">' + esc(c.trilha || "Treinamento") + '</div>' +
+          '<strong class="cur-nome">' + esc(c.titulo) + '</strong>' +
+          '<div class="cur-pe"><span class="cur-play">▶</span>' +
+          '<span>' + c.aulas + (c.aulas === 1 ? " aula" : " aulas") + '</span></div>' +
+          '</div></div>');
         card.onclick = function () { abrirCurso(c.id); };
         grade.appendChild(card);
+      });
+      /* o botão de capa dentro do próprio cartão, para editar sem entrar */
+      trilhas[t].forEach(function (c, i) {
+        var env = botaoEnviar("↑ Capa", null, "curso", function (r) {
+          api("/api/admin/curso-salvar", { id: c.id, titulo: c.titulo, trilha: c.trilha,
+            descricao: c.descricao, capa: c.capa, capa_midia_id: r.id,
+            banner_midia_id: c.banner_midia_id || "", publicado: c.publicado })
+            .then(function () { abrirCursos(); });
+        }, "image/*");
+        env.classList.add("cur-capa-env");
+        env.onclick = function (e) { e.stopPropagation(); };
+        grade.children[i].appendChild(env);
       });
       wrap.appendChild(grade);
     });
@@ -1580,7 +1847,8 @@
     var R = tamanho / 2, r = R * 0.66, cx = R, cy = R;
     var meio = '<text x="' + cx + '" y="' + (cy + R * 0.14) + '" text-anchor="middle" ' +
       'style="font-family:var(--serif);font-size:' + (R * 0.62) +
-      'px;fill:var(--ameixa-900)">' + pct + '</text>';
+      'px;fill:var(--ameixa-900);font-variant-numeric:lining-nums tabular-nums;' +
+      'font-feature-settings:\'lnum\' 1,\'tnum\' 1">' + pct + '</text>';
     if (pct <= 0) {
       return '<svg viewBox="0 0 ' + tamanho + ' ' + tamanho + '" width="' + tamanho +
         '" height="' + tamanho + '"><circle cx="' + cx + '" cy="' + cy + '" r="' +
@@ -1719,13 +1987,6 @@
     if (c.alerta) alerta.classList.add("on");
     wrap.appendChild(alerta);
 
-    /* as frentes, cada uma com sua rosca */
-    wrap.appendChild(el('<div class="p-sec" style="margin:26px 0 14px">' +
-      '<div class="eyebrow">Onde este cliente está</div>' +
-      '<h2 class="serif tit-card" style="margin-bottom:0">As frentes da ' +
-      '<em class="grifo">implementação</em></h2></div>'));
-
-    var grade = el('<div class="cli-frentes"></div>');
     var destinos = {
       diagnostico: function () { S.aba = "respostas"; abrirDetalhe(c.id); },
       jornada: function () { S.aba = "respostas"; abrirDetalhe(c.id); },
@@ -1734,17 +1995,171 @@
       treinamento: function () { abrirCursos(); },
       arquivos: function () { S.aba = "respostas"; abrirDetalhe(c.id); }
     };
+
+    /* ---- o quadro do cliente: cartões de tamanhos diferentes ---- */
+    var geral = Math.round(d.frentes.reduce(function (a, f) { return a + f.pct; }, 0) /
+      (d.frentes.length || 1));
+
+    /* faixa de números, no alto */
+    var pills = el('<div class="q-pills"></div>');
     d.frentes.forEach(function (f) {
       var cor = COR_FRENTE[f.chave] || "var(--ouro-600)";
-      var card = el('<div class="cli-frente">' +
-        '<div class="cli-anel">' + anel(f.pct, cor, 92) + '</div>' +
-        '<div class="cli-f-t"><span class="cli-f-i" style="color:' + cor + '">' +
-        f.icone + '</span><strong>' + esc(f.nome) + '</strong></div>' +
-        '<div class="small muted">' + esc(f.detalhe) + '</div></div>');
-      card.onclick = destinos[f.chave] || function () {};
-      grade.appendChild(card);
+      var pill = el('<div class="q-pill"><span class="q-pill-i" style="background:' + cor +
+        '"></span><span class="q-pill-n">' + esc(f.nome) + '</span>' +
+        '<b>' + f.pct + '%</b></div>');
+      pill.onclick = (destinos[f.chave] || function () {});
+      pills.appendChild(pill);
     });
-    wrap.appendChild(grade);
+    wrap.appendChild(pills);
+
+    var q = el('<div class="quadro"></div>');
+
+    /* 1. identidade, o cartão grande com a marca do cliente */
+    var idc = el('<div class="q-card q-ident" style="background:' + fundo + '">' +
+      '<div class="q-ident-fundo"></div>' +
+      '<div class="q-ident-in">' +
+      (c.logo_midia_id
+        ? '<img class="q-ident-logo" src="/api/midia/' + esc(c.logo_midia_id) + '" alt="">'
+        : '<div class="q-ident-ini">' + esc((c.empresa || "?").slice(0, 1).toUpperCase()) + '</div>') +
+      '<div class="q-ident-t"><strong>' + esc(c.empresa) + '</strong>' +
+      '<span>' + esc(c.tipo_servico || c.segmento || "Cliente da carteira") + '</span></div>' +
+      '<div class="q-ident-pe">' +
+      '<div><b>' + (d.equipe || 0) + '</b><span>pessoas</span></div>' +
+      '<div><b>' + (d.ciclos || []).length + '</b><span>ciclos</span></div>' +
+      '<div><b>' + (d.dias_contrato != null ? d.dias_contrato : "—") + '</b>' +
+      '<span>dias de contrato</span></div></div></div></div>');
+    q.appendChild(idc);
+
+    /* 2. o anel grande do progresso geral */
+    var ger = el('<div class="q-card q-geral">' +
+      '<div class="eyebrow">Implementação</div>' +
+      '<div class="q-anel">' + anel(geral, "var(--ouro-600)", 132) + '</div>' +
+      '<p class="small muted center">média das seis frentes</p></div>');
+    q.appendChild(ger);
+
+    /* 3. os três pilares em barras */
+    var pil = el('<div class="q-card"><div class="eyebrow">Método ECO</div>' +
+      '<h3 class="q-t">Os três <em class="grifo">pilares</em></h3>' +
+      '<div class="pilares-graf" id="q_pil"></div></div>');
+    var gp = pil.querySelector("#q_pil");
+    if (d.score) {
+      [["E", "Estratégia", "var(--ameixa-600)"], ["C", "Condução", "var(--ouro-600)"],
+       ["O", "Operação", "var(--terracota-500)"]].forEach(function (x) {
+        var v = d.score.pilares[x[0]].score;
+        gp.appendChild(el('<div class="pil-linha"><span class="pil-k">' + x[0] + '</span>' +
+          '<span class="pil-n">' + x[1] + '</span>' +
+          '<span class="pil-t"><i style="width:' + Math.max(v, 2) + '%;background:' +
+          x[2] + '"></i></span><span class="pil-v">' + v + '</span></div>'));
+      });
+      gp.appendChild(el('<div class="score-linha"><span>Porta de entrada</span>' +
+        '<b style="font-size:19px">' + esc(d.score.entrada_nome) + '</b></div>'));
+    } else {
+      gp.appendChild(el('<p class="small muted">Os pilares aparecem quando o Dia 0 ' +
+        'for respondido.</p>'));
+    }
+    q.appendChild(pil);
+
+    /* 4. próximas ações, em lista de tarefa */
+    var tar = el('<div class="q-card q-tarefas"><div class="q-cab">' +
+      '<div><div class="eyebrow">Rota</div>' +
+      '<h3 class="q-t">O que vem <em class="grifo">agora</em></h3></div>' +
+      '<span class="q-conta">' + d.frentes[2].feito + '/' + d.frentes[2].total + '</span>' +
+      '</div><div class="q-lista"></div></div>');
+    var lt = tar.querySelector(".q-lista");
+    if (!(d.proximas || []).length) {
+      lt.appendChild(el('<p class="small muted">Nenhuma ação em aberto. ' +
+        'Gere a rota pelo diagnóstico.</p>'));
+    }
+    (d.proximas || []).forEach(function (a) {
+      var cor = ({ E: "var(--ameixa-600)", C: "var(--ouro-600)",
+                   O: "var(--terracota-500)" })[a.pilar] || "var(--muted)";
+      lt.appendChild(el('<div class="q-tar"><span class="q-tar-p" style="background:' +
+        cor + '"></span><div><strong>' + esc(a.titulo) + '</strong>' +
+        (a.responsavel ? '<span class="small muted">' + esc(a.responsavel) + '</span>' : '') +
+        '</div><span class="q-tar-s">' + esc(a.status) + '</span></div>'));
+    });
+    var bR = el('<button class="btn btn-linha btn-sm" style="margin-top:12px">Abrir a rota</button>');
+    bR.onclick = function () { S.aba = "rota"; abrirDetalhe(c.id); };
+    tar.appendChild(bR);
+    q.appendChild(tar);
+
+    /* 5. a jornada dos ciclos, em trilha */
+    var trilha = el('<div class="q-card q-trilha"><div class="eyebrow">Jornada</div>' +
+      '<h3 class="q-t">Os <em class="grifo">180 dias</em></h3>' +
+      '<div class="q-passos"></div></div>');
+    var qp = trilha.querySelector(".q-passos");
+    var porCiclo = {};
+    (d.ciclos || []).forEach(function (x) { porCiclo[x.ciclo] = x; });
+    ["Dia 0", "Dia 30", "Dia 60", "Dia 90", "Dia 120", "Dia 150", "Dia 180"]
+      .forEach(function (nome) {
+        var x = porCiclo[nome];
+        var st = !x ? "" : (x.enviado_em ? "ok" : "andando");
+        var p = el('<div class="q-passo ' + st + '"><span class="q-bola">' +
+          (st === "ok" ? "✓" : "") + '</span><span class="q-passo-n">' +
+          nome.replace("Dia ", "") + '</span></div>');
+        if (x) {
+          p.onclick = function () { S.aba = "respostas"; abrirDetalhe(c.id, nome); };
+        }
+        qp.appendChild(p);
+      });
+    trilha.appendChild(el('<p class="small muted" style="margin-top:12px">' +
+      d.frentes[1].feito + ' de 7 ciclos respondidos</p>'));
+    q.appendChild(trilha);
+
+    /* 6. o que já foi entregue */
+    var ent = el('<div class="q-card"><div class="eyebrow">Entregue</div>' +
+      '<h3 class="q-t">O que já <em class="grifo">instalamos</em></h3>' +
+      '<div class="q-feitos"></div></div>');
+    var lf = ent.querySelector(".q-feitos");
+    if (!(d.feitas_recentes || []).length) {
+      lf.appendChild(el('<p class="small muted">Nada concluído ainda.</p>'));
+    }
+    (d.feitas_recentes || []).forEach(function (a) {
+      lf.appendChild(el('<div class="q-feito"><span class="q-ok">✓</span>' +
+        '<span>' + esc(a.titulo) + '</span></div>'));
+    });
+    q.appendChild(ent);
+
+    /* 7. materiais e treinamento, dois números que contam história */
+    var mat = d.frentes[3], tre = d.frentes[4], acv = d.frentes[5];
+    var res = el('<div class="q-card q-mini"><div class="q-mini-i" style="background:' +
+      COR_FRENTE.materiais + '">▤</div><b>' + mat.total + '</b>' +
+      '<span>páginas de material</span><small>' + esc(mat.detalhe) + '</small></div>');
+    res.onclick = destinos.materiais;
+    q.appendChild(res);
+
+    var tr2 = el('<div class="q-card q-mini"><div class="q-mini-i" style="background:' +
+      COR_FRENTE.treinamento + '">▶</div><b>' + tre.feito + '<i>/' + tre.total + '</i></b>' +
+      '<span>aulas assistidas</span><small>' + esc(tre.detalhe) + '</small></div>');
+    tr2.onclick = destinos.treinamento;
+    q.appendChild(tr2);
+
+    var ac2 = el('<div class="q-card q-mini"><div class="q-mini-i" style="background:' +
+      COR_FRENTE.arquivos + '">⇩</div><b>' + acv.total + '</b>' +
+      '<span>arquivos no acervo</span><small>' + esc(acv.detalhe) + '</small></div>');
+    q.appendChild(ac2);
+
+    /* 8. quem é quem */
+    if ((d.equipe_lista || []).length) {
+      var eq = el('<div class="q-card q-equipe"><div class="eyebrow">Time do cliente</div>' +
+        '<h3 class="q-t">Quem é <em class="grifo">quem</em></h3>' +
+        '<div class="q-pessoas"></div></div>');
+      var lp = eq.querySelector(".q-pessoas");
+      d.equipe_lista.forEach(function (pe) {
+        lp.appendChild(el('<div class="q-pessoa"><span class="q-av" style="background:' +
+          corDaEmpresa(pe.nome) + '">' +
+          esc((pe.nome || "?").slice(0, 1).toUpperCase()) + '</span>' +
+          '<div><strong>' + esc(pe.nome) + '</strong>' +
+          (pe.funcao ? '<span class="small muted">' + esc(pe.funcao) + '</span>' : '') +
+          '</div></div>'));
+      });
+      var bE2 = el('<button class="btn btn-linha btn-sm" style="margin-top:12px">Ver a equipe</button>');
+      bE2.onclick = function () { S.aba = "equipe"; abrirDetalhe(c.id); };
+      eq.appendChild(bE2);
+      q.appendChild(eq);
+    }
+
+    wrap.appendChild(q);
 
     /* atalho para as abas de trabalho */
     var abas = el('<div class="cli-abas"></div>');
@@ -1782,8 +2197,9 @@
       return '<svg viewBox="0 0 ' + tamanho + ' ' + tamanho + '" width="' + tamanho +
         '" height="' + tamanho + '">' + interno +
         '<text x="' + cx + '" y="' + (cy - 2) + '" text-anchor="middle" ' +
-        'style="font-family:var(--serif);font-size:' + (R * 0.52) + 'px;fill:var(--ameixa-900)">' +
-        meio + '</text>' +
+        'style="font-family:var(--serif);font-size:' + (R * 0.52) + 'px;fill:var(--ameixa-900);' +
+        'font-variant-numeric:lining-nums tabular-nums;' +
+        'font-feature-settings:\'lnum\' 1,\'tnum\' 1">' + meio + '</text>' +
         '<text x="' + cx + '" y="' + (cy + R * 0.28) + '" text-anchor="middle" ' +
         'style="font-size:9px;letter-spacing:.18em;fill:var(--muted)">' + esc(rot) +
         '</text></svg>';

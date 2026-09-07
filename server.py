@@ -230,6 +230,18 @@ CREATE TABLE IF NOT EXISTS aula_vista (
   aula_id TEXT NOT NULL, cliente_id TEXT NOT NULL, visto_em TEXT,
   PRIMARY KEY(aula_id, cliente_id));
 
+CREATE TABLE IF NOT EXISTS provas (
+  id TEXT PRIMARY KEY, titulo TEXT NOT NULL, descricao TEXT DEFAULT '',
+  categoria TEXT DEFAULT '', formato TEXT DEFAULT 'texto',
+  cliente_id TEXT, cliente_nome TEXT DEFAULT '', segmento TEXT DEFAULT '',
+  midia_id TEXT, url TEXT DEFAULT '', capa_midia_id TEXT,
+  metrica TEXT DEFAULT '', antes TEXT DEFAULT '', depois TEXT DEFAULT '',
+  frase TEXT DEFAULT '', autor TEXT DEFAULT '', autor_cargo TEXT DEFAULT '',
+  data TEXT, destaque INTEGER DEFAULT 0, autorizado TEXT DEFAULT '',
+  criado_em TEXT, atualizado_em TEXT);
+
+CREATE INDEX IF NOT EXISTS ix_provas_cat ON provas(categoria, data);
+CREATE INDEX IF NOT EXISTS ix_provas_cli ON provas(cliente_id);
 CREATE INDEX IF NOT EXISTS ix_modulos_curso ON modulos(curso_id, ordem);
 CREATE INDEX IF NOT EXISTS ix_vista_cli ON aula_vista(cliente_id);
 CREATE INDEX IF NOT EXISTS ix_aulas_curso ON aulas(curso_id, ordem);
@@ -686,6 +698,10 @@ class Handler(BaseHTTPRequestHandler):
         m = re.fullmatch(r"/api/c/([\w\-]+)/pagina/([\w\-]+)", p)
         if m:
             return self.api_portal_pagina(m.group(1), m.group(2))
+        if p == "/api/admin/provas":
+            if not self.exige_admin():
+                return
+            return self.api_provas()
         if p == "/api/admin/cursos":
             if not self.exige_admin():
                 return
@@ -816,6 +832,12 @@ class Handler(BaseHTTPRequestHandler):
             return self.api_usuario_excluir()
         if p == "/api/admin/portal":
             return self.api_portal_config()
+        if p == "/api/admin/prova-salvar":
+            return self.api_prova_salvar()
+        if p == "/api/admin/prova-excluir":
+            return self.api_prova_excluir()
+        if p == "/api/admin/prova-destaque":
+            return self.api_prova_destaque()
         if p == "/api/admin/curso-salvar":
             return self.api_curso_salvar()
         if p == "/api/admin/curso-excluir":
@@ -1357,6 +1379,102 @@ class Handler(BaseHTTPRequestHandler):
             "SELECT id, nome, tipo FROM anexos WHERE cliente_id=?", (d["cliente_id"],))]
         pag.pop("cliente_id", None)
         return self.json(pag)
+
+    # ----------------------------------------------------- prova social
+    def api_provas(self):
+        conn = db()
+        cat = self.q1("categoria")
+        cli = self.q1("cliente")
+        ordem = self.q1("ordem") or "recente"
+        sql = "SELECT * FROM provas WHERE 1=1"
+        args = []
+        if cat:
+            sql += " AND categoria=?"
+            args.append(cat)
+        if cli:
+            sql += " AND cliente_id=?"
+            args.append(cli)
+        sql += " ORDER BY destaque DESC, "
+        sql += "data ASC" if ordem == "antiga" else "COALESCE(data, criado_em) DESC"
+        provas = [dict(r) for r in conn.execute(sql, args)]
+
+        # quantas em cada pasta, para a tela mostrar o acervo de relance
+        contagem = {}
+        for r in conn.execute("SELECT categoria, COUNT(*) n FROM provas GROUP BY categoria"):
+            contagem[r["categoria"] or ""] = r["n"]
+
+        # quem ja autorizou virar caso, respondido no Dia 180
+        autorizados = []
+        for r in conn.execute(
+                "SELECT r.cliente_id, c.empresa, r.valor FROM respostas r "
+                "JOIN clientes c ON c.id = r.cliente_id "
+                "WHERE r.qid='c180_estudo_caso'"):
+            try:
+                v = (json.loads(r["valor"] or "{}") or {}).get("v") or ""
+            except ValueError:
+                v = ""
+            if v.startswith("Sim"):
+                autorizados.append({"id": r["cliente_id"], "empresa": r["empresa"],
+                                    "como": v})
+
+        return self.json({
+            "provas": provas,
+            "categorias": workspace.CATEGORIAS_PROVA,
+            "formatos": workspace.FORMATOS_PROVA,
+            "contagem": contagem,
+            "total": len(provas),
+            "autorizados": autorizados,
+            "clientes": [dict(x) for x in conn.execute(
+                "SELECT id, empresa, segmento FROM clientes ORDER BY empresa")],
+        })
+
+    def api_prova_salvar(self):
+        b = self.body()
+        titulo = (b.get("titulo") or "").strip()
+        if not titulo:
+            return self.erro("Dê um nome a esta prova.")
+        conn = db()
+        cli = b.get("cliente_id") or None
+        nome = b.get("cliente_nome") or ""
+        seg = b.get("segmento") or ""
+        if cli:
+            c = cliente_dict(cli)
+            if c:
+                nome = c["empresa"]
+                seg = c["segmento"] or ""
+        campos = ("titulo", "descricao", "categoria", "formato", "midia_id", "url",
+                  "capa_midia_id", "metrica", "antes", "depois", "frase", "autor",
+                  "autor_cargo", "data", "autorizado")
+        if b.get("id"):
+            sets = ", ".join(f"{k}=?" for k in campos)
+            vals = [b.get(k, "") for k in campos]
+            vals += [cli, nome, seg, 1 if b.get("destaque") else 0, now(), b["id"]]
+            conn.execute(f"UPDATE provas SET {sets}, cliente_id=?, cliente_nome=?, "
+                         f"segmento=?, destaque=?, atualizado_em=? WHERE id=?", vals)
+            pid = b["id"]
+        else:
+            pid = secrets.token_hex(8)
+            conn.execute(
+                "INSERT INTO provas(id," + ",".join(campos) + ",cliente_id,cliente_nome,"
+                "segmento,destaque,criado_em,atualizado_em) VALUES(" +
+                ",".join("?" * (len(campos) + 7)) + ")",
+                [pid] + [b.get(k, "") for k in campos] +
+                [cli, nome, seg, 1 if b.get("destaque") else 0, now(), now()])
+        conn.commit()
+        return self.json({"ok": True, "id": pid})
+
+    def api_prova_excluir(self):
+        b = self.body()
+        db().execute("DELETE FROM provas WHERE id=?", (b.get("id"),))
+        db().commit()
+        return self.json({"ok": True})
+
+    def api_prova_destaque(self):
+        b = self.body()
+        db().execute("UPDATE provas SET destaque=? WHERE id=?",
+                     (1 if b.get("destaque") else 0, b.get("id")))
+        db().commit()
+        return self.json({"ok": True})
 
     # ---------------------------------------------------------- cursos
     def api_cursos(self):
@@ -2093,8 +2211,21 @@ class Handler(BaseHTTPRequestHandler):
             except ValueError:
                 dias_contato = None
 
+        proximas = [dict(r) for r in conn.execute(
+            "SELECT id, titulo, status, pilar, responsavel FROM acoes WHERE cliente_id=? "
+            "AND status != 'Concluída' AND status != 'Cancelada' ORDER BY ordem LIMIT 6",
+            (cid,))]
+        feitas_recentes = [dict(r) for r in conn.execute(
+            "SELECT titulo, atualizado_em FROM acoes WHERE cliente_id=? AND status='Concluída' "
+            "ORDER BY atualizado_em DESC LIMIT 4", (cid,))]
+        equipe_lista = [dict(r) for r in conn.execute(
+            "SELECT nome, funcao, area FROM equipe WHERE cliente_id=? AND ativo=1 "
+            "ORDER BY ordem LIMIT 8", (cid,))]
+
         return self.json({
             "cliente": c, "frentes": frentes, "equipe": equipe,
+            "equipe_lista": equipe_lista,
+            "proximas": proximas, "feitas_recentes": feitas_recentes,
             "ciclos": ciclos, "cursos": cursos,
             "score": sc, "dias_contrato": dias_contrato, "dias_contato": dias_contato,
             "capas": workspace.CAPAS,
