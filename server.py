@@ -717,10 +717,16 @@ class Handler(BaseHTTPRequestHandler):
             u = self.admin_user()
             return self.json({"logado": bool(u), "usuario": u})
         if p == "/api/admin/central":
+            if not self.exige_admin():
+                return
             return self.api_central()
         if p == "/api/admin/central-historico":
+            if not self.exige_admin():
+                return
             return self.api_central_historico()
         if p == "/api/admin/acessos-pessoa":
+            if not self.exige_admin():
+                return
             return self.api_acessos_pessoa()
         if p == "/api/admin/clientes":
             if not self.exige_admin():
