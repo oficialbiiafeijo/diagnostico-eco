@@ -29,7 +29,13 @@
     if (body) o.body = JSON.stringify(body);
     return fetch(url, o).then(function (r) { return r.json(); });
   }
-  function dataBr(s) { return s ? s.replace("T", " · ").slice(0, 16) : "—"; }
+  /* data e hora escritas como a gente fala, sem cortar o relógio no meio */
+  function dataBr(s) {
+    if (!s) return "—";
+    var t = String(s);
+    var hora = t.slice(11, 16);
+    return dataCurta(t) + (hora ? " · " + hora : "");
+  }
   /* só a data, escrita como a gente fala */
   function dataCurta(s) {
     if (!s) return "";
@@ -615,7 +621,7 @@
           'style="max-height:72px;border-radius:var(--r-sm);margin-bottom:8px;display:block">'));
       }
       aCapa.appendChild(botaoEnviar(capaId ? "↑ Trocar a capa" : "↑ Enviar uma capa",
-        null, "prova", function (r) { capaId = r.id; pintarCapa(); }, "image/*"));
+        null, "prova", function (r) { capaId = r.id; pintarCapa(); }, "image/*", "capa_prova"));
     }
     pintarArq(); pintarCapa();
 
@@ -734,6 +740,7 @@
             .then(function () { abrirCursos(); });
         }, "image/*");
         env.classList.add("cur-capa-env");
+        env.title = "Capa do curso: 600 × 800 px";
         env.onclick = function (e) { e.stopPropagation(); };
         grade.children[i].appendChild(env);
       });
@@ -811,6 +818,7 @@
         .then(function () { abrirCurso(c.id); });
     }, "image/*");
     envB.classList.add("cur-banner-env");
+    envB.title = "Banner do curso: 1600 × 500 px";
     banner.appendChild(envB);
     wrap.appendChild(banner);
 
@@ -987,7 +995,7 @@
           'style="max-height:78px;border-radius:var(--r-sm);margin-bottom:8px;display:block">'));
       }
       areaCapa.appendChild(botaoEnviar(capaId ? "↑ Trocar a capa" : "↑ Enviar uma capa",
-        null, "curso", function (r) { capaId = r.id; pintarCapa(); }, "image/*"));
+        null, "curso", function (r) { capaId = r.id; pintarCapa(); }, "image/*", "capa_aula"));
     }
     pintarCapa();
 
@@ -1098,6 +1106,19 @@
     return '<p class="med-dica"><span class="med-p">' + m.prop + '</span>' +
       '<strong>' + m.w + ' × ' + m.h + ' px</strong>' +
       '<span class="small muted">' + esc(m.nota) + '</span></p>';
+  }
+
+  /* Checklist de medidas: todo lugar do sistema que recebe imagem. */
+  function listaMedidasHtml() {
+    var h = "";
+    Object.keys(MEDIDAS).forEach(function (k) {
+      var m = MEDIDAS[k];
+      h += '<div class="med-l"><div><strong>' + esc(m.nome) + '</strong>' +
+        '<span class="small muted">' + esc(m.onde) + '</span></div>' +
+        '<div class="med-l-num"><b>' + m.w + ' × ' + m.h + '</b>' +
+        '<span class="med-p">' + m.prop + '</span></div></div>';
+    });
+    return h;
   }
 
   /* Enquadramento de qualquer imagem: zoom e posição, com prévia no
@@ -1220,7 +1241,7 @@
   }
 
   /* botao de enviar que vira barra de progresso */
-  function botaoEnviar(rotulo, cid, categoria, aoTerminar, aceita) {
+  function botaoEnviar(rotulo, cid, categoria, aoTerminar, aceita, medida) {
     var cx = el('<div class="env"></div>');
     var inp = document.createElement("input");
     inp.type = "file"; inp.accept = aceita || TIPOS_ACEITOS; inp.style.display = "none";
@@ -1252,6 +1273,7 @@
         });
     };
     cx.appendChild(b); cx.appendChild(st); cx.appendChild(inp); cx.appendChild(barra);
+    if (medida && MEDIDAS[medida]) cx.appendChild(el(dicaMedida(medida)));
     return cx;
   }
 
@@ -1837,15 +1859,19 @@
       prop("Prazo", "▣", "prazo", null, "data");
       cab.appendChild(ficha);
 
-      if (!daCasa) {
-        var vis = el('<label class="ws-vis"><input type="checkbox"' +
-          (pag.visivel_cliente ? " checked" : "") + '> <span>O cliente pode ver esta página</span></label>');
-        vis.querySelector("input").onchange = function (e) {
-          api("/api/admin/ws-pagina", { id: paginaId, visivel_cliente: e.target.checked ? 1 : 0 })
-            .then(function () { pisca(e.target.checked ? "Visível ao cliente" : "Só interno"); });
-        };
-        cab.appendChild(vis);
-      }
+      var vis = el('<label class="ws-vis"><input type="checkbox"' +
+        (pag.visivel_cliente ? " checked" : "") + '> <span>' +
+        (daCasa ? "Liberar esta página da metodologia para os clientes"
+                : "O cliente pode ver esta página") + '</span></label>');
+      vis.querySelector("input").onchange = function (e) {
+        api("/api/admin/ws-pagina", { id: paginaId, visivel_cliente: e.target.checked ? 1 : 0 })
+          .then(function () {
+            pisca(e.target.checked
+              ? (daCasa ? "Liberada no portal dos clientes" : "Visível ao cliente")
+              : "Só interno");
+          });
+      };
+      cab.appendChild(vis);
       col.appendChild(cab);
 
       /* blocos */
@@ -2094,6 +2120,7 @@
           .then(function () { abrirCliente(c.id, S.ciclo); });
       }, "image/*");
     envCapaCli.classList.add("cli-capa-env");
+    envCapaCli.title = "Capa do cliente: 1600 × 400 px";
     barraCapa.appendChild(envCapaCli);
 
     if (c.capa_midia_id) {
@@ -2139,7 +2166,7 @@
       function (r) {
         api("/api/admin/cliente-editar", { id: c.id, logo_midia_id: r.id,
           logo_ajuste: "" }).then(function () { abrirCliente(c.id, S.ciclo); });
-      }, "image/*");
+      }, "image/*", "logo_cliente");
     acoesLogo.appendChild(envLogo);
     if (c.logo_midia_id) {
       var bAj = el('<button class="btn btn-linha btn-sm">Enquadrar</button>');
@@ -2802,8 +2829,8 @@
     var c = d.cliente;
     var wrap = document.createElement("div");
 
-    var volta = el('<button class="btn btn-fantasma btn-sm" style="margin-bottom:14px">← Todos os clientes</button>');
-    volta.onclick = function () { S.rota = "lista"; carregar(); };
+    var volta = el('<button class="btn btn-fantasma btn-sm" style="margin-bottom:14px">← Voltar para o cliente</button>');
+    volta.onclick = function () { abrirCliente(d.cliente.id, d.ciclo); };
     wrap.appendChild(volta);
 
     var cab = el('<div class="painel-topo"><div>' +
@@ -2959,11 +2986,17 @@
     col2.appendChild(axCard);
 
     /* ---- coluna esquerda: abas de conteudo */
-    var navAbas = el('<div class="abas" style="margin-bottom:18px"></div>');
-    [["respostas", "Respostas"], ["rota", "Rota do ciclo"], ["equipe", "Equipe do cliente"],
-     ["diagnostico", "Diagnóstico interno"], ["notas", "Análise da B3 Sales"],
-     ["historico", "Histórico"]].forEach(function (t) {
-      var b = el('<button class="' + (S.aba === t[0] ? "at" : "") + '">' + t[1] + '</button>');
+    var navAbas = el('<div class="frentes-nav"></div>');
+    [["respostas", "Respostas", "◍", "var(--azul-500)"],
+     ["rota", "Rota do ciclo", "◆", "var(--terracota-500)"],
+     ["equipe", "Equipe do cliente", "◐", "var(--ameixa-600)"],
+     ["diagnostico", "Diagnóstico interno", "▦", "var(--ouro-600)"],
+     ["notas", "Análise da B3 Sales", "✎", "var(--verde-500)"],
+     ["recados", "Recados do cliente", "✉", "var(--ouro-700)"],
+     ["historico", "Histórico", "◷", "var(--azul-800)"]].forEach(function (t) {
+      var b = el('<button class="frente-b' + (S.aba === t[0] ? " at" : "") + '">' +
+        '<span class="frente-i" style="background:' + t[3] + '">' + t[2] + '</span>' +
+        '<span>' + t[1] + '</span></button>');
       b.onclick = function () { S.aba = t[0]; shell(telaDetalhe(d)); };
       navAbas.appendChild(b);
     });
@@ -2974,6 +3007,7 @@
     else if (S.aba === "equipe") col1.appendChild(painelEquipe(d));
     else if (S.aba === "diagnostico") col1.appendChild(painelDiagnostico(d));
     else if (S.aba === "notas") col1.appendChild(painelNotas(d));
+    else if (S.aba === "recados") col1.appendChild(painelRecados(d));
     else col1.appendChild(painelHistorico(d));
 
     grade.appendChild(col1); grade.appendChild(col2);
@@ -3102,13 +3136,86 @@
       card.appendChild(ta);
     });
     var salvar = el('<button class="btn btn-ouro" style="margin-top:20px">Salvar análise</button>');
+    var aviso = el('<span class="an-ok"></span>');
+    var linhaSalvar = el('<div style="display:flex;align-items:center;gap:12px;margin-top:20px"></div>');
+    linhaSalvar.appendChild(salvar); linhaSalvar.appendChild(aviso);
     salvar.onclick = function () {
       var body = { cliente_id: d.cliente.id, ciclo: d.ciclo };
       campos.forEach(function (c) { body[c[0]] = refs[c[0]].value; });
-      api("/api/admin/analise", body).then(function () { toast("Análise salva"); });
+      salvar.disabled = true; salvar.textContent = "Salvando…";
+      api("/api/admin/analise", body).then(function (r) {
+        salvar.disabled = false; salvar.textContent = "Salvar análise";
+        if (r && r.erro) return toast(r.erro);
+        aviso.textContent = "Registrado em " + dataBr(r.em || new Date().toISOString());
+        aviso.className = "an-ok on";
+        toast("Análise registrada");
+        S.aba = "notas"; abrirDetalhe(d.cliente.id, d.ciclo);
+      });
     };
-    card.appendChild(salvar);
-    if (a.atualizado_em) card.appendChild(el('<p class="small muted" style="margin-top:10px">Última atualização: ' + dataBr(a.atualizado_em) + '</p>'));
+    card.appendChild(linhaSalvar);
+    if (a.atualizado_em) {
+      card.appendChild(el('<p class="small muted" style="margin-top:10px">Última atualização: ' +
+        dataBr(a.atualizado_em) + '</p>'));
+    }
+
+    /* cada salvamento vira um registro com data, que fica guardado aqui */
+    var regs = d.analise_notas || [];
+    var lista = el('<div class="card card-pad" style="margin-top:16px">' +
+      '<div class="eyebrow">Registrado ao longo do tempo</div>' +
+      '<h2 class="serif" style="font-size:25px;color:var(--ameixa-900);margin:6px 0 4px">' +
+      'Observações do <em class="grifo">ciclo</em></h2>' +
+      '<p class="small muted" style="margin:0 0 14px">Cada vez que você salva, fica guardado ' +
+      'com a data. Assim dá para reler o que foi dito em cada reunião.</p></div>');
+    if (!regs.length) {
+      lista.appendChild(el('<p class="muted small">Nenhum registro ainda neste ciclo.</p>'));
+    }
+    var rotulos = { gargalos: "Gargalos priorizados", prioridades: "Prioridades do ciclo",
+                    proximo_foco: "Próximo foco", notas: "Observações internas" };
+    regs.forEach(function (n) {
+      var bl = el('<div class="an-reg"></div>');
+      bl.appendChild(el('<div class="an-reg-topo"><span class="an-reg-data">' +
+        dataBr(n.criado_em) + '</span>' +
+        (n.autor ? '<span class="small muted">por ' + esc(n.autor) + '</span>' : '') +
+        '</div>'));
+      Object.keys(rotulos).forEach(function (k) {
+        if (!(n[k] || "").trim()) return;
+        bl.appendChild(el('<div class="an-reg-c"><b>' + rotulos[k] + '</b>' +
+          '<p>' + esc(n[k]) + '</p></div>'));
+      });
+      var bx = el('<button class="btn btn-fantasma btn-sm">Apagar registro</button>');
+      bx.onclick = function () {
+        api("/api/admin/analise-apagar", { id: n.id }).then(function () {
+          toast("Registro apagado"); S.aba = "notas"; abrirDetalhe(d.cliente.id, d.ciclo);
+        });
+      };
+      bl.appendChild(bx);
+      lista.appendChild(bl);
+    });
+    var fora = el('<div></div>');
+    fora.appendChild(card); fora.appendChild(lista);
+    return fora;
+  }
+
+  /* O que o cliente escreveu no portal, direto para quem cuida da conta. */
+  function painelRecados(d) {
+    var card = el('<div class="card card-pad">' +
+      '<div class="eyebrow">Vindo do portal do cliente</div>' +
+      '<h2 class="serif" style="font-size:27px;color:var(--ameixa-900);margin:6px 0 4px">' +
+      'Recados de <em class="grifo">' + esc(d.cliente.empresa) + '</em></h2>' +
+      '<p class="small muted" style="margin:0 0 16px">Pedidos, dúvidas e informações que ' +
+      'ele mandou pelo canal de atendimento. Ele não vê nada do que está por aqui.</p></div>');
+    var msgs = d.recados || [];
+    if (!msgs.length) {
+      card.appendChild(el('<p class="muted small">Nenhum recado até agora.</p>'));
+      return card;
+    }
+    msgs.forEach(function (m) {
+      card.appendChild(el('<div class="an-reg">' +
+        '<div class="an-reg-topo"><span class="an-reg-data">' + dataBr(m.criado_em) + '</span>' +
+        (m.assunto ? '<span class="small muted">' + esc(m.assunto) + '</span>' : '') +
+        (m.autor ? '<span class="small muted">por ' + esc(m.autor) + '</span>' : '') +
+        '</div><div class="an-reg-c"><p>' + esc(m.texto) + '</p></div></div>'));
+    });
     return card;
   }
 
@@ -3127,6 +3234,37 @@
         '<div class="small muted" style="white-space:pre-wrap">' + esc(String(novo || "").slice(0, 180)) + '</div></div>' +
         '<div class="small muted" style="white-space:nowrap">' + dataBr(h.em) + '</div></div>'));
     });
+
+    /* a linha do tempo do que a B3 Sales registrou, junto do que o cliente respondeu */
+    var regs = d.analise_notas || [], msgs = d.recados || [];
+    if (regs.length || msgs.length) {
+      var linha = el('<div class="card card-pad" style="margin-top:16px">' +
+        '<div class="eyebrow">Reuniões e recados</div>' +
+        '<h2 class="serif" style="font-size:25px;color:var(--ameixa-900);margin:6px 0 14px">' +
+        'A conversa, <em class="grifo">mês a mês</em></h2></div>');
+      var itens = regs.map(function (r) {
+        var partes = [r.gargalos, r.prioridades, r.proximo_foco, r.notas]
+          .filter(function (x) { return (x || "").trim(); });
+        return { em: r.criado_em, quem: "Análise da B3 Sales",
+                 texto: partes.join("  ·  "), cor: "var(--verde-500)" };
+      }).concat(msgs.map(function (m) {
+        return { em: m.criado_em, quem: "Recado de " + (m.autor || "cliente"),
+                 texto: (m.assunto ? m.assunto + ": " : "") + m.texto,
+                 cor: "var(--ouro-700)" };
+      }));
+      itens.sort(function (a, b) { return a.em < b.em ? 1 : -1; });
+      itens.forEach(function (i) {
+        linha.appendChild(el('<div class="ind">' +
+          '<div><strong style="color:' + i.cor + '">' + esc(i.quem) + '</strong>' +
+          '<div class="small muted" style="white-space:pre-wrap">' +
+          esc(i.texto.slice(0, 240)) + '</div></div>' +
+          '<div class="small muted" style="white-space:nowrap">' + dataBr(i.em) +
+          '</div></div>'));
+      });
+      var fora = el('<div></div>');
+      fora.appendChild(card); fora.appendChild(linha);
+      return fora;
+    }
     return card;
   }
 
@@ -3164,6 +3302,8 @@
       campoTexto("m_seg", "Segmento", "Estética e beleza, saúde, serviços…") +
       campoTexto("m_contato", "WhatsApp", "(00) 00000-0000") +
       campoTexto("m_email", "E-mail", "nome@empresa.com.br") +
+      campoTexto("m_insta_emp", "Instagram da empresa", "@nomedaempresa") +
+      campoTexto("m_insta_pes", "Instagram pessoal", "@nomedapessoa") +
       '<div class="campo" style="display:grid;grid-template-columns:1fr 1fr;gap:12px">' +
       '<div><label class="small" style="color:var(--ameixa-700);margin-bottom:5px;display:block">Ciclo inicial</label>' +
       '<select id="m_ciclo"></select></div>' +
@@ -3191,6 +3331,8 @@
         segmento: corpo.querySelector("#m_seg").value,
         contato: corpo.querySelector("#m_contato").value,
         email: corpo.querySelector("#m_email").value,
+        instagram_empresa: corpo.querySelector("#m_insta_emp").value,
+        instagram_pessoal: corpo.querySelector("#m_insta_pes").value,
         ciclo: selc.value,
         validade_dias: corpo.querySelector("#m_val").value,
       }).then(function (r) {
@@ -3252,6 +3394,10 @@
       campoTexto("e_seg", "Segmento", "", c.segmento) +
       campoTexto("e_contato", "WhatsApp", "", c.contato) +
       campoTexto("e_email", "E-mail", "", c.email) +
+      campoTexto("e_insta_emp", "Instagram da empresa", "@nomedaempresa",
+                 c.instagram_empresa) +
+      campoTexto("e_insta_pes", "Instagram pessoal", "@nomedapessoa",
+                 c.instagram_pessoal) +
       blocoContrato(c, (S.lista && S.lista.tipos_servico) || []) +
       '<div id="cl_contrato_area" style="margin-bottom:14px"></div>' +
       '<label class="small" style="color:var(--ameixa-700);margin-bottom:5px;display:block;' +
@@ -3288,6 +3434,8 @@
         segmento: corpo.querySelector("#e_seg").value,
         contato: corpo.querySelector("#e_contato").value,
         email: corpo.querySelector("#e_email").value,
+        instagram_empresa: corpo.querySelector("#e_insta_emp").value,
+        instagram_pessoal: corpo.querySelector("#e_insta_pes").value,
         obs_internas: corpo.querySelector("#e_obs").value,
         tipo_servico: corpo.querySelector("#cl_servico").value,
         contrato_inicio: corpo.querySelector("#cl_ini").value,
@@ -3500,6 +3648,12 @@
         '<p class="small muted">Endereço completo:</p>' +
         '<div style="background:var(--creme-2);border:1px solid var(--linha-2);border-radius:10px;' +
         'padding:12px;word-break:break-all;font-size:11.5px">' + esc(base) + '/api/dados?chave=' + esc(cfg.api_key) + '</div>' +
+        '<hr class="filete">' +
+        '<h3 class="serif" style="font-size:22px;color:var(--ameixa-900);margin-bottom:6px">Tamanho de cada imagem</h3>' +
+        '<p class="small muted">Onde entra imagem no sistema, em que tela ela aparece e ' +
+        'qual medida deixa o resultado limpo. Se enviar em outro tamanho, use o botão de ' +
+        'enquadrar para escolher o recorte.</p>' +
+        '<div class="med-lista">' + listaMedidasHtml() + '</div>' +
         '</div>');
       var marcaId = cfg.logo_midia_id || "";
       var areaM = corpo.querySelector("#cf_marca");
@@ -3516,7 +3670,7 @@
             api("/api/admin/marca", { logo_midia_id: marcaId }).then(function () {
               MARCA_IMG = marcaId; toast("Marca atualizada"); pintarMarca();
             });
-          }, "image/*"));
+          }, "image/*", "logo_casa"));
         if (marcaId) {
           var bl = el('<button class="btn btn-fantasma btn-sm">Voltar ao desenho</button>');
           bl.onclick = function () {

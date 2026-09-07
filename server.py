@@ -192,6 +192,19 @@ CREATE TABLE IF NOT EXISTS ws_versoes (
   id INTEGER PRIMARY KEY AUTOINCREMENT, pagina_id TEXT NOT NULL,
   snapshot TEXT, em TEXT, usuario TEXT);
 
+CREATE TABLE IF NOT EXISTS analise_notas (
+  id TEXT PRIMARY KEY, cliente_id TEXT NOT NULL, ciclo TEXT,
+  gargalos TEXT DEFAULT '', prioridades TEXT DEFAULT '',
+  proximo_foco TEXT DEFAULT '', notas TEXT DEFAULT '',
+  autor TEXT DEFAULT '', criado_em TEXT,
+  FOREIGN KEY(cliente_id) REFERENCES clientes(id) ON DELETE CASCADE);
+
+CREATE TABLE IF NOT EXISTS recados (
+  id TEXT PRIMARY KEY, cliente_id TEXT NOT NULL, ciclo TEXT DEFAULT '',
+  assunto TEXT DEFAULT '', texto TEXT DEFAULT '', autor TEXT DEFAULT '',
+  de TEXT DEFAULT 'cliente', lido INTEGER DEFAULT 0, criado_em TEXT,
+  FOREIGN KEY(cliente_id) REFERENCES clientes(id) ON DELETE CASCADE);
+
 CREATE TABLE IF NOT EXISTS relatorios (
   id TEXT PRIMARY KEY, cliente_id TEXT NOT NULL, ciclo TEXT,
   tipo TEXT DEFAULT 'ciclo', titulo TEXT DEFAULT '', conteudo TEXT DEFAULT '',
@@ -262,6 +275,8 @@ COLUNAS_NOVAS = [
     ("ciclos", "publicado_em", "TEXT"),
     ("ciclos", "objetivo", "TEXT DEFAULT ''"),
     ("clientes", "token_portal", "TEXT"),
+    ("clientes", "instagram_empresa", "TEXT"),
+    ("clientes", "instagram_pessoal", "TEXT"),
     ("clientes", "tipo_servico", "TEXT DEFAULT ''"),
     ("clientes", "contrato_inicio", "TEXT"),
     ("clientes", "contrato_fim", "TEXT"),
@@ -810,6 +825,9 @@ class Handler(BaseHTTPRequestHandler):
         m = re.fullmatch(r"/api/d/([\w\-]+)/enviar", p)
         if m:
             return self.api_enviar(m.group(1))
+        m = re.fullmatch(r"/api/c/([\w\-]+)/recado", p)
+        if m:
+            return self.api_portal_recado(m.group(1))
         m = re.fullmatch(r"/api/c/([\w\-]+)/aula-vista", p)
         if m:
             return self.api_portal_aula_vista(m.group(1))
@@ -829,6 +847,8 @@ class Handler(BaseHTTPRequestHandler):
             return self.api_link()
         if p == "/api/admin/analise":
             return self.api_salvar_analise()
+        if p == "/api/admin/analise-apagar":
+            return self.api_analise_apagar()
         if p == "/api/admin/status":
             return self.api_set_status()
         if p == "/api/admin/ciclo-novo":
@@ -1248,8 +1268,16 @@ class Handler(BaseHTTPRequestHandler):
                 "documentos": docs,
             })
         paginas = [dict(r) for r in db().execute(
-            "SELECT id, titulo, capa, ordem FROM ws_paginas WHERE cliente_id=? "
+            "SELECT id, titulo, capa, icone, ordem FROM ws_paginas WHERE cliente_id=? "
             "AND visivel_cliente=1 AND pai_id IS NULL ORDER BY ordem", (cid,))]
+        # a metodologia da casa: páginas sem dono, liberadas para o cliente
+        metodologia = [dict(r) for r in db().execute(
+            "SELECT id, titulo, capa, icone, ordem FROM ws_paginas WHERE cliente_id IS NULL "
+            "AND visivel_cliente=1 AND pai_id IS NULL ORDER BY ordem")]
+        for m in metodologia:
+            m["subpaginas"] = [dict(x) for x in db().execute(
+                "SELECT id, titulo, icone FROM ws_paginas WHERE pai_id=? "
+                "AND visivel_cliente=1 ORDER BY ordem", (m["id"],))]
         cursos = []
         for r in db().execute(
                 "SELECT c.id, c.titulo, c.descricao, c.capa, c.trilha, c.capa_midia_id, "
@@ -1270,13 +1298,54 @@ class Handler(BaseHTTPRequestHandler):
         feitas = db().execute(
             "SELECT COUNT(*) n FROM acoes WHERE cliente_id=? AND status='Concluída'",
             (cid,)).fetchone()["n"]
+        aulas_tot = sum(x["aulas"] for x in cursos)
+        aulas_vistas = db().execute(
+            "SELECT COUNT(*) n FROM aula_vista WHERE cliente_id=?", (cid,)).fetchone()["n"]
+        docs_tot = db().execute("SELECT COUNT(*) n FROM anexos WHERE cliente_id=?",
+                                (cid,)).fetchone()["n"] + db().execute(
+            "SELECT COUNT(*) n FROM midia WHERE cliente_id=?", (cid,)).fetchone()["n"]
+        atual = ciclos[-1] if ciclos else None
+
+        def frente_cli(nome, feito, total, detalhe, icone, cor):
+            return {"nome": nome, "feito": feito, "total": total,
+                    "pct": round(feito / total * 100) if total else 0,
+                    "detalhe": detalhe, "icone": icone, "cor": cor}
+
+        # As mesmas frentes do painel interno, sem nada de analise.
+        frentes = [
+            frente_cli("Ciclo atual", atual["progresso"] if atual else 0, 100,
+                       (atual["ciclo"] if atual else "Dia 0") + ", " +
+                       ("concluído" if atual and atual["concluido"]
+                        else "em preenchimento"), "◍", "var(--azul-500)"),
+            frente_cli("Jornada", len([x for x in ciclos if x["concluido"]]), len(ciclos),
+                       str(len([x for x in ciclos if x["concluido"]])) + " de " +
+                       str(len(ciclos)) + " ciclos concluídos", "◷", "var(--ameixa-600)"),
+            frente_cli("Implantação", feitas, total_acoes,
+                       str(feitas) + " de " + str(total_acoes) + " entregas concluídas",
+                       "◆", "var(--terracota-500)"),
+            frente_cli("Materiais", len(paginas), len(paginas) or 1,
+                       str(len(paginas)) + " no seu acervo", "▤", "var(--ouro-600)"),
+            frente_cli("Treinamento", aulas_vistas, aulas_tot,
+                       str(len(cursos)) + " cursos, " + str(aulas_vistas) + " de " +
+                       str(aulas_tot) + " aulas assistidas", "▶", "var(--verde-500)"),
+            frente_cli("Documentos", docs_tot, docs_tot or 1,
+                       str(docs_tot) + " arquivos guardados", "⇩", "var(--azul-800)"),
+        ]
+
         return {
             "empresa": c["empresa"], "responsavel": c["responsavel"] or "",
+            "frentes": frentes,
             "segmento": c["segmento"] or "",
             "capa": c["capa"] or "", "logo_midia_id": c["logo_midia_id"] or "",
             "logo_ajuste": c["logo_ajuste"] or "",
+            "capa_midia_id": c["capa_midia_id"] or "",
+            "capa_ajuste": c["capa_ajuste"] or "",
             "capas": workspace.CAPAS,
             "ciclos": ciclos, "paginas": paginas, "cursos": cursos,
+            "metodologia": metodologia,
+            "recados": [dict(r) for r in db().execute(
+                "SELECT id, assunto, texto, de, criado_em FROM recados "
+                "WHERE cliente_id=? ORDER BY criado_em DESC LIMIT 30", (cid,))],
             "resumo": {"entregas": total_acoes, "concluidas": feitas,
                        "documentos": db().execute(
                            "SELECT COUNT(*) n FROM anexos WHERE cliente_id=?",
@@ -1383,17 +1452,37 @@ class Handler(BaseHTTPRequestHandler):
                           "progresso": round(n / tot * 100) if tot else 0})
 
     def api_portal_pagina(self, token, pid):
+        cid = self._cliente_do_portal(token)
+        if not cid:
+            return self.erro("Página não disponível.", 404)
+        # o cliente abre as próprias páginas e a metodologia da casa, quando liberada
         d = db().execute(
-            "SELECT p.* FROM ws_paginas p JOIN clientes c ON c.id = p.cliente_id "
-            "WHERE c.token_portal=? AND c.portal_ativo=1 AND p.id=? AND p.visivel_cliente=1",
-            (token, pid)).fetchone()
+            "SELECT * FROM ws_paginas WHERE id=? AND visivel_cliente=1 "
+            "AND (cliente_id=? OR cliente_id IS NULL)", (pid, cid)).fetchone()
         if not d:
             return self.erro("Página não disponível.", 404)
         pag = workspace.ler_pagina(db(), pid)
         pag["anexos"] = [dict(r) for r in db().execute(
-            "SELECT id, nome, tipo FROM anexos WHERE cliente_id=?", (d["cliente_id"],))]
+            "SELECT id, nome, tipo FROM anexos WHERE cliente_id=?", (cid,))]
         pag.pop("cliente_id", None)
         return self.json(pag)
+
+    def api_portal_recado(self, token):
+        """O cliente fala com o CS dele: pedido, observação ou informação."""
+        cid = self._cliente_do_portal(token)
+        if not cid:
+            return self.erro("Este acompanhamento não está disponível.", 404)
+        b = self.body()
+        texto = (b.get("texto") or "").strip()
+        if not texto:
+            return self.erro("Escreva a sua mensagem antes de enviar.")
+        db().execute(
+            "INSERT INTO recados(id,cliente_id,ciclo,assunto,texto,autor,de,criado_em) "
+            "VALUES(?,?,?,?,?,?,?,?)",
+            (novo_token()[:16], cid, b.get("ciclo", ""), (b.get("assunto") or "")[:80],
+             texto[:4000], (b.get("autor") or "")[:80], "cliente", now()))
+        db().commit()
+        return self.json({"ok": True})
 
     # ----------------------------------------------------- prova social
     def api_provas(self):
@@ -2329,6 +2418,9 @@ class Handler(BaseHTTPRequestHandler):
 
         return self.json({
             "cliente": c, "frentes": frentes, "equipe": equipe,
+            "recados": [dict(r) for r in conn.execute(
+                "SELECT id, assunto, texto, autor, de, lido, criado_em FROM recados "
+                "WHERE cliente_id=? ORDER BY criado_em DESC LIMIT 40", (cid,))],
             "equipe_lista": equipe_lista,
             "compartilhado": {"cursos": len(cursos), "modulos": modulos_lib,
                               "paginas_liberadas": liberadas, "paginas": len(paginas),
@@ -2498,9 +2590,12 @@ class Handler(BaseHTTPRequestHandler):
         expira = (datetime.now() + timedelta(days=dias)).isoformat(timespec="seconds") if dias else None
         conn = db()
         conn.execute("INSERT INTO clientes(id,empresa,responsavel,cargo,segmento,contato,"
-                     "email,criado_em) VALUES(?,?,?,?,?,?,?,?)",
+                     "email,instagram_empresa,instagram_pessoal,criado_em) "
+                     "VALUES(?,?,?,?,?,?,?,?,?,?)",
                      (cid, empresa, b.get("responsavel", ""), b.get("cargo", ""),
-                      b.get("segmento", ""), b.get("contato", ""), b.get("email", ""), now()))
+                      b.get("segmento", ""), b.get("contato", ""), b.get("email", ""),
+                      b.get("instagram_empresa", ""), b.get("instagram_pessoal", ""),
+                      now()))
         token = novo_token()
         conn.execute("INSERT INTO links(token,cliente_id,ciclo,criado_em,expira_em) "
                      "VALUES(?,?,?,?,?)", (token, cid, ciclo, now(), expira))
@@ -2528,6 +2623,7 @@ class Handler(BaseHTTPRequestHandler):
         campos = ["empresa", "responsavel", "cargo", "segmento", "contato", "email",
                   "obs_internas", "tipo_servico", "contrato_inicio", "contrato_fim",
                   "contrato_midia_id", "valor_contrato", "logo_midia_id", "capa",
+                  "instagram_empresa", "instagram_pessoal",
                   "alerta", "logo_ajuste", "capa_midia_id", "capa_ajuste"]
         sets, vals = [], []
         for k in campos:
@@ -2669,6 +2765,13 @@ class Handler(BaseHTTPRequestHandler):
             "score": analise.score(ans), "indicadores": analise.indicadores(ans),
             "nao_informados": analise.nao_informados(ans, ciclo),
             "faltando": faltando(cid, ciclo), "historico": hist,
+            "recados": [dict(r) for r in db().execute(
+                "SELECT id, assunto, texto, autor, criado_em FROM recados "
+                "WHERE cliente_id=? ORDER BY criado_em DESC LIMIT 40", (cid,))],
+            "analise_notas": [dict(r) for r in db().execute(
+                "SELECT id, gargalos, prioridades, proximo_foco, notas, autor, criado_em "
+                "FROM analise_notas WHERE cliente_id=? AND ciclo=? "
+                "ORDER BY criado_em DESC LIMIT 40", (cid, ciclo))],
         })
 
     def api_salvar_analise(self):
@@ -2683,6 +2786,22 @@ class Handler(BaseHTTPRequestHandler):
             "proximo_foco=excluded.proximo_foco, atualizado_em=excluded.atualizado_em",
             (cid, ciclo, b.get("notas", ""), b.get("gargalos", ""), b.get("prioridades", ""),
              b.get("proximo_foco", ""), now()))
+        em = now()
+        # cada salvamento vira um registro com data, para virar histórico
+        if any((b.get(k) or "").strip()
+               for k in ("gargalos", "prioridades", "proximo_foco", "notas")):
+            db().execute(
+                "INSERT INTO analise_notas(id,cliente_id,ciclo,gargalos,prioridades,"
+                "proximo_foco,notas,autor,criado_em) VALUES(?,?,?,?,?,?,?,?,?)",
+                (novo_token()[:16], cid, ciclo, b.get("gargalos", ""), b.get("prioridades", ""),
+                 b.get("proximo_foco", ""), b.get("notas", ""),
+                 self.admin_user() or "", em))
+        db().commit()
+        return self.json({"ok": True, "em": em})
+
+    def api_analise_apagar(self):
+        b = self.body()
+        db().execute("DELETE FROM analise_notas WHERE id=?", (b.get("id"),))
         db().commit()
         return self.json({"ok": True})
 

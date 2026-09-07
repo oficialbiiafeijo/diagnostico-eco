@@ -762,7 +762,8 @@ select.fmt-men{width:auto;margin:0;padding:4px 26px 4px 9px;font-size:12px;
 }
 
 .marca-img{height:38px;width:auto;max-width:190px;object-fit:contain;display:block}
-.barra .marca-img,.p-topo .marca-img{filter:brightness(0) invert(1)}
+.barra .marca-img,.p-topo .marca-img{background:var(--branco);border-radius:9px;
+  padding:5px 10px;height:36px;box-shadow:0 1px 0 rgba(0,0,0,.18)}
 .marca-previa{padding:16px;border-radius:var(--r-sm);background:var(--creme-2);
   border:1px solid var(--linha);margin-bottom:10px;display:flex;justify-content:center}
 .marca-previa img{max-height:64px;max-width:100%;object-fit:contain}
@@ -1056,3 +1057,45 @@ select.fmt-men{width:auto;margin:0;padding:4px 26px 4px 9px;font-size:12px;
 .cli-capa-cores button{width:24px;height:24px;border-radius:7px;cursor:pointer;
   border:2px solid rgba(255,255,255,.6)}
 .cli-capa-cores button.on{border-color:#fff;box-shadow:0 0 0 2px rgba(255,255,255,.35)}
+
+/* a navegação entre frentes, dentro da ficha do cliente */
+.frentes-nav{display:grid;grid-template-columns:repeat(auto-fit,minmax(158px,1fr));gap:9px;
+  margin-bottom:20px}
+.frente-b{display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:var(--r-sm);
+  border:1px solid var(--linha);background:var(--branco);cursor:pointer;
+  font-family:var(--sans);font-size:13px;color:var(--texto-2);transition:.15s;
+  text-align:left}
+.frente-b:hover{border-color:var(--ouro-300);transform:translateY(-1px)}
+.frente-b.at{border-color:var(--ameixa-700);background:var(--ameixa-900);color:#fff}
+.frente-i{width:28px;height:28px;border-radius:8px;flex:none;color:#fff;display:flex;
+  align-items:center;justify-content:center;font-size:13px}
+
+/* checklist de medidas de imagem, dentro de Configurações */
+.med-lista{margin-top:12px;border:1px solid var(--linha-2);border-radius:var(--r-sm);
+  overflow:hidden}
+.med-l{display:flex;align-items:center;justify-content:space-between;gap:14px;
+  padding:11px 13px;background:var(--branco);border-bottom:1px solid var(--linha-2)}
+.med-l:last-child{border-bottom:0}
+.med-l:nth-child(even){background:var(--creme-2)}
+.med-l strong{display:block;font-size:13.5px;color:var(--ameixa-900);font-weight:500}
+.med-l .small{display:block;font-size:11.5px;margin-top:1px}
+.med-l-num{text-align:right;white-space:nowrap}
+.med-l-num b{display:block;font-size:13px;color:var(--azul-800);
+  font-variant-numeric:lining-nums tabular-nums}
+.env .med-dica{margin:9px 0 0;width:100%}
+
+/* registros datados da análise interna */
+.an-ok{font-size:12.5px;color:var(--ok);opacity:0;transition:.2s}
+.an-ok.on{opacity:1}
+.an-reg{border:1px solid var(--linha-2);border-radius:var(--r-sm);padding:14px 16px;
+  margin-top:12px;background:var(--branco)}
+.an-reg-topo{display:flex;align-items:baseline;gap:10px;margin-bottom:8px;
+  padding-bottom:8px;border-bottom:1px solid var(--linha-2)}
+.an-reg-data{font-size:12px;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--ameixa-700);font-weight:500;
+  font-variant-numeric:lining-nums tabular-nums}
+.an-reg-c{margin-bottom:10px}
+.an-reg-c b{display:block;font-size:12px;color:var(--ameixa-700);font-weight:500;
+  margin-bottom:2px}
+.an-reg-c p{margin:0;font-size:13.5px;color:var(--texto-2);line-height:1.65;
+  white-space:pre-wrap}
