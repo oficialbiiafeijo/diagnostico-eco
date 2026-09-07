@@ -279,6 +279,7 @@ COLUNAS_NOVAS = [
     ("clientes", "logo_midia_id", "TEXT"),
     ("clientes", "capa", "TEXT DEFAULT ''"),
     ("clientes", "alerta", "TEXT DEFAULT ''"),
+    ("clientes", "logo_ajuste", "TEXT DEFAULT ''"),
     ("clientes", "portal_ativo", "INTEGER DEFAULT 0"),
 ]
 
@@ -1261,6 +1262,10 @@ class Handler(BaseHTTPRequestHandler):
             (cid,)).fetchone()["n"]
         return {
             "empresa": c["empresa"], "responsavel": c["responsavel"] or "",
+            "segmento": c["segmento"] or "",
+            "capa": c["capa"] or "", "logo_midia_id": c["logo_midia_id"] or "",
+            "logo_ajuste": c["logo_ajuste"] or "",
+            "capas": workspace.CAPAS,
             "ciclos": ciclos, "paginas": paginas, "cursos": cursos,
             "resumo": {"entregas": total_acoes, "concluidas": feitas,
                        "documentos": db().execute(
@@ -2095,6 +2100,8 @@ class Handler(BaseHTTPRequestHandler):
 
             jornada.append({
                 "id": cid, "empresa": c["empresa"], "segmento": c["segmento"] or "",
+                "logo_midia_id": c.get("logo_midia_id") or "",
+                "logo_ajuste": c.get("logo_ajuste") or "",
                 "tipo_servico": c.get("tipo_servico") or "",
                 "dias_contrato": dias_contrato,
                 "ciclo": atual["ciclo"] if atual else questions.CICLOS[0],
@@ -2432,7 +2439,7 @@ class Handler(BaseHTTPRequestHandler):
         campos = ["empresa", "responsavel", "cargo", "segmento", "contato", "email",
                   "obs_internas", "tipo_servico", "contrato_inicio", "contrato_fim",
                   "contrato_midia_id", "valor_contrato", "logo_midia_id", "capa",
-                  "alerta"]
+                  "alerta", "logo_ajuste"]
         sets, vals = [], []
         for k in campos:
             if k in b:

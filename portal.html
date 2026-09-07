@@ -20,6 +20,23 @@
 
   .p-palco{max-width:1080px;margin:0 auto;padding:34px 26px 90px}
 
+  .p-topo-cli{border-radius:var(--r);position:relative;overflow:hidden;
+    margin-bottom:26px;min-height:186px;display:flex;align-items:flex-end}
+  .p-topo-veu{position:absolute;inset:0;
+    background:linear-gradient(180deg,rgba(20,8,28,.12) 25%,rgba(20,8,28,.85))}
+  .p-topo-in{position:relative;z-index:1;padding:26px 30px;display:flex;gap:20px;
+    align-items:flex-end;width:100%}
+  .p-topo-foto{width:74px;height:74px;border-radius:19px;flex:none;background-size:cover;
+    background-position:center;display:flex;align-items:center;justify-content:center;
+    font-family:var(--serif);font-size:30px;color:#fff;
+    border:2px solid rgba(255,255,255,.4);box-shadow:0 8px 24px -10px rgba(0,0,0,.6)}
+  .p-topo-t{color:#fff;min-width:0}
+  .p-topo-t h1{font-size:clamp(28px,4.4vw,40px);color:#fff;line-height:1.08;margin:4px 0 0}
+  .p-topo-t p{font-size:14.5px;color:rgba(255,255,255,.84);margin:9px 0 0;max-width:56ch}
+
+  .p-num-i{width:34px;height:34px;border-radius:10px;margin:0 auto 11px;color:#fff;
+    display:flex;align-items:center;justify-content:center;font-size:14px}
+
   .p-hero{text-align:center;padding:16px 0 34px}
   .p-hero h1{font-size:44px;color:var(--ameixa-900);line-height:1.1}
   .p-hero p{max-width:600px;margin:14px auto 0;color:var(--texto-2);font-size:15.5px}
@@ -223,6 +240,17 @@
     creme: "linear-gradient(135deg,#EDE0D6,#FAF3EC 60%,#FFFCF9)"
   };
 
+  /* a foto do cliente segue o mesmo enquadramento que a B3 Sales ajustou */
+  function estiloFoto(d) {
+    if (!d.logo_midia_id) return "background:rgba(255,255,255,.18)";
+    var a = {};
+    try { a = JSON.parse(d.logo_ajuste || "{}") || {}; } catch (e) { a = {}; }
+    var z = a.zoom || 100, x = a.x == null ? 50 : a.x, y = a.y == null ? 50 : a.y;
+    return "background-image:url(/api/midia/" + esc(d.logo_midia_id) + ");" +
+      "background-size:" + z + "% auto;background-position:" + x + "% " + y + "%;" +
+      "background-repeat:no-repeat;background-color:#fff";
+  }
+
   function erro(msg) {
     palco.innerHTML = "";
     palco.appendChild(el('<div class="p-erro"><h1 class="serif" style="font-size:32px;' +
@@ -234,19 +262,34 @@
     palco.innerHTML = "";
     var r = d.resumo;
 
-    palco.appendChild(el('<div class="p-hero">' +
-      '<div class="eyebrow">' + esc(d.empresa) + '</div>' +
-      '<h1>A sua <em class="grifo">implementação</em></h1>' +
-      '<p>' + (d.responsavel ? "Olá, <strong>" + esc(d.responsavel.split(" ")[0]) + "</strong>. " : "") +
-      'Aqui está o que já foi construído na sua operação comercial e o que vem pela frente.</p>' +
-      '</div>'));
+    /* a capa e a marca da empresa dele, do jeito que a B3 Sales escolheu */
+    var capa = (d.capas || []).filter(function (x) { return x.id === d.capa; })[0];
+    var fundo = capa ? capa.css : CAPAS.ameixa;
+    var hero = el('<div class="p-topo-cli" style="background:' + fundo + '">' +
+      '<div class="p-topo-veu"></div><div class="p-topo-in">' +
+      '<div class="p-topo-foto" style="' + estiloFoto(d) + '">' +
+      (d.logo_midia_id ? '' : esc((d.empresa || "?").slice(0, 1).toUpperCase())) + '</div>' +
+      '<div class="p-topo-t"><div class="eyebrow" style="color:rgba(255,255,255,.7)">' +
+      esc(d.segmento || "Implementação comercial") + '</div>' +
+      '<h1>' + esc(d.empresa) + '</h1>' +
+      '<p>' + (d.responsavel ? "Olá, " + esc(d.responsavel.split(" ")[0]) + ". " : "") +
+      'Aqui está o que já foi construído na sua operação, e o que vem pela frente.</p>' +
+      '</div></div></div>');
+    palco.appendChild(hero);
 
-    palco.appendChild(el('<div class="p-numeros">' +
-      '<div class="p-num"><b>' + r.concluidas + '</b><span>Processos implantados</span></div>' +
-      '<div class="p-num"><b>' + r.ciclos_feitos + '</b><span>Ciclos concluídos</span></div>' +
-      '<div class="p-num"><b>' + r.materiais + '</b><span>Materiais disponíveis</span></div>' +
-      '<div class="p-num"><b>' + r.documentos + '</b><span>Documentos no acervo</span></div>' +
-      '</div>'));
+    var nums = [
+      ["◆", r.concluidas, "Processos implantados", "var(--terracota-500)"],
+      ["◷", r.ciclos_feitos, "Ciclos concluídos", "var(--azul-500)"],
+      ["▤", r.materiais, "Materiais disponíveis", "var(--ouro-600)"],
+      ["⇩", r.documentos, "Documentos no acervo", "var(--ameixa-600)"]
+    ];
+    var cx = el('<div class="p-numeros"></div>');
+    nums.forEach(function (n) {
+      cx.appendChild(el('<div class="p-num">' +
+        '<span class="p-num-i" style="background:' + n[3] + '">' + n[0] + '</span>' +
+        '<b>' + n[1] + '</b><span>' + esc(n[2]) + '</span></div>'));
+    });
+    palco.appendChild(cx);
 
     /* materiais liberados */
     if (d.paginas.length) {

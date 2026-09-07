@@ -1875,6 +1875,88 @@
       x4 + ' ' + y4 + ' Z" fill="' + cor + '"/>' + meio + '</svg>';
   }
 
+
+  /* A foto do cliente segue sempre o mesmo enquadramento, como uma foto de
+     perfil: quadrada, preenchendo o espaço. O ajuste guarda zoom e posição. */
+  function ajusteLogo(c) {
+    try { return JSON.parse(c.logo_ajuste || "{}") || {}; }
+    catch (e) { return {}; }
+  }
+
+  function estiloLogo(c, tam) {
+    if (!c.logo_midia_id) {
+      return "background:" + corDaEmpresa(c.empresa);
+    }
+    var a = ajusteLogo(c);
+    var z = a.zoom || 100, x = a.x == null ? 50 : a.x, y = a.y == null ? 50 : a.y;
+    return "background-image:url(/api/midia/" + esc(c.logo_midia_id) + ");" +
+      "background-size:" + z + "% auto;background-position:" + x + "% " + y + "%;" +
+      "background-repeat:no-repeat;background-color:#fff";
+  }
+
+  function modalEnquadrar(c) {
+    var a = ajusteLogo(c);
+    var z = a.zoom || 100, x = a.x == null ? 50 : a.x, y = a.y == null ? 50 : a.y;
+    var corpo = el('<div>' +
+      '<p class="small muted" style="margin:0 0 16px;line-height:1.7">Ajuste até a ' +
+      'foto ficar do jeito que você quer. Ela vai aparecer sempre neste enquadramento, ' +
+      'em todas as telas.</p>' +
+      '<div class="enq-previas"></div>' +
+      '<div class="enq-ctrl"></div></div>');
+
+    var previas = corpo.querySelector(".enq-previas");
+    var pGrande = el('<div class="enq-grande"></div>');
+    var pMedia = el('<div class="enq-media"></div>');
+    var pPeq = el('<div class="enq-peq"></div>');
+    previas.appendChild(el('<div class="enq-um"><span class="small muted">Na ficha</span></div>'));
+    previas.lastChild.appendChild(pGrande);
+    previas.appendChild(el('<div class="enq-um"><span class="small muted">Na carteira</span></div>'));
+    previas.lastChild.appendChild(pMedia);
+    previas.appendChild(el('<div class="enq-um"><span class="small muted">Miniatura</span></div>'));
+    previas.lastChild.appendChild(pPeq);
+
+    function pintar() {
+      var est = "background-image:url(/api/midia/" + esc(c.logo_midia_id) + ");" +
+        "background-size:" + z + "% auto;background-position:" + x + "% " + y + "%;" +
+        "background-repeat:no-repeat;background-color:#fff";
+      pGrande.style.cssText = est; pMedia.style.cssText = est; pPeq.style.cssText = est;
+    }
+    pintar();
+
+    var ctrl = corpo.querySelector(".enq-ctrl");
+    function faixa(rot, valor, min, max, aplicar) {
+      var l = el('<div class="enq-linha"><span class="small">' + rot + '</span></div>');
+      var i = document.createElement("input");
+      i.type = "range"; i.min = min; i.max = max; i.value = valor;
+      i.oninput = function () { aplicar(parseInt(i.value, 10)); pintar(); };
+      l.appendChild(i);
+      ctrl.appendChild(l);
+      return i;
+    }
+    faixa("Zoom", z, 60, 300, function (v) { z = v; });
+    faixa("Horizontal", x, 0, 100, function (v) { x = v; });
+    faixa("Vertical", y, 0, 100, function (v) { y = v; });
+
+    var bC = el('<button class="btn btn-fantasma btn-sm">Centralizar</button>');
+    bC.onclick = function () {
+      z = 100; x = 50; y = 50; pintar();
+      ctrl.querySelectorAll("input").forEach(function (i, k) {
+        i.value = [100, 50, 50][k];
+      });
+    };
+    ctrl.appendChild(bC);
+
+    var bs = el('<button class="btn btn-ouro">Salvar enquadramento</button>');
+    var f = modal("Enquadrar a imagem", esc(c.empresa), corpo, [bs]);
+    bs.onclick = function () {
+      api("/api/admin/cliente-editar", { id: c.id,
+        logo_ajuste: JSON.stringify({ zoom: z, x: x, y: y }) })
+        .then(function () {
+          f.remove(); toast("Enquadramento salvo"); abrirCliente(c.id, S.ciclo);
+        });
+    };
+  }
+
   function telaCliente(d) {
     var c = d.cliente;
     var wrap = document.createElement("div");
@@ -1903,16 +1985,21 @@
 
     /* cabeçalho com logo, nome e o que importa de relance */
     var cab = el('<div class="cli-cab"></div>');
-    var logo = el('<div class="cli-logo" style="' +
-      (c.logo_midia_id ? 'background:#fff url(/api/midia/' + esc(c.logo_midia_id) +
-        ') center/contain no-repeat' : 'background:' + corDaEmpresa(c.empresa)) + '">' +
+    var logo = el('<div class="cli-logo" style="' + estiloLogo(c, 82) + '">' +
       (c.logo_midia_id ? '' : esc((c.empresa || "?").slice(0, 1).toUpperCase())) + '</div>');
-    var envLogo = botaoEnviar("↑ Logo", c.id, "logo", function (r) {
-      api("/api/admin/cliente-editar", { id: c.id, logo_midia_id: r.id })
-        .then(function () { abrirCliente(c.id, S.ciclo); });
-    }, "image/*");
-    envLogo.classList.add("cli-logo-env");
-    logo.appendChild(envLogo);
+    var acoesLogo = el('<div class="cli-logo-env"></div>');
+    var envLogo = botaoEnviar(c.logo_midia_id ? "↑ Trocar" : "↑ Foto ou logo", c.id, "logo",
+      function (r) {
+        api("/api/admin/cliente-editar", { id: c.id, logo_midia_id: r.id,
+          logo_ajuste: "" }).then(function () { abrirCliente(c.id, S.ciclo); });
+      }, "image/*");
+    acoesLogo.appendChild(envLogo);
+    if (c.logo_midia_id) {
+      var bAj = el('<button class="btn btn-linha btn-sm">Enquadrar</button>');
+      bAj.onclick = function () { modalEnquadrar(c); };
+      acoesLogo.appendChild(bAj);
+    }
+    logo.appendChild(acoesLogo);
     cab.appendChild(logo);
 
     var selos = "";
@@ -2017,9 +2104,9 @@
     var idc = el('<div class="q-card q-ident" style="background:' + fundo + '">' +
       '<div class="q-ident-fundo"></div>' +
       '<div class="q-ident-in">' +
-      (c.logo_midia_id
-        ? '<img class="q-ident-logo" src="/api/midia/' + esc(c.logo_midia_id) + '" alt="">'
-        : '<div class="q-ident-ini">' + esc((c.empresa || "?").slice(0, 1).toUpperCase()) + '</div>') +
+      '<div class="q-ident-foto" style="' + estiloLogo(c, 64) + '">' +
+      (c.logo_midia_id ? '' : esc((c.empresa || "?").slice(0, 1).toUpperCase())) +
+      '</div>' +
       '<div class="q-ident-t"><strong>' + esc(c.empresa) + '</strong>' +
       '<span>' + esc(c.tipo_servico || c.segmento || "Cliente da carteira") + '</span></div>' +
       '<div class="q-ident-pe">' +
@@ -2170,12 +2257,28 @@
 
     wrap.appendChild(q);
 
-    /* atalho para as abas de trabalho */
+    /* as frentes de trabalho, no mesmo padrão dos cartões de cima */
+    wrap.appendChild(el('<div class="p-sec" style="margin:30px 0 14px">' +
+      '<div class="eyebrow">Onde você trabalha</div>' +
+      '<h2 class="serif tit-card" style="margin-bottom:0">As frentes de ' +
+      '<em class="grifo">trabalho</em></h2></div>'));
     var abas = el('<div class="cli-abas"></div>');
-    [["respostas", "Respostas do diagnóstico"], ["rota", "Rota do ciclo"],
-     ["equipe", "Equipe do cliente"], ["diagnostico", "Diagnóstico interno"],
-     ["notas", "Análise da B3 Sales"], ["historico", "Histórico"]].forEach(function (t) {
-      var b = el('<button class="cli-aba">' + t[1] + '</button>');
+    [["respostas", "Respostas do diagnóstico", "◍", "var(--azul-500)",
+      "O que o cliente respondeu, bloco a bloco"],
+     ["rota", "Rota do ciclo", "◆", "var(--terracota-500)",
+      "As ações combinadas e o status de cada uma"],
+     ["equipe", "Equipe do cliente", "◐", "var(--ameixa-600)",
+      "Nome, função e contato de cada pessoa"],
+     ["diagnostico", "Diagnóstico interno", "▦", "var(--ouro-600)",
+      "Score, indicadores e gargalos. Só você vê"],
+     ["notas", "Análise da B3 Sales", "✎", "var(--verde-500)",
+      "As suas observações sobre este ciclo"],
+     ["historico", "Histórico", "◷", "var(--azul-800)",
+      "Tudo que mudou, com data e hora"]].forEach(function (t) {
+      var b = el('<div class="cli-aba">' +
+        '<span class="cli-aba-i" style="background:' + t[3] + '">' + t[2] + '</span>' +
+        '<div><strong>' + esc(t[1]) + '</strong>' +
+        '<span class="small muted">' + esc(t[4]) + '</span></div></div>');
       b.onclick = function () { S.aba = t[0]; abrirDetalhe(c.id); };
       abas.appendChild(b);
     });
@@ -2395,9 +2498,10 @@
               : j.dias_contrato + " dias de contrato") + '</span>';
         }
         var c = el('<div class="kan-card">' +
-          '<div class="kan-topo"><span class="kan-ini" style="background:' +
-          corDaEmpresa(j.empresa) + '">' +
-          esc((j.empresa || "?").slice(0, 1).toUpperCase()) + '</span>' +
+          '<div class="kan-topo"><span class="kan-ini" style="' +
+          estiloLogo(j, 32) + '">' +
+          (j.logo_midia_id ? '' : esc((j.empresa || "?").slice(0, 1).toUpperCase())) +
+          '</span>' +
           '<div class="kan-nome"><strong>' + esc(j.empresa) + '</strong>' +
           (j.tipo_servico ? '<span class="small muted">' + esc(j.tipo_servico) + '</span>'
             : '<span class="small muted">' + esc(j.segmento || "Sem segmento") + '</span>') +
@@ -2431,6 +2535,15 @@
   }
 
   /* ----------------------------------------------------------- lista */
+  var CAPA_LISTA = {
+    estrategia: "linear-gradient(135deg,#241030,#5A3A6E 62%,#8E6FA3)",
+    conducao: "linear-gradient(135deg,#472B60,#A8803F 68%,#E6CB98)",
+    operacao: "linear-gradient(135deg,#7E3A24,#C2683F 60%,#E2A183)",
+    ouro: "linear-gradient(135deg,#8A6530,#CFA467 58%,#F5E9D2)",
+    ameixa: "linear-gradient(135deg,#241030,#472B60 70%,#C9B4D6)",
+    creme: "linear-gradient(135deg,#EDE0D6,#FAF3EC 60%,#FFFCF9)"
+  };
+
   function telaLista(d) {
     var cs = d.clientes;
     var wrap = document.createElement("div");
@@ -2470,37 +2583,54 @@
       return wrap;
     }
 
-    var card = el('<div class="card" style="overflow:hidden"><div style="overflow-x:auto">' +
-      '<table class="lista"><thead><tr><th>Empresa</th><th>Responsável</th><th>Ciclo</th>' +
-      '<th>Status</th><th>Progresso</th><th>Último acesso</th><th>Link do cliente</th><th></th>' +
-      '</tr></thead><tbody></tbody></table></div></div>');
-    var tb = card.querySelector("tbody");
+    var grade = el('<div class="cli-grade"></div>');
     cs.forEach(function (c) {
       var ativo = (c.links || []).filter(function (l) { return l.ativo; }).slice(-1)[0];
-      var tr = el('<tr>' +
-        '<td><span class="emp">' + esc(c.empresa) + '</span><div class="small muted">' +
-        esc(c.segmento || "—") + '</div></td>' +
-        '<td>' + esc(c.responsavel || "—") + '<div class="small muted">' + esc(c.cargo || "") + '</div></td>' +
-        '<td>' + esc(c.ciclo_atual) + '</td>' +
-        '<td><span class="selo ' + seloClasse(c.status) + '">' + esc(stTexto(c.status)) + '</span></td>' +
-        '<td><span class="mini-prog"><i style="width:' + c.progresso + '%"></i></span>' + c.progresso + '%</td>' +
-        '<td class="small muted">' + dataBr(ativo && ativo.ultimo_acesso) + '</td>' +
-        '<td></td><td style="text-align:right"></td></tr>');
-      var tdLink = tr.children[6];
+      var dias = null;
+      if (c.contrato_fim) {
+        var dt = new Date(c.contrato_fim);
+        if (!isNaN(dt)) dias = Math.round((dt - new Date()) / 86400000);
+      }
+      var capa = (c.capa && CAPA_LISTA[c.capa]) ||
+        "linear-gradient(135deg,#241030,#5A3A6E 62%,#8E6FA3)";
+      var cartao = el('<div class="cli-c">' +
+        '<div class="cli-c-capa" style="background:' + capa + '"></div>' +
+        '<div class="cli-c-in">' +
+        '<div class="cli-c-foto" style="' + estiloLogo(c, 56) + '">' +
+        (c.logo_midia_id ? '' : esc((c.empresa || "?").slice(0, 1).toUpperCase())) +
+        '</div>' +
+        '<div class="cli-c-nome"><strong>' + esc(c.empresa) + '</strong>' +
+        '<span>' + esc(c.tipo_servico || c.segmento || "Sem segmento") + '</span></div>' +
+        '<div class="cli-c-linha">' +
+        '<span class="selo ' + seloClasse(c.status) + '">' + esc(stTexto(c.status)) + '</span>' +
+        '<span class="cli-c-ciclo">' + esc(c.ciclo_atual) + '</span></div>' +
+        '<div class="cli-c-barra"><i style="width:' + (c.progresso || 0) + '%"></i></div>' +
+        '<div class="cli-c-info">' +
+        '<span>' + (c.progresso || 0) + '% preenchido</span>' +
+        '<span>' + (c.responsavel ? esc(c.responsavel) : "sem responsável") + '</span>' +
+        '</div>' +
+        '<div class="cli-c-pe">' +
+        '<span>' + c.anexos + (c.anexos === 1 ? " anexo" : " anexos") + '</span>' +
+        (dias != null
+          ? '<span class="' + (dias < 0 ? "kan-venceu" : dias <= 30 ? "kan-alerta" : "kan-prazo") +
+            '">' + (dias < 0 ? "vencido" : dias + " dias") + '</span>'
+          : '') +
+        '</div></div></div>');
+      cartao.onclick = function () { abrirCliente(c.id); };
+
+      var acoes = el('<div class="cli-c-acoes"></div>');
       if (ativo) {
-        var lc = el('<div class="link-cel"><code>/d/' + esc(ativo.token.slice(0, 12)) + '…</code></div>');
-        var bcp = el('<button class="btn btn-fantasma btn-sm" title="Copiar link">Copiar</button>');
-        bcp.onclick = function (e) { e.stopPropagation(); copiar(linkDe(ativo.token)); };
-        lc.appendChild(bcp);
-        tdLink.appendChild(lc);
-      } else tdLink.appendChild(el('<span class="small muted">sem link ativo</span>'));
-      var ver = el('<button class="btn btn-linha btn-sm">Abrir</button>');
-      ver.onclick = function () { abrirCliente(c.id); };
-      tr.children[7].appendChild(ver);
-      tr.querySelector(".emp").onclick = function () { abrirCliente(c.id); };
-      tb.appendChild(tr);
+        var bl = el('<button class="cli-c-b" title="Copiar o link do cliente">⧉</button>');
+        bl.onclick = function (e) { e.stopPropagation(); copiar(linkDe(ativo.token), "Link copiado"); };
+        acoes.appendChild(bl);
+      }
+      var bo = el('<button class="cli-c-b" title="Abrir">→</button>');
+      bo.onclick = function (e) { e.stopPropagation(); abrirCliente(c.id); };
+      acoes.appendChild(bo);
+      cartao.querySelector(".cli-c-capa").appendChild(acoes);
+      grade.appendChild(cartao);
     });
-    wrap.appendChild(card);
+    wrap.appendChild(grade);
     return wrap;
   }
 
