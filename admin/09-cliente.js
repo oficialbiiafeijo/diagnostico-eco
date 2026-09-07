@@ -349,7 +349,10 @@
       'Pessoa do time</label><select id="lp_eq"><option value="">Escrever outro nome</option>' +
       '</select>' +
       campoTexto("lp_nome", "Nome completo", "Como está no contrato") +
-      campoTexto("lp_mail", "Email", "nome@empresa.com.br") + '</div>');
+      campoTexto("lp_mail", "Email", "nome@empresa.com.br") +
+      '<label class="ws-vis" style="margin-top:6px"><input type="checkbox" id="lp_completo">' +
+      '<span>Liberar o modo cliente completo para esta pessoa, não só ' + esc(titulo) + '</span></label>' +
+      '</div>');
     var sel = cx.querySelector("#lp_eq");
     equipe.forEach(function (p) {
       sel.appendChild(el('<option value="' + esc(p.nome) + '">' + esc(p.nome) +
@@ -358,18 +361,40 @@
     sel.onchange = function () {
       if (sel.value) cx.querySelector("#lp_nome").value = sel.value;
     };
-    var bs = el('<button class="btn btn-ouro">Liberar acesso</button>');
+    var bs = el('<button class="btn btn-ouro">Liberar e gerar link</button>');
     var f = modal("Liberar acesso", "Time do cliente", cx, [bs]);
     bs.onclick = function () {
+      var completo = cx.querySelector("#lp_completo").checked;
+      var nome = cx.querySelector("#lp_nome").value;
       api("/api/admin/acesso-pessoa", {
-        cliente_id: cid, tipo: tipo, alvo_id: alvoId,
-        nome: cx.querySelector("#lp_nome").value,
-        email: cx.querySelector("#lp_mail").value
+        cliente_id: cid, tipo: completo ? "portal" : tipo, alvo_id: alvoId,
+        nome: nome, email: cx.querySelector("#lp_mail").value
       }).then(function (r) {
         if (r.erro) return toast(r.erro);
-        f.remove(); toast("Acesso liberado"); aoTerminar();
+        f.remove(); aoTerminar();
+        modalLinkPessoaPronto(nome, completo ? "o modo cliente completo" : titulo, r.token);
       });
     };
+  }
+
+  function modalLinkPessoaPronto(nome, oQue, token) {
+    var url = location.origin + "/p/" + token;
+    var corpo = el('<div>' +
+      '<p style="margin-top:0">O link de <strong>' + esc(nome) + '</strong> para ' + esc(oQue) +
+      ' está pronto. Envie exatamente este endereço para a pessoa.</p>' +
+      '<div style="background:var(--creme-2);border:1px solid var(--linha-2);border-radius:10px;' +
+      'padding:14px;word-break:break-all;font-size:13px;margin:16px 0">' + esc(url) + '</div>' +
+      '<div class="aviso small">Este link é só desta pessoa. Ela não precisa de senha, ' +
+      'nem recebe email: o acesso é o próprio endereço.</div></div>');
+    var bcopia = el('<button class="btn btn-linha">Copiar link</button>');
+    bcopia.onclick = function () { copiar(url); };
+    var bzap = el('<a class="btn btn-ouro" target="_blank" rel="noopener" href="https://wa.me/?text=' +
+      encodeURIComponent("Olá, " + nome + "! Este é o seu link de acesso ao Diagnóstico ECO, do Grupo B3 Sales:\n\n" +
+        url) + '">Enviar por WhatsApp</a>');
+    var bok = el('<button class="btn btn-ameixa">Concluir</button>');
+    var f = modal('Link <em class="grifo">gerado</em>', "Pronto para enviar", corpo, [bcopia, bzap, bok]);
+    bok.onclick = function () { f.remove(); };
+    f.querySelector(".modal-pe .btn-fantasma").remove();
   }
 
   /* No painel, a conversa entra só como resumo. O lugar de conversar é a

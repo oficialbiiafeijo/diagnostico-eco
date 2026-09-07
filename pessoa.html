@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Acesso liberado · Grupo B3 Sales</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/style.css">
+<style>
+  body{background:var(--creme)}
+  .pe-topo{background:linear-gradient(120deg,var(--ameixa-900),var(--ameixa-700));color:#fff;padding:20px 26px}
+  .pe-topo-in{max-width:760px;margin:0 auto;display:flex;align-items:center;gap:14px}
+  .pe-marca{font-family:var(--serif);font-size:19px}
+  .pe-tag{font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--ouro-300);margin-top:2px}
+  .pe-wrap{max-width:760px;margin:0 auto;padding:34px 24px 70px}
+  .pe-eyebrow{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--ouro-700);font-weight:600}
+  .pe-h1{font-family:var(--serif);font-size:32px;margin:8px 0 4px;color:var(--ameixa-900)}
+  .pe-sub{color:var(--muted);font-size:14px;margin:0 0 30px}
+  .pe-bloco{margin-bottom:22px}
+  .pe-titulo{font-family:var(--serif);font-size:24px;color:var(--ameixa-900);margin:0 0 10px}
+  .pe-texto{font-size:15px;line-height:1.75;color:var(--texto);white-space:pre-wrap}
+  .pe-destaque{background:var(--ouro-100);border-left:4px solid var(--ouro-600);border-radius:0 10px 10px 0;
+    padding:16px 20px;font-size:15px;line-height:1.7;color:var(--ameixa-900)}
+  .pe-destaque.ameixa{background:var(--ameixa-200);border-color:var(--ameixa-700)}
+  .pe-destaque.terracota{background:var(--terracota-100);border-color:var(--terracota-600)}
+  .pe-lista{margin:0;padding-left:20px;font-size:15px;line-height:1.9;color:var(--texto)}
+  .pe-tabela{width:100%;border-collapse:collapse;font-size:14px}
+  .pe-tabela th,.pe-tabela td{border:1px solid var(--linha);padding:9px 12px;text-align:left}
+  .pe-tabela th{background:var(--creme-2);color:var(--ameixa-900);font-weight:600}
+  .pe-imagem img{width:100%;border-radius:12px;display:block}
+  .pe-legenda{font-size:12px;color:var(--muted);margin-top:6px}
+  .pe-arquivo,.pe-link{display:flex;align-items:center;gap:12px;background:var(--branco);
+    border:1px solid var(--linha);border-radius:12px;padding:14px 16px;text-decoration:none;color:var(--texto)}
+  .pe-arquivo:hover,.pe-link:hover{border-color:var(--ouro-600)}
+  .pe-ico{width:36px;height:36px;border-radius:9px;background:var(--creme-2);color:var(--ouro-700);
+    display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:16px}
+  .pe-divisor{border:none;border-top:1px solid var(--linha);margin:26px 0}
+  .pe-video video,.pe-video iframe{width:100%;border-radius:12px;aspect-ratio:16/9;display:block;border:0}
+  .pe-audio audio{width:100%}
+  .pe-aula{display:flex;align-items:center;gap:14px;background:var(--branco);border:1px solid var(--linha);
+    border-radius:12px;padding:14px 16px;margin-bottom:10px}
+  .pe-aula-check{width:22px;height:22px;border-radius:50%;border:1.5px solid var(--ouro-600);
+    display:flex;align-items:center;justify-content:center;flex-shrink:0;cursor:pointer;font-size:12px;color:transparent}
+  .pe-aula-check.vista{background:var(--ouro-600);color:#fff}
+  .pe-aula-corpo{flex:1}
+  .pe-aula-t{font-weight:500;color:var(--ameixa-900)}
+  .pe-estado{text-align:center;padding:80px 20px;color:var(--muted)}
+  .pe-rodape{text-align:center;font-size:12px;color:var(--muted);margin-top:40px}
+</style>
+</head>
+<body>
+<div class="pe-topo"><div class="pe-topo-in">
+  <div><div class="pe-marca">B3 <span style="color:var(--ouro-300)">SALES</span></div>
+  <div class="pe-tag">Grupo B3 Sales</div></div>
+</div></div>
+<div class="pe-wrap" id="app"><div class="pe-estado">Carregando…</div></div>
+
+<script>
+function esc(s){ return String(s==null?"":s).replace(/[&<>"']/g, function(c){
+  return {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]; }); }
+
+var token = location.pathname.split("/").filter(Boolean).pop();
+var app = document.getElementById("app");
+
+fetch("/api/p/" + token).then(function(r){ return r.json(); }).then(function(d){
+  if (d.erro) { app.innerHTML = '<div class="pe-estado"><h2 style="color:var(--ameixa-900);font-family:var(--serif)">' +
+    'Este link não está mais disponível</h2><p>Peça para quem enviou gerar um novo endereço.</p></div>';
+    return; }
+  if (d.tipo === "pagina") return desenharPagina(d);
+  desenharCurso(d);
+}).catch(function(){
+  app.innerHTML = '<div class="pe-estado">Não foi possível abrir este link agora.</div>';
+});
+
+function desenharPagina(d) {
+  var p = d.pagina;
+  var h = '<div class="pe-eyebrow">Liberado para ' + esc(d.nome) + '</div>' +
+    '<h1 class="pe-h1">' + esc(p.titulo || "Página") + '</h1>' +
+    '<p class="pe-sub">Conteúdo de ' + esc(d.empresa) + ', preparado pelo Grupo B3 Sales.</p>';
+  (p.blocos || []).forEach(function (b) { h += desenharBloco(b); });
+  h += '<p class="pe-rodape">Diagnóstico ECO · Grupo B3 Sales</p>';
+  app.innerHTML = h;
+}
+
+function desenharBloco(b) {
+  var c = b.conteudo || {};
+  if (b.tipo === "titulo") return '<div class="pe-bloco"><h2 class="pe-titulo">' + esc(c.texto) + '</h2></div>';
+  if (b.tipo === "texto") return '<div class="pe-bloco"><div class="pe-texto">' + esc(c.texto) + '</div></div>';
+  if (b.tipo === "destaque") return '<div class="pe-bloco"><div class="pe-destaque ' +
+    esc(c.tom || "ouro") + '">' + esc(c.texto) + '</div></div>';
+  if (b.tipo === "lista") return '<div class="pe-bloco"><ul class="pe-lista">' +
+    (c.itens || []).map(function (i) { return "<li>" + esc(i) + "</li>"; }).join("") + '</ul></div>';
+  if (b.tipo === "tabela") {
+    var linhas = (c.linhas || []).map(function (l) {
+      return "<tr>" + l.map(function (v) { return "<td>" + esc(v) + "</td>"; }).join("") + "</tr>";
+    }).join("");
+    return '<div class="pe-bloco" style="overflow-x:auto"><table class="pe-tabela"><thead><tr>' +
+      (c.colunas || []).map(function (v) { return "<th>" + esc(v) + "</th>"; }).join("") +
+      '</tr></thead><tbody>' + linhas + '</tbody></table></div>';
+  }
+  if (b.tipo === "imagem" && c.anexo_id) return '<div class="pe-bloco pe-imagem">' +
+    '<img src="/api/midia/' + esc(c.anexo_id) + '" alt="">' +
+    (c.legenda ? '<div class="pe-legenda">' + esc(c.legenda) + '</div>' : '') + '</div>';
+  if (b.tipo === "arquivo" && c.anexo_id) return '<div class="pe-bloco"><a class="pe-arquivo" ' +
+    'href="/api/midia/' + esc(c.anexo_id) + '" target="_blank" rel="noopener">' +
+    '<span class="pe-ico">⇩</span><span>' + esc(c.titulo || "Baixar arquivo") + '</span></a></div>';
+  if (b.tipo === "link" && c.url) return '<div class="pe-bloco"><a class="pe-link" ' +
+    'href="' + esc(c.url) + '" target="_blank" rel="noopener">' +
+    '<span class="pe-ico">↗</span><span><strong>' + esc(c.titulo || c.url) + '</strong>' +
+    (c.descricao ? '<div class="pe-legenda">' + esc(c.descricao) + '</div>' : '') +
+    '</span></a></div>';
+  if (b.tipo === "video" && (c.url || c.midia_id)) return '<div class="pe-bloco"><div class="pe-video">' +
+    (c.midia_id ? '<video src="/api/midia/' + esc(c.midia_id) + '" controls></video>' :
+      '<iframe src="' + esc(c.url) + '" allowfullscreen></iframe>') + '</div>' +
+    (c.titulo ? '<div class="pe-legenda">' + esc(c.titulo) + '</div>' : '') + '</div>';
+  if (b.tipo === "audio" && c.midia_id) return '<div class="pe-bloco pe-audio">' +
+    (c.titulo ? '<div class="pe-legenda" style="margin-bottom:6px">' + esc(c.titulo) + '</div>' : '') +
+    '<audio src="/api/midia/' + esc(c.midia_id) + '" controls></audio></div>';
+  if (b.tipo === "divisor") return '<hr class="pe-divisor">';
+  return "";
+}
+
+function desenharCurso(d) {
+  var c = d.curso;
+  var h = '<div class="pe-eyebrow">Liberado para ' + esc(d.nome) + '</div>' +
+    '<h1 class="pe-h1">' + esc(c.titulo) + '</h1>' +
+    (c.descricao ? '<p class="pe-sub">' + esc(c.descricao) + '</p>' : '<div style="height:14px"></div>');
+  (c.aulas || []).forEach(function (a) {
+    h += '<div class="pe-aula" data-aula="' + esc(a.id) + '">' +
+      '<span class="pe-aula-check' + (a.vista ? " vista" : "") + '">✓</span>' +
+      '<div class="pe-aula-corpo"><div class="pe-aula-t">' + esc(a.titulo) + '</div>' +
+      (a.duracao ? '<div class="pe-legenda">' + esc(a.duracao) + '</div>' : '') + '</div></div>';
+    if (a.url || a.midia_id) {
+      h += '<div class="pe-bloco">' + desenharBloco({ tipo: "video",
+        conteudo: { url: a.url, midia_id: a.midia_id } }) + '</div>';
+    }
+  });
+  h += '<p class="pe-rodape">Diagnóstico ECO · Grupo B3 Sales</p>';
+  app.innerHTML = h;
+  app.querySelectorAll(".pe-aula-check").forEach(function (chk) {
+    chk.onclick = function () {
+      var vista = !chk.classList.contains("vista");
+      chk.classList.toggle("vista", vista);
+      fetch("/api/p/" + token + "/aula-vista", { method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ aula_id: chk.parentElement.getAttribute("data-aula"), visto: vista }) });
+    };
+  });
+}
+</script>
+</body>
+</html>

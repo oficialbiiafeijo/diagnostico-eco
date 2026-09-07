@@ -35,7 +35,7 @@ import workspace
 
 BASE_DIR = Path(__file__).resolve().parent
 DATA_DIR = Path(os.getenv("ECO_DATA_DIR") or (BASE_DIR / "data"))
-WEB_DIR = BASE_DIR          # neste repositorio as telas ficam na raiz
+WEB_DIR = BASE_DIR  # estrutura plana deste repositorio
 UPLOAD_DIR = DATA_DIR / "uploads"
 DB_PATH = DATA_DIR / "eco.db"
 
@@ -342,6 +342,7 @@ COLUNAS_NOVAS = [
     ("aulas", "capa_ajuste", "TEXT DEFAULT ''"),
     ("provas", "capa_ajuste", "TEXT DEFAULT ''"),
     ("clientes", "portal_ativo", "INTEGER DEFAULT 0"),
+    ("acesso_pessoa", "token", "TEXT"),
 ]
 
 
@@ -353,6 +354,7 @@ def migrar(conn):
             continue
         if coluna not in cols:
             conn.execute(f"ALTER TABLE {tabela} ADD COLUMN {coluna} {ddl}")
+    conn.execute("CREATE INDEX IF NOT EXISTS ix_acesso_pessoa_token ON acesso_pessoa(token)")
     conn.commit()
 
 
@@ -555,6 +557,29 @@ def cliente_dict(cid: str):
     return dict(r) if r else None
 
 
+def pessoa_de_token(token: str):
+    """O acesso de uma pessoa específica do time do cliente, pelo link dela.
+
+    Cada pessoa recebe o próprio link, nunca o token do cliente inteiro.
+    tipo 'portal' vale para o modo cliente completo; os demais valem só
+    para aquela página, curso, módulo ou aula.
+    """
+    if not token:
+        return None
+    r = db().execute("SELECT * FROM acesso_pessoa WHERE token=?", (token,)).fetchone()
+    return dict(r) if r else None
+
+
+LINK_PESSOA_INVALIDO = """<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Link indisponível</title>
+<style>body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;
+background:#FAF3EC;font-family:Georgia,serif;color:#241030;text-align:center;padding:24px}
+div{max-width:420px}h1{font-size:24px;font-weight:600}p{color:#5B4A66;font-size:15px}</style>
+</head><body><div><h1>Este link não está mais disponível</h1>
+<p>Peça para quem enviou gerar um novo endereço de acesso.</p></div></body></html>"""
+
+
 def set_status(cliente_id, ciclo, status):
     garantir_ciclo(cliente_id, ciclo)
     db().execute("UPDATE ciclos SET status=? WHERE cliente_id=? AND ciclo=?",
@@ -700,6 +725,14 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(200, (WEB_DIR / "cliente.html").read_bytes())
         if p.startswith("/c/"):
             return self._send(200, (WEB_DIR / "portal.html").read_bytes())
+        if p.startswith("/p/"):
+            row = pessoa_de_token(p[len("/p/"):])
+            if not row:
+                return self._send(404, LINK_PESSOA_INVALIDO.encode("utf-8"),
+                                  "text/html; charset=utf-8")
+            if row["tipo"] == "portal":
+                return self._send(200, (WEB_DIR / "portal.html").read_bytes())
+            return self._send(200, (WEB_DIR / "pessoa.html").read_bytes())
         if p.startswith("/static/"):
             return self.static(p[len("/static/"):])
         if p == "/saude":
@@ -773,6 +806,9 @@ class Handler(BaseHTTPRequestHandler):
         m = re.fullmatch(r"/api/c/([\w\-]+)/pagina/([\w\-]+)", p)
         if m:
             return self.api_portal_pagina(m.group(1), m.group(2))
+        m = re.fullmatch(r"/api/p/([\w\-]+)", p)
+        if m:
+            return self.api_pessoa(m.group(1))
         if p == "/api/admin/provas":
             if not self.exige_admin():
                 return
@@ -889,6 +925,9 @@ class Handler(BaseHTTPRequestHandler):
         m = re.fullmatch(r"/api/c/([\w\-]+)/aula-vista", p)
         if m:
             return self.api_portal_aula_vista(m.group(1))
+        m = re.fullmatch(r"/api/p/([\w\-]+)/aula-vista", p)
+        if m:
+            return self.api_pessoa_aula_vista(m.group(1))
 
         if p == "/api/admin/login":
             return self.api_login()
@@ -1341,6 +1380,11 @@ class Handler(BaseHTTPRequestHandler):
         c = db().execute("SELECT * FROM clientes WHERE token_portal=? AND portal_ativo=1",
                          (token,)).fetchone()
         if not c:
+            pessoa = pessoa_de_token(token)
+            if pessoa and pessoa["tipo"] == "portal":
+                c = db().execute("SELECT * FROM clientes WHERE id=?",
+                                 (pessoa["cliente_id"],)).fetchone()
+        if not c:
             return None
         cid = c["id"]
         # o time dele: serve para separar o que depende dele do que é nosso
@@ -1529,6 +1573,12 @@ class Handler(BaseHTTPRequestHandler):
         sql = ("SELECT c.id FROM clientes c WHERE c.token_portal=? AND c.portal_ativo=1")
         r = db().execute(sql, (token,)).fetchone()
         if not r:
+            # o link completo de uma pessoa específica do time do cliente
+            # abre o mesmo portal, sem precisar do token da empresa inteira
+            pessoa = pessoa_de_token(token)
+            if pessoa and pessoa["tipo"] == "portal":
+                r = {"id": pessoa["cliente_id"]}
+        if not r:
             return None
         if curso_id:
             ok = db().execute("SELECT 1 FROM curso_acesso WHERE curso_id=? AND cliente_id=?",
@@ -1619,6 +1669,99 @@ class Handler(BaseHTTPRequestHandler):
             "SELECT id, nome, tipo FROM anexos WHERE cliente_id=?", (cid,))]
         pag.pop("cliente_id", None)
         return self.json(pag)
+
+    def api_pessoa(self, token):
+        """O link de uma pessoa específica: só o que foi liberado para ela.
+
+        Nunca devolve o resto do cliente. Uma pessoa com acesso a uma única
+        página não enxerga nem sabe que existem outras.
+        """
+        pessoa = pessoa_de_token(token)
+        if not pessoa:
+            return self.erro("Este link não está mais disponível.", 404)
+        cid = pessoa["cliente_id"]
+        c = cliente_dict(cid)
+        if not c:
+            return self.erro("Este link não está mais disponível.", 404)
+        base = {"nome": pessoa.get("nome") or "", "empresa": c.get("empresa") or "",
+               "tipo": pessoa["tipo"]}
+        if pessoa["tipo"] == "pagina":
+            pid = pessoa["alvo_id"]
+            d = db().execute(
+                "SELECT * FROM ws_paginas WHERE id=? AND visivel_cliente=1 "
+                "AND (cliente_id=? OR cliente_id IS NULL)", (pid, cid)).fetchone()
+            if not d:
+                return self.erro("Esta página não está mais disponível.", 404)
+            pag = workspace.ler_pagina(db(), pid)
+            pag.pop("cliente_id", None)
+            base["pagina"] = pag
+            return self.json(base)
+        # curso, modulo ou aula: todos resolvem para um curso_id e filtram
+        if pessoa["tipo"] == "curso":
+            curso_id = pessoa["alvo_id"]
+        elif pessoa["tipo"] == "modulo":
+            r = db().execute("SELECT curso_id FROM modulos WHERE id=?",
+                             (pessoa["alvo_id"],)).fetchone()
+            curso_id = r["curso_id"] if r else None
+        else:
+            r = db().execute("SELECT curso_id FROM aulas WHERE id=?",
+                             (pessoa["alvo_id"],)).fetchone()
+            curso_id = r["curso_id"] if r else None
+        if not curso_id:
+            return self.erro("Este conteúdo não está mais disponível.", 404)
+        ok = db().execute("SELECT 1 FROM curso_acesso WHERE curso_id=? AND cliente_id=?",
+                          (curso_id, cid)).fetchone()
+        cur = db().execute("SELECT * FROM cursos WHERE id=? AND publicado=1",
+                           (curso_id,)).fetchone()
+        if not ok or not cur:
+            return self.erro("Este conteúdo não está mais disponível.", 404)
+        vistas = {x["aula_id"] for x in db().execute(
+            "SELECT aula_id FROM aula_vista WHERE cliente_id=?", (cid,))}
+        if pessoa["tipo"] == "aula":
+            aulas_sql = "SELECT * FROM aulas WHERE id=?"
+            aulas_args = (pessoa["alvo_id"],)
+        elif pessoa["tipo"] == "modulo":
+            aulas_sql = "SELECT * FROM aulas WHERE modulo_id=? ORDER BY ordem"
+            aulas_args = (pessoa["alvo_id"],)
+        else:
+            aulas_sql = "SELECT * FROM aulas WHERE curso_id=? ORDER BY ordem"
+            aulas_args = (curso_id,)
+        aulas = []
+        for r in db().execute(aulas_sql, aulas_args):
+            d = dict(r)
+            d["vista"] = r["id"] in vistas
+            aulas.append(d)
+        base["curso"] = {"id": cur["id"], "titulo": cur["titulo"],
+                         "descricao": cur["descricao"], "aulas": aulas}
+        return self.json(base)
+
+    def api_pessoa_aula_vista(self, token):
+        pessoa = pessoa_de_token(token)
+        if not pessoa or pessoa["tipo"] not in ("curso", "modulo", "aula"):
+            return self.erro("Este link não está mais disponível.", 404)
+        cid = pessoa["cliente_id"]
+        b = self.body()
+        aula = b.get("aula_id")
+        if pessoa["tipo"] == "aula" and aula != pessoa["alvo_id"]:
+            return self.erro("Esta aula não está liberada neste link.", 403)
+        if pessoa["tipo"] == "modulo":
+            ok = db().execute("SELECT 1 FROM aulas WHERE id=? AND modulo_id=?",
+                              (aula, pessoa["alvo_id"])).fetchone()
+            if not ok:
+                return self.erro("Esta aula não está liberada neste link.", 403)
+        if pessoa["tipo"] == "curso":
+            ok = db().execute("SELECT 1 FROM aulas WHERE id=? AND curso_id=?",
+                              (aula, pessoa["alvo_id"])).fetchone()
+            if not ok:
+                return self.erro("Esta aula não está liberada neste link.", 403)
+        if b.get("visto"):
+            db().execute("INSERT OR IGNORE INTO aula_vista(aula_id,cliente_id,visto_em) "
+                         "VALUES(?,?,?)", (aula, cid, now()))
+        else:
+            db().execute("DELETE FROM aula_vista WHERE aula_id=? AND cliente_id=?",
+                         (aula, cid))
+        db().commit()
+        return self.json({"ok": True})
 
     def api_portal_recado(self, token):
         """O cliente fala com o CS dele: pedido, observação ou informação."""
@@ -1876,8 +2019,8 @@ class Handler(BaseHTTPRequestHandler):
         if not cliente_dict(cid):
             return self.erro("Cliente não encontrado.", 404)
         tipo = b.get("tipo") if b.get("tipo") in (
-            "pagina", "curso", "modulo", "aula") else "pagina"
-        alvo = b.get("alvo_id")
+            "pagina", "curso", "modulo", "aula", "portal") else "pagina"
+        alvo = cid if tipo == "portal" else b.get("alvo_id")
         if not alvo:
             return self.erro("Escolha o que vai ser liberado.")
         if b.get("remover"):
@@ -1890,7 +2033,9 @@ class Handler(BaseHTTPRequestHandler):
         if not nome or "@" not in email or "." not in email.split("@")[-1]:
             return self.erro("O acesso só é liberado com o nome e o email da pessoa.")
         # a pagina ou o curso precisa mesmo pertencer a este cliente
-        if tipo == "pagina":
+        if tipo == "portal":
+            ok = True
+        elif tipo == "pagina":
             ok = db().execute("SELECT 1 FROM ws_paginas WHERE id=? AND "
                               "(cliente_id=? OR cliente_id IS NULL)",
                               (alvo, cid)).fetchone()
@@ -1907,20 +2052,21 @@ class Handler(BaseHTTPRequestHandler):
                 "WHERE al.id=? AND a.cliente_id=?", (alvo, cid)).fetchone()
         if not ok:
             return self.erro("Este item não está disponível para este cliente.")
+        pessoa_token = novo_token()
         db().execute(
             "INSERT INTO acesso_pessoa(id,cliente_id,equipe_id,tipo,alvo_id,nome,email,"
-            "criado_em) VALUES(?,?,?,?,?,?,?,?)",
+            "token,criado_em) VALUES(?,?,?,?,?,?,?,?,?)",
             (novo_token()[:16], cid, b.get("equipe_id", ""), tipo, alvo,
-             nome[:120], email[:160], now()))
+             nome[:120], email[:160], pessoa_token, now()))
         db().commit()
-        return self.json({"ok": True})
+        return self.json({"ok": True, "token": pessoa_token, "link": "/p/" + pessoa_token})
 
     def api_acessos_pessoa(self):
         cid = self.q1("cliente")
         if not cid:
             return self.erro("Informe o cliente.")
         return self.json({"acessos": [dict(r) for r in db().execute(
-            "SELECT id, equipe_id, tipo, alvo_id, nome, email, criado_em "
+            "SELECT id, equipe_id, tipo, alvo_id, nome, email, token, criado_em "
             "FROM acesso_pessoa WHERE cliente_id=? ORDER BY criado_em DESC", (cid,))]})
 
     def api_recado_enviar(self):

@@ -50,23 +50,61 @@
       '<div class="campo"><label class="small" style="color:var(--ameixa-700);' +
       'margin-bottom:5px;display:block">' +
       (u.id ? "Nova senha (deixe em branco para manter)" : "Senha (mínimo 8 caracteres)") +
-      '</label><input type="password" id="us_senha"></div>' +
+      '</label><div style="display:flex;gap:8px"><input type="text" id="us_senha" ' +
+      'style="flex:1">' + (u.id ? "" : '<button type="button" class="btn btn-linha btn-sm" ' +
+      'id="us_gerar">Gerar</button>') + '</div></div>' +
       '</div>');
+    if (!u.id) {
+      corpo.querySelector("#us_gerar").onclick = function () {
+        corpo.querySelector("#us_senha").value = senhaAleatoria();
+      };
+    }
     var bs = el('<button class="btn btn-ouro">Salvar</button>');
     var f = modal(u.id ? "Editar acesso" : "Dar acesso", "Área interna", corpo, [bs]);
     bs.onclick = function () {
       var usuario = f.querySelector("#us_user").value.trim();
       if (!usuario) return toast("Informe o nome de acesso");
+      var senha = f.querySelector("#us_senha").value;
       api("/api/admin/usuario-salvar", { id: u.id, usuario: usuario,
         nome: f.querySelector("#us_nome").value, email: f.querySelector("#us_mail").value,
-        senha: f.querySelector("#us_senha").value, papel: u.papel || "admin", ativo: 1 })
+        senha: senha, papel: u.papel || "admin", ativo: 1 })
         .then(function (res) {
           if (res.erro) return toast(res.erro);
           f.remove();
           var m = document.querySelector(".modal-fundo"); if (m) m.remove();
+          if (!u.id) return modalAcessoInternoPronto(usuario, senha);
           toast("Acesso salvo"); modalUsuarios();
         });
     };
+  }
+
+  function senhaAleatoria() {
+    var letras = "abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789";
+    var s = "";
+    for (var i = 0; i < 10; i++) s += letras[Math.floor(Math.random() * letras.length)];
+    return s;
+  }
+
+  function modalAcessoInternoPronto(usuario, senha) {
+    var url = location.origin + "/admin";
+    var corpo = el('<div>' +
+      '<p style="margin-top:0">O acesso está pronto. Envie o endereço, o nome de acesso ' +
+      'e a senha para a pessoa.</p>' +
+      '<div style="background:var(--creme-2);border:1px solid var(--linha-2);border-radius:10px;' +
+      'padding:14px;font-size:13px;margin:16px 0;line-height:1.9">' +
+      '<strong>Endereço</strong><br>' + esc(url) + '<br><br>' +
+      '<strong>Nome de acesso</strong><br>' + esc(usuario) + '<br><br>' +
+      '<strong>Senha</strong><br>' + esc(senha) + '</div>' +
+      '<div class="aviso small">Combine com ela para trocar a senha assim que entrar ' +
+      'pela primeira vez.</div></div>');
+    var bcopia = el('<button class="btn btn-linha">Copiar tudo</button>');
+    bcopia.onclick = function () {
+      copiar("Endereço: " + url + "\nNome de acesso: " + usuario + "\nSenha: " + senha);
+    };
+    var bok = el('<button class="btn btn-ameixa">Concluir</button>');
+    var f = modal('Acesso <em class="grifo">pronto</em>', "Área interna", corpo, [bcopia, bok]);
+    bok.onclick = function () { f.remove(); modalUsuarios(); };
+    f.querySelector(".modal-pe .btn-fantasma").remove();
   }
 
   function modalConfig() {

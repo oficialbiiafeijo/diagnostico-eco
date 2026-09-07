@@ -465,7 +465,10 @@
       '<label class="small ca-lb">Pessoa do time</label>' +
       '<select id="lc_eq"><option value="">Escrever outro nome</option></select>' +
       campoTexto("lc_nome", "Nome completo", "Como está no contrato") +
-      campoTexto("lc_mail", "Email", "nome@empresa.com.br") + '</div>');
+      campoTexto("lc_mail", "Email", "nome@empresa.com.br") +
+      '<label class="ws-vis" style="margin-top:6px"><input type="checkbox" id="lc_completo">' +
+      '<span>Liberar o modo cliente completo para esta pessoa, não só este curso</span></label>' +
+      '</div>');
 
     var sa = cx.querySelector("#lc_alvo");
     sa.appendChild(el('<option value="curso:' + esc(c.id) + '">O curso inteiro</option>'));
@@ -487,17 +490,20 @@
       if (se.value) cx.querySelector("#lc_nome").value = se.value;
     };
 
-    var bs = el('<button class="btn btn-ouro">Liberar acesso</button>');
+    var bs = el('<button class="btn btn-ouro">Liberar e gerar link</button>');
     var f = modal("Liberar acesso", esc(cli.empresa), cx, [bs]);
     bs.onclick = function () {
       var partes = sa.value.split(":");
+      var completo = cx.querySelector("#lc_completo").checked;
+      var nome = cx.querySelector("#lc_nome").value;
+      var oQue = sa.options[sa.selectedIndex].textContent.trim();
       api("/api/admin/acesso-pessoa", {
-        cliente_id: cli.id, tipo: partes[0], alvo_id: partes[1],
-        nome: cx.querySelector("#lc_nome").value,
-        email: cx.querySelector("#lc_mail").value
+        cliente_id: cli.id, tipo: completo ? "portal" : partes[0], alvo_id: partes[1],
+        nome: nome, email: cx.querySelector("#lc_mail").value
       }).then(function (r) {
         if (r.erro) return toast(r.erro);
-        f.remove(); toast("Acesso liberado"); aoTerminar();
+        f.remove(); aoTerminar();
+        modalLinkPessoaPronto(nome, completo ? "o modo cliente completo" : oQue, r.token);
       });
     };
   }
