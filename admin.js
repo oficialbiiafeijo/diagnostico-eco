@@ -308,7 +308,7 @@
       '<label class="small ca-lb">De quem depende</label><select id="rg_lado">' +
       '<option value="b3sales">Da B3 Sales</option>' +
       '<option value="cliente">Do cliente</option></select>' +
-      '<div id="rg_hist"></div></div>');
+      '<div id="rg_anexos"></div><div id="rg_hist"></div></div>');
 
     function encher(id, lista, valores, atual, vazio) {
       var s2 = corpo.querySelector(id);
@@ -335,6 +335,44 @@
     corpo.querySelector("#rg_resp").value = item ? (item.responsavel || "") : "";
     corpo.querySelector("#rg_lado").value = item ? item.lado : "b3sales";
     if (daOrigem) corpo.querySelector("#rg_cli").disabled = true;
+
+    /* anexos: arquivo, print ou documento junto do registro */
+    var anexados = (item && item.anexos ? item.anexos.slice() : []);
+    var ax = corpo.querySelector("#rg_anexos");
+    var podeAnexar = !daOrigem;
+    ax.appendChild(el('<label class="small ca-lb">Anexos</label>'));
+    var listaAx = el('<div class="fala-ax-lista"></div>');
+    function pintarAx() {
+      listaAx.innerHTML = "";
+      if (!anexados.length) {
+        listaAx.appendChild(el('<span class="small muted">' +
+          (podeAnexar ? "Nenhum arquivo ainda."
+                      : "Os arquivos deste item ficam na aba de origem.") +
+          '</span>'));
+      }
+      anexados.forEach(function (a, n) {
+        var t = el('<span class="fala-ax-t"><a href="/api/midia/' + esc(a.id) +
+          '" target="_blank" rel="noopener">' + esc(a.nome) + '</a>' +
+          (podeAnexar ? ' <button type="button">×</button>' : '') + '</span>');
+        if (podeAnexar) {
+          t.querySelector("button").onclick = function () {
+            anexados.splice(n, 1); pintarAx();
+          };
+        }
+        listaAx.appendChild(t);
+      });
+    }
+    pintarAx();
+    ax.appendChild(listaAx);
+    if (podeAnexar) {
+      var envAx = botaoEnviar("↑ Anexar arquivo",
+        (item ? item.cliente_id : corpo.querySelector("#rg_cli").value) || null,
+        "central", function (rr) {
+          anexados.push({ id: rr.id, nome: rr.nome }); pintarAx();
+        });
+      envAx.style.marginTop = "9px";
+      ax.appendChild(envAx);
+    }
 
     var bs = el('<button class="btn btn-ouro">Salvar</button>');
     var acoes = [bs];
@@ -380,7 +418,8 @@
         responsavel: corpo.querySelector("#rg_resp").value,
         ciclo: corpo.querySelector("#rg_ciclo").value,
         pilar: corpo.querySelector("#rg_pilar").value,
-        lado: corpo.querySelector("#rg_lado").value
+        lado: corpo.querySelector("#rg_lado").value,
+        midia_ids: anexados.map(function (a) { return a.id; })
       };
       if (item) corpoEnvio.id = item.id;
       else corpoEnvio.cliente_id = corpo.querySelector("#rg_cli").value;

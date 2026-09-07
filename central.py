@@ -166,6 +166,13 @@ def listar(conn, cliente_id=None, filtros=None):
         itens.append(_de_registro(r))
 
     for i in itens:
+        # os anexos do registro, com o nome de cada arquivo
+        i["anexos"] = []
+        for mid in [x for x in (i.get("midia_ids") or "").split(",") if x]:
+            r = conn.execute("SELECT id, nome, tipo FROM midia WHERE id=?",
+                             (mid,)).fetchone()
+            if r:
+                i["anexos"].append(dict(r))
         i["cliente_nome"] = clientes.get(i["cliente_id"], "")
         i["origem_nome"] = ORIGENS.get(i["origem"], i["origem"])
         i["pilar_nome"] = PILARES.get(i["pilar"], "")

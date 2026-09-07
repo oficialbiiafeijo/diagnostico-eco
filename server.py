@@ -1669,6 +1669,8 @@ class Handler(BaseHTTPRequestHandler):
                   if k in ("tipo", "titulo", "descricao", "ciclo", "pilar",
                            "responsavel", "lado", "prazo", "prioridade", "status",
                            "visibilidade", "midia_ids", "obs")}
+        if isinstance(campos.get("midia_ids"), list):
+            campos["midia_ids"] = ",".join(str(x)[:24] for x in campos["midia_ids"])[:400]
 
         if item_id:
             antes = {i["id"]: i for i in central.listar(db(), None, {})}.get(item_id)
