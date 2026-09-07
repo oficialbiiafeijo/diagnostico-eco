@@ -2081,20 +2081,51 @@
     volta.onclick = function () { abrirCliente(c.id, d.ciclo); };
     wrap.appendChild(volta);
 
-    /* capa com a marca do cliente */
+    /* capa do cliente: cor da casa ou imagem enviada */
     var fundo = CAPA_CSS[c.capa] || "linear-gradient(135deg,#241030,#5A3A6E 62%,#8E6FA3)";
-    var capa = el('<div class="cli-capa" style="background:' + fundo + '"></div>');
-    var trocaCapa = el('<div class="ws-capa-troca"></div>');
+    var capa = el('<div class="cli-capa" style="' +
+      (c.capa_midia_id ? fundoImagem(c.capa_midia_id, c.capa_ajuste)
+                       : "background:" + fundo) + '"></div>');
+
+    var barraCapa = el('<div class="cli-capa-barra"></div>');
+    var envCapaCli = botaoEnviar(c.capa_midia_id ? "↑ Trocar a capa" : "↑ Imagem de capa",
+      c.id, "capa", function (r) {
+        api("/api/admin/cliente-editar", { id: c.id, capa_midia_id: r.id, capa_ajuste: "" })
+          .then(function () { abrirCliente(c.id, S.ciclo); });
+      }, "image/*");
+    envCapaCli.classList.add("cli-capa-env");
+    barraCapa.appendChild(envCapaCli);
+
+    if (c.capa_midia_id) {
+      var bEnqCapa = el('<button type="button" class="cli-capa-b" title="Enquadrar a capa">⛶</button>');
+      bEnqCapa.onclick = function () {
+        modalMoldura("Capa de " + c.empresa, "capa_cliente", c.capa_midia_id,
+          c.capa_ajuste, function (aj) {
+            api("/api/admin/cliente-editar", { id: c.id, capa_ajuste: aj })
+              .then(function () { toast("Capa enquadrada"); abrirCliente(c.id, S.ciclo); });
+          });
+      };
+      barraCapa.appendChild(bEnqCapa);
+      var bLimpa = el('<button type="button" class="cli-capa-b" title="Voltar para a cor">×</button>');
+      bLimpa.onclick = function () {
+        api("/api/admin/cliente-editar", { id: c.id, capa_midia_id: "", capa_ajuste: "" })
+          .then(function () { abrirCliente(c.id, S.ciclo); });
+      };
+      barraCapa.appendChild(bLimpa);
+    }
+
+    var trocaCapa = el('<div class="cli-capa-cores"></div>');
     (d.capas || []).forEach(function (cp) {
       var b = el('<button type="button" title="' + esc(cp.nome) + '" style="background:' +
-        cp.css + '"></button>');
+        cp.css + '"' + (!c.capa_midia_id && c.capa === cp.id ? ' class="on"' : '') + '></button>');
       b.onclick = function () {
-        api("/api/admin/cliente-editar", { id: c.id, capa: cp.id })
+        api("/api/admin/cliente-editar", { id: c.id, capa: cp.id, capa_midia_id: "" })
           .then(function () { abrirCliente(c.id, S.ciclo); });
       };
       trocaCapa.appendChild(b);
     });
-    capa.appendChild(trocaCapa);
+    barraCapa.appendChild(trocaCapa);
+    capa.appendChild(barraCapa);
     wrap.appendChild(capa);
 
     /* cabeçalho com logo, nome e o que importa de relance */
