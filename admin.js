@@ -1480,33 +1480,153 @@
     };
   }
 
+  /* Quem enxerga este curso: primeiro a empresa, depois quem do time dela,
+     e para o curso inteiro ou só um módulo ou uma aula. */
   function modalAcesso(c) {
-    var corpo = el('<div></div>');
-    corpo.appendChild(el('<p class="small muted" style="margin:0 0 14px;line-height:1.7">' +
-      'Marque quem enxerga este curso no acompanhamento. Quem não estiver marcado ' +
-      'não vê o curso.</p>'));
-    var escolhidos = (c.acesso || []).slice();
-    (c.clientes || []).forEach(function (cli) {
-      var it = el('<div class="pessoa esc' + (escolhidos.indexOf(cli.id) >= 0 ? " on" : "") +
-        '" style="cursor:pointer"><span class="esc-n">' +
-        (escolhidos.indexOf(cli.id) >= 0 ? "✓" : "") + '</span>' +
-        '<div class="pessoa-d"><strong>' + esc(cli.empresa) + '</strong></div></div>');
-      it.onclick = function () {
-        var i = escolhidos.indexOf(cli.id);
-        if (i >= 0) escolhidos.splice(i, 1); else escolhidos.push(cli.id);
-        it.classList.toggle("on", escolhidos.indexOf(cli.id) >= 0);
-        it.querySelector(".esc-n").textContent = escolhidos.indexOf(cli.id) >= 0 ? "✓" : "";
-      };
-      corpo.appendChild(it);
-    });
-    if (!(c.clientes || []).length) {
-      corpo.appendChild(el('<p class="small muted">Nenhum cliente ativo ainda.</p>'));
-    }
-    var bs = el('<button class="btn btn-ouro">Salvar acesso</button>');
+    var corpo = el('<div><p class="small muted" style="margin:0 0 14px;line-height:1.7">' +
+      'Marque as empresas que enxergam este curso. Depois, se quiser, escolha quem ' +
+      'do time de cada uma pode ver, e até qual módulo ou aula.</p>' +
+      '<div id="ac_corpo"></div></div>');
+    var bs = el('<button class="btn btn-ouro">Salvar as empresas</button>');
     var f = modal("Quem pode ver", esc(c.titulo), corpo, [bs]);
+    var alvo = corpo.querySelector("#ac_corpo");
+    var escolhidos = (c.acesso || []).slice();
+
+    function pintar() {
+      alvo.innerHTML = "";
+      if (!(c.clientes || []).length) {
+        alvo.appendChild(el('<p class="small muted">Nenhum cliente ativo ainda.</p>'));
+        return;
+      }
+      c.clientes.forEach(function (cli) {
+        var tem = escolhidos.indexOf(cli.id) >= 0;
+        var bloco = el('<div class="ae-pg"></div>');
+        var it = el('<div class="pessoa esc' + (tem ? " on" : "") +
+          '" style="cursor:pointer;margin:0"><span class="esc-n">' +
+          (tem ? "✓" : "") + '</span>' +
+          '<div class="pessoa-d"><strong>' + esc(cli.empresa) + '</strong></div></div>');
+        it.onclick = function () {
+          var i = escolhidos.indexOf(cli.id);
+          if (i >= 0) escolhidos.splice(i, 1); else escolhidos.push(cli.id);
+          pintar();
+        };
+        bloco.appendChild(it);
+
+        if (tem) {
+          var pes = el('<div class="ae-pessoas"></div>');
+          pes.appendChild(el('<p class="small muted" style="margin:8px 0 4px 26px">' +
+            'Carregando o time…</p>'));
+          bloco.appendChild(pes);
+          Promise.all([
+            api("/api/admin/cliente-painel/" + cli.id),
+            api("/api/admin/acessos-pessoa?cliente=" + encodeURIComponent(cli.id))
+          ]).then(function (rr) {
+            var equipe = rr[0].equipe_lista || [];
+            var meus = (rr[1].acessos || []).filter(function (a) {
+              return (a.tipo === "curso" && a.alvo_id === c.id) ||
+                     (a.tipo === "modulo" && alvosDoCurso().indexOf(a.alvo_id) >= 0) ||
+                     (a.tipo === "aula" && alvosDoCurso().indexOf(a.alvo_id) >= 0);
+            });
+            pes.innerHTML = "";
+            if (!meus.length) {
+              pes.appendChild(el('<p class="small muted" style="margin:6px 0 0 26px">' +
+                'Todo o time dela enxerga este curso.</p>'));
+            }
+            meus.forEach(function (a) {
+              var i2 = el('<div class="ae-p"><span>' + esc(a.nome) +
+                ' <span class="small muted">' + esc(a.email) + '</span>' +
+                ' <span class="ca-tag">' + esc(nomeDoAlvo(a)) + '</span></span></div>');
+              var bx = el('<button class="btn btn-fantasma btn-sm">Tirar</button>');
+              bx.onclick = function () {
+                api("/api/admin/acesso-pessoa", { cliente_id: cli.id, tipo: a.tipo,
+                  alvo_id: a.alvo_id, id: a.id, remover: true })
+                  .then(function () { toast("Acesso retirado"); pintar(); });
+              };
+              i2.appendChild(bx);
+              pes.appendChild(i2);
+            });
+            var bMais = el('<button class="ae-mais">+ liberar para alguém do time dela' +
+              '</button>');
+            bMais.onclick = function () { modalLiberarCurso(c, cli, equipe, pintar); };
+            pes.appendChild(bMais);
+          });
+        }
+        alvo.appendChild(bloco);
+      });
+    }
+
+    function alvosDoCurso() {
+      var ids = [];
+      (c.modulos || []).forEach(function (m) {
+        ids.push(m.id);
+        (m.aulas || []).forEach(function (a) { ids.push(a.id); });
+      });
+      return ids;
+    }
+
+    function nomeDoAlvo(a) {
+      if (a.tipo === "curso") return "curso inteiro";
+      var achado = "";
+      (c.modulos || []).forEach(function (m) {
+        if (m.id === a.alvo_id) achado = "módulo " + m.titulo;
+        (m.aulas || []).forEach(function (x) {
+          if (x.id === a.alvo_id) achado = "aula " + x.titulo;
+        });
+      });
+      return achado || a.tipo;
+    }
+
+    pintar();
     bs.onclick = function () {
       api("/api/admin/curso-acesso", { curso_id: c.id, clientes: escolhidos })
         .then(function () { f.remove(); toast("Acesso atualizado"); abrirCurso(c.id); });
+    };
+  }
+
+  /* Libera o curso, um módulo ou uma aula para uma pessoa do time do cliente. */
+  function modalLiberarCurso(c, cli, equipe, aoTerminar) {
+    var cx = el('<div><p style="margin-top:0">Liberar para alguém de <strong>' +
+      esc(cli.empresa) + '</strong>. O acesso só vale com o nome e o email ' +
+      'confirmados, e vale <strong>só para esta empresa</strong>.</p>' +
+      '<label class="small ca-lb">O que vai ser liberado</label>' +
+      '<select id="lc_alvo"></select>' +
+      '<label class="small ca-lb">Pessoa do time</label>' +
+      '<select id="lc_eq"><option value="">Escrever outro nome</option></select>' +
+      campoTexto("lc_nome", "Nome completo", "Como está no contrato") +
+      campoTexto("lc_mail", "Email", "nome@empresa.com.br") + '</div>');
+
+    var sa = cx.querySelector("#lc_alvo");
+    sa.appendChild(el('<option value="curso:' + esc(c.id) + '">O curso inteiro</option>'));
+    (c.modulos || []).forEach(function (m) {
+      sa.appendChild(el('<option value="modulo:' + esc(m.id) + '">Módulo · ' +
+        esc(m.titulo) + '</option>'));
+      (m.aulas || []).forEach(function (a) {
+        sa.appendChild(el('<option value="aula:' + esc(a.id) + '">    Aula · ' +
+          esc(a.titulo) + '</option>'));
+      });
+    });
+
+    var se = cx.querySelector("#lc_eq");
+    equipe.forEach(function (p2) {
+      se.appendChild(el('<option value="' + esc(p2.nome) + '">' + esc(p2.nome) +
+        (p2.funcao ? " · " + esc(p2.funcao) : "") + '</option>'));
+    });
+    se.onchange = function () {
+      if (se.value) cx.querySelector("#lc_nome").value = se.value;
+    };
+
+    var bs = el('<button class="btn btn-ouro">Liberar acesso</button>');
+    var f = modal("Liberar acesso", esc(cli.empresa), cx, [bs]);
+    bs.onclick = function () {
+      var partes = sa.value.split(":");
+      api("/api/admin/acesso-pessoa", {
+        cliente_id: cli.id, tipo: partes[0], alvo_id: partes[1],
+        nome: cx.querySelector("#lc_nome").value,
+        email: cx.querySelector("#lc_mail").value
+      }).then(function (r) {
+        if (r.erro) return toast(r.erro);
+        f.remove(); toast("Acesso liberado"); aoTerminar();
+      });
     };
   }
 
@@ -2547,6 +2667,258 @@
         .then(function () {
           f.remove(); toast("Enquadramento salvo"); abrirCliente(c.id, S.ciclo);
         });
+    };
+  }
+
+  /* Quem do time do cliente enxerga cada página. Nome e email obrigatórios:
+     é o que garante que a página de um cliente nunca chega a outro. */
+  function modalAcessoEquipe(cid, paginas) {
+    var cx = el('<div><p style="margin-top:0">Escolha o que este cliente pode ver e ' +
+      'para quem do time dele. Tudo que você liberar vale <strong>só para ele</strong>.</p>' +
+      '<div id="ae_corpo" style="margin-top:16px"><p class="small muted">Carregando…</p></div>' +
+      '</div>');
+    modal("Acesso da equipe", "Só para este cliente", cx);
+    var corpo = cx.querySelector("#ae_corpo");
+
+    function pintar() {
+      Promise.all([
+        api("/api/admin/cliente-painel/" + cid),
+        api("/api/admin/acessos-pessoa?cliente=" + encodeURIComponent(cid))
+      ]).then(function (r) {
+        var equipe = r[0].equipe_lista || [];
+        var acessos = (r[1].acessos || []).filter(function (a) { return a.tipo === "pagina"; });
+        corpo.innerHTML = "";
+
+        var todas = el('<label class="ws-vis" style="margin-bottom:12px">' +
+          '<input type="checkbox" id="ae_todas"> ' +
+          '<span>Liberar todas as páginas deste cliente para ele ver</span></label>');
+        var marcadas = paginas.filter(function (p) { return p.visivel_cliente; }).length;
+        todas.querySelector("input").checked = marcadas === paginas.length && paginas.length > 0;
+        todas.querySelector("input").onchange = function (e) {
+          var v = e.target.checked ? 1 : 0;
+          Promise.all(paginas.map(function (p) {
+            return api("/api/admin/ws-pagina", { id: p.id, visivel_cliente: v });
+          })).then(function () {
+            toast(v ? "Todas liberadas" : "Todas fechadas");
+            abrirMateriais(cid);
+          });
+        };
+        corpo.appendChild(todas);
+
+        paginas.forEach(function (pg) {
+          var bloco = el('<div class="ae-pg"></div>');
+          var lin = el('<label class="ws-vis"><input type="checkbox"' +
+            (pg.visivel_cliente ? " checked" : "") + '> <span><strong>' +
+            esc(pg.titulo) + '</strong></span></label>');
+          lin.querySelector("input").onchange = function (e) {
+            api("/api/admin/ws-pagina",
+                { id: pg.id, visivel_cliente: e.target.checked ? 1 : 0 })
+              .then(function () { pg.visivel_cliente = e.target.checked ? 1 : 0; pintar(); });
+          };
+          bloco.appendChild(lin);
+
+          var desta = acessos.filter(function (a) { return a.alvo_id === pg.id; });
+          desta.forEach(function (a) {
+            var i = el('<div class="ae-p"><span>' + esc(a.nome) +
+              ' <span class="small muted">' + esc(a.email) + '</span></span></div>');
+            var bx = el('<button class="btn btn-fantasma btn-sm">Tirar</button>');
+            bx.onclick = function () {
+              api("/api/admin/acesso-pessoa", { cliente_id: cid, tipo: "pagina",
+                alvo_id: pg.id, id: a.id, remover: true })
+                .then(function () { toast("Acesso retirado"); pintar(); });
+            };
+            i.appendChild(bx);
+            bloco.appendChild(i);
+          });
+          var b = el('<button class="ae-mais">+ liberar para alguém do time</button>');
+          b.onclick = function () {
+            modalLiberarPessoa(cid, "pagina", pg.id, pg.titulo, equipe, pintar);
+          };
+          bloco.appendChild(b);
+          corpo.appendChild(bloco);
+        });
+      });
+    }
+    pintar();
+  }
+
+  /* Os cursos daquele cliente: quais ele tem, quais faltam e quem do time
+     dele pode assistir. Espelha a página de cursos, mas fechada nele. */
+  function abrirCursosCliente(cid) {
+    S.rota = "cursos-cliente"; S.cid = cid;
+    Promise.all([
+      api("/api/admin/cursos"),
+      api("/api/admin/cliente-painel/" + cid),
+      api("/api/admin/acessos-pessoa?cliente=" + encodeURIComponent(cid))
+    ]).then(function (r) {
+      shell(telaCursosCliente(cid, r[0], r[1], r[2].acessos || []));
+    });
+  }
+
+  function telaCursosCliente(cid, d, painel, acessos) {
+    var c = painel.cliente || { id: cid, empresa: "Cliente" };
+    var cursos = d.cursos || [];
+    var meus = cursos.filter(function (x) { return (x.clientes || []).indexOf(cid) >= 0; });
+    var outros = cursos.filter(function (x) { return (x.clientes || []).indexOf(cid) < 0; });
+    var wrap = document.createElement("div");
+
+    var topo = el('<div class="painel-topo"><div>' +
+      '<div class="eyebrow">Cursos do cliente</div>' +
+      '<h1 class="serif">O que <em class="grifo">' + esc(c.empresa) + '</em> pode assistir</h1>' +
+      '<p class="muted small" style="margin-top:6px">Só os cursos liberados aqui aparecem ' +
+      'no acompanhamento dele. Nada de outro cliente chega junto.</p></div>' +
+      '<div style="display:flex;gap:10px"></div></div>');
+    var volta = el('<button class="btn btn-fantasma btn-sm">← Voltar para o cliente</button>');
+    volta.onclick = function () { abrirCliente(cid, S.ciclo); };
+    topo.lastChild.appendChild(volta);
+    wrap.appendChild(topo);
+
+    var corpo = el('<div class="ws"></div>');
+
+    /* menu da esquerda: acrescentar e remover curso */
+    var lado = el('<div class="ws-lado"><div class="eyebrow">Cursos</div></div>');
+    var listaL = el('<div class="ws-paginas"></div>');
+    if (!meus.length) {
+      listaL.appendChild(el('<p class="small muted" style="padding:8px 2px">' +
+        'Nenhum curso liberado ainda.</p>'));
+    }
+    meus.forEach(function (x) {
+      var it = el('<div class="ws-pg at"><span class="ws-pg-t">' + esc(x.titulo) + '</span>' +
+        '<button class="ws-pg-x" title="Remover deste cliente">×</button></div>');
+      it.querySelector("button").onclick = function (e) {
+        e.stopPropagation();
+        if (!confirm("Remover " + x.titulo + " do acesso de " + c.empresa + "?")) return;
+        var novos = (x.clientes || []).filter(function (y) { return y !== cid; });
+        api("/api/admin/curso-acesso", { curso_id: x.id, clientes: novos })
+          .then(function () { toast("Curso removido"); abrirCursosCliente(cid); });
+      };
+      listaL.appendChild(it);
+    });
+    lado.appendChild(listaL);
+
+    var bAdd = el('<button class="btn btn-linha btn-sm" style="width:100%;margin-top:12px">' +
+      '+ Acrescentar curso</button>');
+    bAdd.onclick = function () {
+      if (!outros.length) return toast("Este cliente já tem todos os cursos.");
+      var cx = el('<div><p style="margin-top:0">Escolha o que liberar para ' +
+        esc(c.empresa) + '.</p><div id="ac_lista"></div></div>');
+      var lst = cx.querySelector("#ac_lista");
+      outros.forEach(function (x) {
+        var l = el('<label class="ws-vis" style="margin:6px 0"><input type="checkbox" value="' +
+          esc(x.id) + '"> <span>' + esc(x.titulo) +
+          (x.trilha ? ' <span class="small muted">· ' + esc(x.trilha) + '</span>' : '') +
+          '</span></label>');
+        lst.appendChild(l);
+      });
+      var bs = el('<button class="btn btn-ouro">Liberar</button>');
+      var f = modal("Acrescentar curso", "Acesso do cliente", cx, [bs]);
+      bs.onclick = function () {
+        var ids = [].slice.call(lst.querySelectorAll("input:checked"))
+          .map(function (i) { return i.value; });
+        if (!ids.length) return toast("Escolha ao menos um curso.");
+        Promise.all(ids.map(function (id) {
+          var cur = cursos.filter(function (y) { return y.id === id; })[0];
+          return api("/api/admin/curso-acesso",
+                     { curso_id: id, clientes: (cur.clientes || []).concat([cid]) });
+        })).then(function () {
+          f.remove(); toast("Liberado"); abrirCursosCliente(cid);
+        });
+      };
+    };
+    lado.appendChild(bAdd);
+    corpo.appendChild(lado);
+
+    /* corpo: cada curso liberado, com módulos e quem do time pode ver */
+    var col = el('<div class="ws-col"></div>');
+    if (!meus.length) {
+      col.appendChild(el('<div class="card card-pad"><p class="muted">' +
+        'Use o botão à esquerda para liberar o primeiro curso.</p></div>'));
+    }
+    var equipe = painel.equipe_lista || [];
+    meus.forEach(function (x) {
+      var fundo = x.capa_midia_id
+        ? "#241030 url(/api/midia/" + esc(x.capa_midia_id) + ") center/cover"
+        : (CAPA_CSS[x.capa] || "var(--creme-3)");
+      var card = el('<div class="card" style="margin-bottom:16px;overflow:hidden">' +
+        '<div style="height:110px;background:' + fundo + '"></div>' +
+        '<div class="card-pad"><h3 class="serif" style="font-size:23px;' +
+        'color:var(--ameixa-900);margin:0 0 4px">' + esc(x.titulo) + '</h3>' +
+        '<p class="small muted" style="margin:0 0 12px">' + x.aulas +
+        (x.aulas === 1 ? " aula" : " aulas") +
+        (x.trilha ? "  ·  " + esc(x.trilha) : "") + '</p></div>');
+      var pad = card.querySelector(".card-pad");
+
+      var bAb = el('<button class="btn btn-linha btn-sm">Abrir o curso</button>');
+      bAb.onclick = function () { abrirCurso(x.id); };
+      pad.appendChild(bAb);
+
+      /* quem do time dele pode assistir */
+      var doCurso = acessos.filter(function (a) {
+        return a.tipo === "curso" && a.alvo_id === x.id;
+      });
+      var pes = el('<div style="margin-top:16px;border-top:1px solid var(--linha-2);' +
+        'padding-top:12px"><div class="eyebrow">Quem do time dele pode assistir</div></div>');
+      if (!doCurso.length) {
+        pes.appendChild(el('<p class="small muted" style="margin:8px 0 0">' +
+          'Ninguém liberado individualmente. O curso aparece para a empresa toda.</p>'));
+      }
+      doCurso.forEach(function (a) {
+        var i = el('<div class="ind"><div><strong>' + esc(a.nome) + '</strong>' +
+          '<div class="small muted">' + esc(a.email) + '</div></div></div>');
+        var bx = el('<button class="btn btn-fantasma btn-sm">Tirar</button>');
+        bx.onclick = function () {
+          api("/api/admin/acesso-pessoa", { cliente_id: cid, tipo: "curso",
+            alvo_id: x.id, id: a.id, remover: true })
+            .then(function () { toast("Acesso retirado"); abrirCursosCliente(cid); });
+        };
+        i.appendChild(bx);
+        pes.appendChild(i);
+      });
+      var bLib = el('<button class="btn btn-ouro btn-sm" style="margin-top:10px">' +
+        '+ Liberar para alguém</button>');
+      bLib.onclick = function () {
+        modalLiberarPessoa(cid, "curso", x.id, x.titulo, equipe,
+                           function () { abrirCursosCliente(cid); });
+      };
+      pes.appendChild(bLib);
+      pad.appendChild(pes);
+      col.appendChild(card);
+    });
+    corpo.appendChild(col);
+    wrap.appendChild(corpo);
+    return wrap;
+  }
+
+  /* O acesso só sai com nome e email. É isso que impede o material de um
+     cliente de escorregar para outro. */
+  function modalLiberarPessoa(cid, tipo, alvoId, titulo, equipe, aoTerminar) {
+    var cx = el('<div><p style="margin-top:0">Liberar <strong>' + esc(titulo) +
+      '</strong> para uma pessoa. O acesso só vale com o nome e o email ' +
+      'confirmados.</p>' +
+      '<label class="small" style="color:var(--ameixa-700);margin:14px 0 5px;display:block">' +
+      'Pessoa do time</label><select id="lp_eq"><option value="">Escrever outro nome</option>' +
+      '</select>' +
+      campoTexto("lp_nome", "Nome completo", "Como está no contrato") +
+      campoTexto("lp_mail", "Email", "nome@empresa.com.br") + '</div>');
+    var sel = cx.querySelector("#lp_eq");
+    equipe.forEach(function (p) {
+      sel.appendChild(el('<option value="' + esc(p.nome) + '">' + esc(p.nome) +
+        (p.funcao ? " · " + esc(p.funcao) : "") + '</option>'));
+    });
+    sel.onchange = function () {
+      if (sel.value) cx.querySelector("#lp_nome").value = sel.value;
+    };
+    var bs = el('<button class="btn btn-ouro">Liberar acesso</button>');
+    var f = modal("Liberar acesso", "Time do cliente", cx, [bs]);
+    bs.onclick = function () {
+      api("/api/admin/acesso-pessoa", {
+        cliente_id: cid, tipo: tipo, alvo_id: alvoId,
+        nome: cx.querySelector("#lp_nome").value,
+        email: cx.querySelector("#lp_mail").value
+      }).then(function (r) {
+        if (r.erro) return toast(r.erro);
+        f.remove(); toast("Acesso liberado"); aoTerminar();
+      });
     };
   }
 

@@ -1846,7 +1846,8 @@ class Handler(BaseHTTPRequestHandler):
         cid = b.get("cliente_id")
         if not cliente_dict(cid):
             return self.erro("Cliente não encontrado.", 404)
-        tipo = b.get("tipo") if b.get("tipo") in ("pagina", "curso") else "pagina"
+        tipo = b.get("tipo") if b.get("tipo") in (
+            "pagina", "curso", "modulo", "aula") else "pagina"
         alvo = b.get("alvo_id")
         if not alvo:
             return self.erro("Escolha o que vai ser liberado.")
@@ -1862,10 +1863,19 @@ class Handler(BaseHTTPRequestHandler):
         # a pagina ou o curso precisa mesmo pertencer a este cliente
         if tipo == "pagina":
             ok = db().execute("SELECT 1 FROM ws_paginas WHERE id=? AND "
-                              "(cliente_id=? OR cliente_id IS NULL)", (alvo, cid)).fetchone()
-        else:
-            ok = db().execute("SELECT 1 FROM curso_acesso WHERE curso_id=? AND cliente_id=?",
+                              "(cliente_id=? OR cliente_id IS NULL)",
                               (alvo, cid)).fetchone()
+        elif tipo == "curso":
+            ok = db().execute("SELECT 1 FROM curso_acesso WHERE curso_id=? AND "
+                              "cliente_id=?", (alvo, cid)).fetchone()
+        elif tipo == "modulo":
+            ok = db().execute(
+                "SELECT 1 FROM modulos m JOIN curso_acesso a ON a.curso_id = m.curso_id "
+                "WHERE m.id=? AND a.cliente_id=?", (alvo, cid)).fetchone()
+        else:
+            ok = db().execute(
+                "SELECT 1 FROM aulas al JOIN curso_acesso a ON a.curso_id = al.curso_id "
+                "WHERE al.id=? AND a.cliente_id=?", (alvo, cid)).fetchone()
         if not ok:
             return self.erro("Este item não está disponível para este cliente.")
         db().execute(
