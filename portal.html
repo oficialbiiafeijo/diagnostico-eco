@@ -102,6 +102,75 @@
     justify-content:center;font-family:var(--serif);font-size:14px}
   .p-aula-cab strong{font-size:16px;color:var(--ameixa-900);font-weight:500}
 
+  /* curso */
+  .p-cur-banner{height:210px;border-radius:var(--r);display:flex;align-items:flex-end;
+    position:relative;overflow:hidden;margin-bottom:20px}
+  .p-cur-banner::after{content:"";position:absolute;inset:0;
+    background:linear-gradient(180deg,transparent 30%,rgba(20,8,28,.82))}
+  .p-cur-sobre{position:relative;z-index:1;padding:26px 30px;color:#fff}
+  .p-cur-t{font-size:38px;color:#fff;margin:4px 0 0;line-height:1.1}
+  .p-cur-d{margin:8px 0 0;font-size:14.5px;color:rgba(255,255,255,.86);max-width:640px}
+
+  .p-prog-cx{background:var(--branco);border:1px solid var(--linha);border-radius:var(--r);
+    padding:18px 20px;margin-bottom:18px}
+  .p-prog-r{display:flex;justify-content:space-between;align-items:baseline;
+    font-size:13px;color:var(--texto-2);margin-bottom:9px}
+  .p-prog-r b{font-family:var(--serif);font-size:25px;color:var(--ameixa-900)}
+  .p-prog{height:8px;border-radius:99px;background:var(--creme-3);overflow:hidden}
+  .p-prog i{display:block;height:100%;border-radius:99px;
+    background:linear-gradient(90deg,var(--ouro-600),var(--terracota-500));
+    transition:width .4s ease}
+  .p-comecar{margin-bottom:26px}
+
+  .p-mod-cab{display:flex;justify-content:space-between;align-items:flex-end;gap:14px;
+    margin:30px 0 12px}
+  .p-mod-t{font-size:24px;color:var(--ameixa-900);margin:3px 0 0}
+  .p-mod-p{font-size:12px;color:var(--ouro-800);background:var(--ouro-100);
+    border-radius:99px;padding:3px 11px;flex:none}
+
+  .p-aulas{display:grid;grid-template-columns:repeat(auto-fill,minmax(186px,1fr));gap:13px}
+  .p-aula-c{background:var(--branco);border:1px solid var(--linha);border-radius:var(--r-sm);
+    overflow:hidden;cursor:pointer;transition:.16s}
+  .p-aula-c:hover{transform:translateY(-2px);box-shadow:var(--sombra-lg);
+    border-color:var(--ouro-300)}
+  .p-aula-c.vista{border-color:rgba(62,125,90,.4)}
+  .p-aula-capa{height:104px;position:relative;display:flex;align-items:center;
+    justify-content:center}
+  .p-aula-play{width:34px;height:34px;border-radius:50%;background:rgba(255,255,255,.9);
+    color:var(--ameixa-800);display:flex;align-items:center;justify-content:center;
+    font-size:12px;padding-left:2px}
+  .p-aula-ok{position:absolute;top:8px;right:8px;width:22px;height:22px;border-radius:50%;
+    background:var(--ok);color:#fff;display:flex;align-items:center;justify-content:center;
+    font-size:11px}
+  .p-aula-t{padding:11px 13px;font-size:13.5px;color:var(--ameixa-900);line-height:1.4}
+
+  .p-play-grade{display:grid;grid-template-columns:1fr 306px;gap:22px;align-items:start}
+  .p-player{width:100%;border-radius:var(--r);background:#000;display:block}
+  .p-semvideo{padding:60px 20px;text-align:center;background:var(--creme-2);
+    border:1px dashed var(--linha-2);border-radius:var(--r);color:var(--muted);font-size:14px}
+  .p-aula-acoes{display:flex;gap:9px;flex-wrap:wrap;margin-top:16px}
+  .p-aula-info{margin-top:22px;padding-top:18px;border-top:1px solid var(--linha)}
+
+  .p-lado{position:sticky;top:18px;display:flex;flex-direction:column;gap:11px}
+  .p-lado-mod{background:var(--branco);border:1px solid var(--linha);
+    border-radius:var(--r-sm);overflow:hidden}
+  .p-lado-cab{display:flex;align-items:center;gap:10px;padding:13px 14px;
+    background:var(--creme-2);font-size:12.5px;color:var(--ameixa-900)}
+  .p-lado-p{font-size:10.5px;color:var(--ouro-800);background:var(--ouro-100);
+    border-radius:99px;padding:2px 8px;flex:none}
+  .p-lado-a{display:flex;align-items:center;gap:10px;padding:11px 14px;cursor:pointer;
+    font-size:13px;color:var(--texto-2);border-top:1px solid var(--linha);transition:.14s}
+  .p-lado-a:hover{background:var(--creme)}
+  .p-lado-a.at{background:var(--ouro-100);color:var(--ameixa-900)}
+  .p-lado-a.vista .p-lado-i{color:var(--ok)}
+  .p-lado-i{width:16px;text-align:center;font-size:10px;color:var(--muted);flex:none}
+
+  @media (max-width:820px){
+    .p-play-grade{grid-template-columns:1fr}
+    .p-lado{position:static}
+    .p-cur-t{font-size:28px}
+  }
+
   @media (max-width:600px){
     .p-hero h1{font-size:33px}
     .p-linha{padding-left:22px}
@@ -201,14 +270,19 @@
       var cur = el('<div class="p-mat"></div>');
       d.cursos.forEach(function (c) {
         var card = el('<div class="p-mat-c">' +
-          '<div class="p-mat-capa" style="background:' + (CAPAS[c.capa] || CAPAS.ouro) +
+          '<div class="p-mat-capa" style="background:' +
+          (c.capa_midia_id ? "#000 url(/api/midia/" + esc(c.capa_midia_id) + ") center/cover"
+            : (CAPAS[c.capa] || CAPAS.ouro)) +
           ';display:flex;align-items:center;justify-content:center">' +
           '<span style="width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,.9);' +
           'color:var(--ameixa-800);display:flex;align-items:center;justify-content:center;' +
           'padding-left:3px">▶</span></div>' +
           '<div class="p-mat-t">' + esc(c.titulo) +
           '<div class="small muted" style="margin-top:3px">' + c.aulas +
-          (c.aulas === 1 ? " aula" : " aulas") + '</div></div></div>');
+          (c.aulas === 1 ? " aula" : " aulas") +
+          (c.progresso ? "  ·  " + c.progresso + "%" : "") + '</div>' +
+          '<div class="p-prog" style="margin-top:8px"><i style="width:' +
+          (c.progresso || 0) + '%"></i></div></div></div>');
         card.onclick = function () { abrirCurso(c.id); };
         cur.appendChild(card);
       });
@@ -264,54 +338,172 @@
       'implementação avança.</p>'));
   }
 
+  var CURSO = null, AULA = null;
+
+  function marcarVista(aula, visto) {
+    return fetch("/api/c/" + encodeURIComponent(token) + "/aula-vista", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ curso_id: CURSO.id, aula_id: aula.id, visto: visto })
+    }).then(function (r) { return r.json(); });
+  }
+
+  function playerDe(a) {
+    if (a.midia_id) {
+      return el('<video controls class="p-player" src="/api/midia/' + esc(a.midia_id) + '"></video>');
+    }
+    if (a.url) {
+      var yt = a.url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([\w-]{6,})/);
+      var vm = a.url.match(/vimeo\.com\/(?:video\/)?(\d+)/);
+      var src = yt ? "https://www.youtube.com/embed/" + yt[1]
+              : vm ? "https://player.vimeo.com/video/" + vm[1] : a.url;
+      return el('<div class="p-emb"><iframe src="' + esc(src) +
+        '" allowfullscreen loading="lazy"></iframe></div>');
+    }
+    return el('<div class="p-semvideo">Esta aula ainda não tem vídeo.</div>');
+  }
+
+  function todasAulas() {
+    var t = [];
+    (CURSO.modulos || []).forEach(function (m) {
+      (m.aulas || []).forEach(function (a) { t.push(a); });
+    });
+    return t;
+  }
+
+  function desenharCurso() {
+    palco.innerHTML = "";
+    var v = el('<button class="p-voltar">← Voltar ao acompanhamento</button>');
+    v.onclick = carregar;
+    palco.appendChild(v);
+
+    var fundo = CURSO.banner_midia_id
+      ? "#241030 url(/api/midia/" + esc(CURSO.banner_midia_id) + ") center/cover"
+      : (CAPAS[CURSO.capa] || CAPAS.ouro);
+    palco.appendChild(el('<div class="p-cur-banner" style="background:' + fundo + '">' +
+      '<div class="p-cur-sobre"><div class="eyebrow" style="color:var(--ouro-300)">' +
+      esc(CURSO.trilha || "Treinamento") + '</div>' +
+      '<h1 class="serif p-cur-t">' + esc(CURSO.titulo) + '</h1>' +
+      (CURSO.descricao ? '<p class="p-cur-d">' + esc(CURSO.descricao) + '</p>' : '') +
+      '</div></div>'));
+
+    palco.appendChild(el('<div class="p-prog-cx"><div class="p-prog-r">' +
+      '<span>Seu progresso</span><b>' + CURSO.progresso + '%</b></div>' +
+      '<div class="p-prog"><i style="width:' + CURSO.progresso + '%"></i></div>' +
+      '<div class="small muted" style="margin-top:6px">' + CURSO.aulas_vistas +
+      ' de ' + CURSO.aulas_total + ' aulas concluídas</div></div>'));
+
+    var todas = todasAulas();
+    if (todas.length) {
+      var prox = todas.filter(function (a) { return !a.vista; })[0] || todas[0];
+      var bc = el('<button class="btn btn-ouro p-comecar">' +
+        (CURSO.progresso ? "Continuar de onde parei" : "Começar o curso") + '</button>');
+      bc.onclick = function () { AULA = prox; desenharAula(); };
+      palco.appendChild(bc);
+    }
+
+    (CURSO.modulos || []).forEach(function (m, mi) {
+      if (!m.aulas.length) return;
+      palco.appendChild(el('<div class="p-mod-cab">' +
+        '<div><div class="eyebrow">Módulo ' + (mi + 1) + '</div>' +
+        '<h2 class="serif p-mod-t">' + esc(m.titulo) + '</h2>' +
+        (m.descricao ? '<p class="small muted" style="margin:3px 0 0">' +
+          esc(m.descricao) + '</p>' : '') + '</div>' +
+        '<span class="p-mod-p">' + m.progresso + '%</span></div>'));
+      var fila = el('<div class="p-aulas"></div>');
+      m.aulas.forEach(function (a) {
+        var card = el('<div class="p-aula-c' + (a.vista ? " vista" : "") + '">' +
+          '<div class="p-aula-capa" style="background:' +
+          (a.capa_midia_id ? "#000 url(/api/midia/" + esc(a.capa_midia_id) +
+            ") center/cover" : "var(--creme-3)") + '">' +
+          '<span class="p-aula-play">▶</span>' +
+          (a.vista ? '<span class="p-aula-ok">✓</span>' : '') + '</div>' +
+          '<div class="p-aula-t">' + esc(a.titulo) +
+          (a.duracao ? '<div class="small muted">' + esc(a.duracao) + '</div>' : '') +
+          '</div></div>');
+        card.onclick = function () { AULA = a; desenharAula(); };
+        fila.appendChild(card);
+      });
+      palco.appendChild(fila);
+    });
+    window.scrollTo(0, 0);
+  }
+
+  function desenharAula() {
+    palco.innerHTML = "";
+    var v = el('<button class="p-voltar">← Voltar para o curso</button>');
+    v.onclick = desenharCurso;
+    palco.appendChild(v);
+
+    var grade = el('<div class="p-play-grade"></div>');
+    var esq = el('<div></div>');
+    esq.appendChild(playerDe(AULA));
+    esq.appendChild(el('<h1 class="serif" style="font-size:29px;color:var(--ameixa-900);' +
+      'margin:20px 0 4px">' + esc(AULA.titulo) + '</h1>'));
+    if (AULA.duracao) {
+      esq.appendChild(el('<div class="small muted">' + esc(AULA.duracao) + '</div>'));
+    }
+
+    var linhaB = el('<div class="p-aula-acoes"></div>');
+    var bok = el('<button class="btn ' + (AULA.vista ? "btn-linha" : "btn-ouro") + '">' +
+      (AULA.vista ? "✓ Aula concluída" : "Concluir e avançar") + '</button>');
+    bok.onclick = function () {
+      marcarVista(AULA, !AULA.vista).then(function (r) {
+        AULA.vista = !AULA.vista;
+        CURSO.progresso = r.progresso; CURSO.aulas_vistas = r.vistas;
+        (CURSO.modulos || []).forEach(function (m) {
+          var f = m.aulas.filter(function (x) { return x.vista; }).length;
+          m.progresso = m.aulas.length ? Math.round(f / m.aulas.length * 100) : 0;
+        });
+        if (AULA.vista) {
+          var t = todasAulas();
+          var i = t.indexOf(AULA);
+          if (i >= 0 && i + 1 < t.length) { AULA = t[i + 1]; desenharAula(); return; }
+        }
+        desenharAula();
+      });
+    };
+    linhaB.appendChild(bok);
+    if (AULA.material_midia_id) {
+      linhaB.appendChild(el('<a class="btn btn-linha" href="/api/midia/' +
+        esc(AULA.material_midia_id) + '" target="_blank">⇩ Material da aula</a>'));
+    }
+    esq.appendChild(linhaB);
+
+    if (AULA.descricao) {
+      esq.appendChild(el('<div class="p-aula-info"><div class="eyebrow">Sobre a aula</div>' +
+        '<p style="margin:8px 0 0;line-height:1.8;color:var(--texto-2);white-space:pre-wrap">' +
+        esc(AULA.descricao) + '</p></div>'));
+    }
+    grade.appendChild(esq);
+
+    /* lista dos módulos ao lado, como numa escola */
+    var dir = el('<div class="p-lado"></div>');
+    (CURSO.modulos || []).forEach(function (m, mi) {
+      if (!m.aulas.length) return;
+      var bloco = el('<div class="p-lado-mod"><div class="p-lado-cab">' +
+        '<span class="p-lado-p">' + m.progresso + '%</span>' +
+        '<strong>Módulo ' + (mi + 1) + ' · ' + esc(m.titulo) + '</strong></div></div>');
+      m.aulas.forEach(function (a) {
+        var it = el('<div class="p-lado-a' + (a.id === AULA.id ? " at" : "") +
+          (a.vista ? " vista" : "") + '"><span class="p-lado-i">' +
+          (a.vista ? "✓" : "▶") + '</span><span>' + esc(a.titulo) + '</span></div>');
+        it.onclick = function () { AULA = a; desenharAula(); };
+        bloco.appendChild(it);
+      });
+      dir.appendChild(bloco);
+    });
+    grade.appendChild(dir);
+    palco.appendChild(grade);
+    window.scrollTo(0, 0);
+  }
+
   function abrirCurso(id) {
     fetch("/api/c/" + encodeURIComponent(token) + "/curso/" + encodeURIComponent(id))
       .then(function (r) { return r.json(); })
       .then(function (c) {
         if (c.erro) return alert(c.erro);
-        palco.innerHTML = "";
-        var v = el('<button class="p-voltar">← Voltar ao acompanhamento</button>');
-        v.onclick = carregar;
-        palco.appendChild(v);
-        palco.appendChild(el('<div class="eyebrow">' + esc(c.trilha || "Treinamento") + '</div>'));
-        palco.appendChild(el('<h1 class="serif" style="font-size:38px;color:var(--ameixa-900);' +
-          'margin:6px 0 8px">' + esc(c.titulo) + '</h1>'));
-        if (c.descricao) {
-          palco.appendChild(el('<p class="muted" style="margin:0 0 26px;font-size:15px">' +
-            esc(c.descricao) + '</p>'));
-        }
-        if (!c.aulas.length) {
-          palco.appendChild(el('<p class="p-vazio">As aulas deste curso estão sendo ' +
-            'preparadas.</p>'));
-        }
-        c.aulas.forEach(function (a, i) {
-          var bloco = el('<div class="p-aula"></div>');
-          bloco.appendChild(el('<div class="p-aula-cab"><span class="p-aula-n">' + (i + 1) +
-            '</span><div><strong>' + esc(a.titulo) + '</strong>' +
-            (a.duracao ? '<span class="small muted">  ·  ' + esc(a.duracao) + '</span>' : '') +
-            (a.descricao ? '<div class="small muted">' + esc(a.descricao) + '</div>' : '') +
-            '</div></div>'));
-          if (a.midia_id) {
-            bloco.appendChild(el('<video controls style="width:100%;border-radius:var(--r);' +
-              'background:#000;margin-top:12px" src="/api/midia/' + esc(a.midia_id) + '"></video>'));
-          } else if (a.url) {
-            var yt = a.url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([\w-]{6,})/);
-            var vm = a.url.match(/vimeo\.com\/(?:video\/)?(\d+)/);
-            var src = yt ? "https://www.youtube.com/embed/" + yt[1]
-                    : vm ? "https://player.vimeo.com/video/" + vm[1] : a.url;
-            bloco.appendChild(el('<div class="p-emb" style="margin-top:12px"><iframe src="' +
-              esc(src) + '" allowfullscreen loading="lazy"></iframe></div>'));
-          }
-          if (a.material_midia_id) {
-            bloco.appendChild(el('<a href="/api/midia/' + esc(a.material_midia_id) +
-              '" target="_blank" style="display:inline-flex;align-items:center;gap:9px;' +
-              'margin-top:12px;padding:10px 15px;background:var(--creme-2);' +
-              'border:1px solid var(--linha);border-radius:var(--r-sm);text-decoration:none;' +
-              'color:var(--ameixa-800);font-size:14px">⇩ Material da aula</a>'));
-          }
-          palco.appendChild(bloco);
-        });
-        window.scrollTo(0, 0);
+        CURSO = c; AULA = null;
+        desenharCurso();
       });
   }
 

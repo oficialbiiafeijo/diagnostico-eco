@@ -221,6 +221,17 @@ CREATE TABLE IF NOT EXISTS curso_acesso (
   PRIMARY KEY(curso_id, cliente_id),
   FOREIGN KEY(cliente_id) REFERENCES clientes(id) ON DELETE CASCADE);
 
+CREATE TABLE IF NOT EXISTS modulos (
+  id TEXT PRIMARY KEY, curso_id TEXT NOT NULL, titulo TEXT NOT NULL,
+  descricao TEXT DEFAULT '', ordem INTEGER DEFAULT 0, criado_em TEXT,
+  FOREIGN KEY(curso_id) REFERENCES cursos(id) ON DELETE CASCADE);
+
+CREATE TABLE IF NOT EXISTS aula_vista (
+  aula_id TEXT NOT NULL, cliente_id TEXT NOT NULL, visto_em TEXT,
+  PRIMARY KEY(aula_id, cliente_id));
+
+CREATE INDEX IF NOT EXISTS ix_modulos_curso ON modulos(curso_id, ordem);
+CREATE INDEX IF NOT EXISTS ix_vista_cli ON aula_vista(cliente_id);
 CREATE INDEX IF NOT EXISTS ix_aulas_curso ON aulas(curso_id, ordem);
 CREATE INDEX IF NOT EXISTS ix_acesso_cli ON curso_acesso(cliente_id);
 CREATE INDEX IF NOT EXISTS ix_midia_cli ON midia(cliente_id);
@@ -251,6 +262,8 @@ COLUNAS_NOVAS = [
     ("ws_paginas", "prazo", "TEXT"),
     ("ws_paginas", "concluido_em", "TEXT"),
     ("ws_paginas", "capa_midia_id", "TEXT"),
+    ("aulas", "modulo_id", "TEXT"),
+    ("cursos", "banner_midia_id", "TEXT"),
     ("clientes", "portal_ativo", "INTEGER DEFAULT 0"),
 ]
 
@@ -728,6 +741,9 @@ class Handler(BaseHTTPRequestHandler):
         m = re.fullmatch(r"/api/d/([\w\-]+)/enviar", p)
         if m:
             return self.api_enviar(m.group(1))
+        m = re.fullmatch(r"/api/c/([\w\-]+)/aula-vista", p)
+        if m:
+            return self.api_portal_aula_vista(m.group(1))
 
         if p == "/api/admin/login":
             return self.api_login()
@@ -764,6 +780,12 @@ class Handler(BaseHTTPRequestHandler):
             return self.api_curso_salvar()
         if p == "/api/admin/curso-excluir":
             return self.api_curso_excluir()
+        if p == "/api/admin/modulo-salvar":
+            return self.api_modulo_salvar()
+        if p == "/api/admin/modulo-mover":
+            return self.api_modulo_mover()
+        if p == "/api/admin/modulo-excluir":
+            return self.api_modulo_excluir()
         if p == "/api/admin/aula-salvar":
             return self.api_aula_salvar()
         if p == "/api/admin/aula-mover":
@@ -1108,12 +1130,20 @@ class Handler(BaseHTTPRequestHandler):
         paginas = [dict(r) for r in db().execute(
             "SELECT id, titulo, capa, ordem FROM ws_paginas WHERE cliente_id=? "
             "AND visivel_cliente=1 AND pai_id IS NULL ORDER BY ordem", (cid,))]
-        cursos = [dict(r) for r in db().execute(
-            "SELECT c.id, c.titulo, c.descricao, c.capa, c.trilha, "
-            "(SELECT COUNT(*) FROM aulas WHERE curso_id=c.id) aulas "
-            "FROM cursos c JOIN curso_acesso a ON a.curso_id = c.id "
-            "WHERE a.cliente_id=? AND c.publicado=1 ORDER BY c.trilha, c.ordem",
-            (cid,))]
+        cursos = []
+        for r in db().execute(
+                "SELECT c.id, c.titulo, c.descricao, c.capa, c.trilha, c.capa_midia_id, "
+                "(SELECT COUNT(*) FROM aulas WHERE curso_id=c.id) aulas "
+                "FROM cursos c JOIN curso_acesso a ON a.curso_id = c.id "
+                "WHERE a.cliente_id=? AND c.publicado=1 ORDER BY c.trilha, c.ordem",
+                (cid,)):
+            d = dict(r)
+            v = db().execute(
+                "SELECT COUNT(*) n FROM aula_vista v JOIN aulas al ON al.id=v.aula_id "
+                "WHERE al.curso_id=? AND v.cliente_id=?", (r["id"], cid)).fetchone()["n"]
+            d["vistas"] = v
+            d["progresso"] = round(v / r["aulas"] * 100) if r["aulas"] else 0
+            cursos.append(d)
         total_acoes = db().execute(
             "SELECT COUNT(*) n FROM acoes WHERE cliente_id=? AND status!='Cancelada'",
             (cid,)).fetchone()["n"]
@@ -1149,22 +1179,84 @@ class Handler(BaseHTTPRequestHandler):
             return self.erro("Este acompanhamento não está disponível.", 404)
         return self.json(d)
 
+    def _cliente_do_portal(self, token, curso_id=None):
+        sql = ("SELECT c.id FROM clientes c WHERE c.token_portal=? AND c.portal_ativo=1")
+        r = db().execute(sql, (token,)).fetchone()
+        if not r:
+            return None
+        if curso_id:
+            ok = db().execute("SELECT 1 FROM curso_acesso WHERE curso_id=? AND cliente_id=?",
+                              (curso_id, r["id"])).fetchone()
+            if not ok:
+                return None
+        return r["id"]
+
     def api_portal_curso(self, token, curso_id):
-        ok = db().execute(
-            "SELECT 1 FROM curso_acesso a JOIN clientes c ON c.id = a.cliente_id "
-            "WHERE c.token_portal=? AND c.portal_ativo=1 AND a.curso_id=?",
-            (token, curso_id)).fetchone()
-        if not ok:
+        cid = self._cliente_do_portal(token, curso_id)
+        if not cid:
             return self.erro("Curso não disponível.", 404)
         c = db().execute("SELECT * FROM cursos WHERE id=? AND publicado=1",
                          (curso_id,)).fetchone()
         if not c:
             return self.erro("Curso não disponível.", 404)
-        aulas = [dict(r) for r in db().execute(
-            "SELECT id,titulo,descricao,url,midia_id,capa_midia_id,duracao,"
-            "material_midia_id FROM aulas WHERE curso_id=? ORDER BY ordem", (curso_id,))]
-        return self.json({"titulo": c["titulo"], "descricao": c["descricao"],
-                          "capa": c["capa"], "trilha": c["trilha"], "aulas": aulas})
+        vistas = {x["aula_id"] for x in db().execute(
+            "SELECT aula_id FROM aula_vista WHERE cliente_id=?", (cid,))}
+        aulas = []
+        for r in db().execute(
+                "SELECT id,titulo,descricao,url,midia_id,capa_midia_id,duracao,"
+                "material_midia_id,modulo_id FROM aulas WHERE curso_id=? ORDER BY ordem",
+                (curso_id,)):
+            d = dict(r)
+            d["vista"] = r["id"] in vistas
+            aulas.append(d)
+        modulos = []
+        for r in db().execute("SELECT id,titulo,descricao FROM modulos WHERE curso_id=? "
+                              "ORDER BY ordem", (curso_id,)):
+            m = dict(r)
+            m["aulas"] = [a for a in aulas if a["modulo_id"] == r["id"]]
+            feitas = len([a for a in m["aulas"] if a["vista"]])
+            m["progresso"] = round(feitas / len(m["aulas"]) * 100) if m["aulas"] else 0
+            modulos.append(m)
+        soltas = [a for a in aulas if not a["modulo_id"]]
+        if soltas:
+            feitas = len([a for a in soltas if a["vista"]])
+            modulos.append({"id": "", "titulo": "Aulas", "descricao": "",
+                            "aulas": soltas,
+                            "progresso": round(feitas / len(soltas) * 100)})
+        total = len(aulas)
+        vistas_n = len([a for a in aulas if a["vista"]])
+        return self.json({"id": c["id"], "titulo": c["titulo"],
+                          "descricao": c["descricao"], "capa": c["capa"],
+                          "banner_midia_id": c["banner_midia_id"],
+                          "trilha": c["trilha"], "modulos": modulos,
+                          "progresso": round(vistas_n / total * 100) if total else 0,
+                          "aulas_total": total, "aulas_vistas": vistas_n})
+
+    def api_portal_aula_vista(self, token):
+        """Marca a aula como assistida, para a barra de progresso andar."""
+        b = self.body()
+        curso = b.get("curso_id")
+        cid = self._cliente_do_portal(token, curso)
+        if not cid:
+            return self.erro("Curso não disponível.", 404)
+        aula = b.get("aula_id")
+        existe = db().execute("SELECT 1 FROM aulas WHERE id=? AND curso_id=?",
+                              (aula, curso)).fetchone()
+        if not existe:
+            return self.erro("Aula não encontrada.", 404)
+        if b.get("visto"):
+            db().execute("INSERT OR IGNORE INTO aula_vista(aula_id,cliente_id,visto_em) "
+                         "VALUES(?,?,?)", (aula, cid, now()))
+        else:
+            db().execute("DELETE FROM aula_vista WHERE aula_id=? AND cliente_id=?",
+                         (aula, cid))
+        db().commit()
+        n = db().execute("SELECT COUNT(*) n FROM aula_vista v JOIN aulas a ON a.id=v.aula_id "
+                         "WHERE a.curso_id=? AND v.cliente_id=?", (curso, cid)).fetchone()["n"]
+        tot = db().execute("SELECT COUNT(*) n FROM aulas WHERE curso_id=?",
+                           (curso,)).fetchone()["n"]
+        return self.json({"ok": True, "vistas": n, "total": tot,
+                          "progresso": round(n / tot * 100) if tot else 0})
 
     def api_portal_pagina(self, token, pid):
         d = db().execute(
@@ -1209,13 +1301,65 @@ class Handler(BaseHTTPRequestHandler):
             return self.erro("Curso não encontrado.", 404)
         aulas = [dict(r) for r in db().execute(
             "SELECT * FROM aulas WHERE curso_id=? ORDER BY ordem, criado_em", (cid_curso,))]
+        modulos = [dict(r) for r in db().execute(
+            "SELECT * FROM modulos WHERE curso_id=? ORDER BY ordem, criado_em", (cid_curso,))]
+        for m in modulos:
+            m["aulas"] = [a for a in aulas if a.get("modulo_id") == m["id"]]
+        soltas = [a for a in aulas if not a.get("modulo_id")]
         acesso = [x["cliente_id"] for x in db().execute(
             "SELECT cliente_id FROM curso_acesso WHERE curso_id=?", (cid_curso,))]
-        return self.json({**dict(c), "aulas": aulas, "acesso": acesso,
+        return self.json({**dict(c), "aulas": aulas, "modulos": modulos,
+                          "soltas": soltas, "acesso": acesso,
                           "capas": workspace.CAPAS,
                           "clientes": [dict(x) for x in db().execute(
                               "SELECT id, empresa FROM clientes WHERE arquivado=0 "
                               "ORDER BY empresa")]})
+
+    def api_modulo_salvar(self):
+        b = self.body()
+        titulo = (b.get("titulo") or "").strip()
+        if not titulo:
+            return self.erro("Dê um nome ao módulo.")
+        conn = db()
+        if b.get("id"):
+            conn.execute("UPDATE modulos SET titulo=?, descricao=? WHERE id=?",
+                         (titulo, b.get("descricao", ""), b["id"]))
+        else:
+            prox = conn.execute("SELECT COALESCE(MAX(ordem),0)+1 n FROM modulos "
+                                "WHERE curso_id=?", (b.get("curso_id"),)).fetchone()["n"]
+            conn.execute("INSERT INTO modulos(id,curso_id,titulo,descricao,ordem,criado_em) "
+                         "VALUES(?,?,?,?,?,?)",
+                         (secrets.token_hex(8), b.get("curso_id"), titulo,
+                          b.get("descricao", ""), prox, now()))
+        conn.commit()
+        return self.json({"ok": True})
+
+    def api_modulo_mover(self):
+        b = self.body()
+        conn = db()
+        m = conn.execute("SELECT * FROM modulos WHERE id=?", (b.get("id"),)).fetchone()
+        if not m:
+            return self.erro("Módulo não encontrado.", 404)
+        op = "<" if b.get("direcao") == "cima" else ">"
+        ordem = "DESC" if b.get("direcao") == "cima" else "ASC"
+        viz = conn.execute(f"SELECT * FROM modulos WHERE curso_id=? AND ordem {op} ? "
+                           f"ORDER BY ordem {ordem} LIMIT 1",
+                           (m["curso_id"], m["ordem"])).fetchone()
+        if not viz:
+            return self.json({"ok": False})
+        conn.execute("UPDATE modulos SET ordem=? WHERE id=?", (viz["ordem"], m["id"]))
+        conn.execute("UPDATE modulos SET ordem=? WHERE id=?", (m["ordem"], viz["id"]))
+        conn.commit()
+        return self.json({"ok": True})
+
+    def api_modulo_excluir(self):
+        b = self.body()
+        conn = db()
+        # as aulas do modulo voltam a ficar soltas, nao se perdem
+        conn.execute("UPDATE aulas SET modulo_id=NULL WHERE modulo_id=?", (b.get("id"),))
+        conn.execute("DELETE FROM modulos WHERE id=?", (b.get("id"),))
+        conn.commit()
+        return self.json({"ok": True})
 
     def api_curso_salvar(self):
         b = self.body()
@@ -1225,9 +1369,11 @@ class Handler(BaseHTTPRequestHandler):
         conn = db()
         if b.get("id"):
             conn.execute("UPDATE cursos SET titulo=?, descricao=?, capa=?, trilha=?, "
-                         "capa_midia_id=?, publicado=?, atualizado_em=? WHERE id=?",
+                         "capa_midia_id=?, banner_midia_id=?, publicado=?, atualizado_em=? "
+                         "WHERE id=?",
                          (titulo, b.get("descricao", ""), b.get("capa", ""),
                           b.get("trilha", ""), b.get("capa_midia_id", ""),
+                          b.get("banner_midia_id", ""),
                           1 if b.get("publicado", 1) else 0, now(), b["id"]))
             cid_curso = b["id"]
         else:
@@ -1256,7 +1402,7 @@ class Handler(BaseHTTPRequestHandler):
             return self.erro("Dê um nome à aula.")
         conn = db()
         campos = ("titulo", "descricao", "url", "midia_id", "capa_midia_id",
-                  "duracao", "material_midia_id")
+                  "duracao", "material_midia_id", "modulo_id")
         if b.get("id"):
             sets = ", ".join(f"{k}=?" for k in campos)
             vals = [b.get(k, "") for k in campos] + [b["id"]]
@@ -1265,12 +1411,13 @@ class Handler(BaseHTTPRequestHandler):
             prox = conn.execute("SELECT COALESCE(MAX(ordem),0)+1 n FROM aulas "
                                 "WHERE curso_id=?", (b.get("curso_id"),)).fetchone()["n"]
             conn.execute("INSERT INTO aulas(id,curso_id,titulo,descricao,url,midia_id,"
-                         "capa_midia_id,duracao,material_midia_id,ordem,criado_em) "
-                         "VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+                         "capa_midia_id,duracao,material_midia_id,modulo_id,ordem,criado_em) "
+                         "VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
                          (secrets.token_hex(8), b.get("curso_id"), titulo,
                           b.get("descricao", ""), b.get("url", ""), b.get("midia_id", ""),
                           b.get("capa_midia_id", ""), b.get("duracao", ""),
-                          b.get("material_midia_id", ""), prox, now()))
+                          b.get("material_midia_id", ""), b.get("modulo_id") or None,
+                          prox, now()))
         conn.commit()
         return self.json({"ok": True})
 
@@ -1722,8 +1869,17 @@ class Handler(BaseHTTPRequestHandler):
                     atrasados.append({"id": cid, "empresa": c["empresa"],
                                       "ciclo": atual["ciclo"], "dias": parado})
 
+            dias_contrato = None
+            if c.get("contrato_fim"):
+                try:
+                    dias_contrato = (datetime.fromisoformat(c["contrato_fim"]) - hoje).days
+                except ValueError:
+                    dias_contrato = None
+
             jornada.append({
                 "id": cid, "empresa": c["empresa"], "segmento": c["segmento"] or "",
+                "tipo_servico": c.get("tipo_servico") or "",
+                "dias_contrato": dias_contrato,
                 "ciclo": atual["ciclo"] if atual else questions.CICLOS[0],
                 "status": atual["status"] if atual else "Não iniciado",
                 "progresso": atual["progresso"] if atual else 0,

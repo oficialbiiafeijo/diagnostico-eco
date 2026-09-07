@@ -517,21 +517,32 @@
     bAc.onclick = function () { modalAcesso(c); };
     topo.appendChild(bEd); topo.appendChild(bAc); topo.appendChild(volta);
 
-    var lista = el('<div class="card card-pad"></div>');
-    lista.appendChild(el('<div class="eyebrow">' + c.aulas.length +
-      (c.aulas.length === 1 ? " aula" : " aulas") + '</div>'));
-    if (!c.aulas.length) {
-      lista.appendChild(el('<p class="small muted" style="margin-top:10px">Nenhuma aula ' +
-        'ainda. Acrescente a primeira abaixo.</p>'));
-    }
-    c.aulas.forEach(function (a, i) {
+    /* banner grande do curso, como na capa de uma escola */
+    var fundo = c.banner_midia_id
+      ? "#241030 url(/api/midia/" + esc(c.banner_midia_id) + ") center/cover"
+      : (CAPA_CSS[c.capa] || "var(--creme-3)");
+    var banner = el('<div class="cur-banner" style="background:' + fundo + '"></div>');
+    var envB = botaoEnviar("↑ Imagem de fundo", null, "curso", function (r) {
+      api("/api/admin/curso-salvar", { id: c.id, titulo: c.titulo, trilha: c.trilha,
+        descricao: c.descricao, capa: c.capa, capa_midia_id: c.capa_midia_id || "",
+        banner_midia_id: r.id, publicado: c.publicado })
+        .then(function () { abrirCurso(c.id); });
+    }, "image/*");
+    envB.classList.add("cur-banner-env");
+    banner.appendChild(envB);
+    wrap.appendChild(banner);
+
+    function linhaAula(a, i) {
       var linha = el('<div class="aula">' +
         '<span class="aula-n">' + (i + 1) + '</span>' +
         '<div class="aula-capa" style="background:' +
         (a.capa_midia_id ? "#000 url(/api/midia/" + esc(a.capa_midia_id) +
           ") center/cover" : "var(--creme-3)") + '"></div>' +
         '<div class="aula-d"><strong>' + esc(a.titulo) + '</strong>' +
-        (a.duracao ? '<div class="small muted">' + esc(a.duracao) + '</div>' : '') +
+        '<div class="small muted">' +
+        (a.duracao ? esc(a.duracao) + "  ·  " : "") +
+        (a.midia_id ? "vídeo no sistema" : a.url ? "por link" : "sem vídeo ainda") +
+        '</div>' +
         (a.descricao ? '<div class="small muted">' + esc(a.descricao) + '</div>' : '') +
         '</div></div>');
       var acoes = el('<div class="aula-x"></div>');
@@ -552,11 +563,71 @@
       };
       acoes.appendChild(be); acoes.appendChild(bx);
       linha.appendChild(acoes);
-      lista.appendChild(linha);
+      return linha;
+    }
+
+    var lista = el('<div></div>');
+    lista.appendChild(el('<div class="eyebrow" style="margin:22px 0 4px">' +
+      c.aulas.length + (c.aulas.length === 1 ? " aula" : " aulas") +
+      ' em ' + c.modulos.length +
+      (c.modulos.length === 1 ? " módulo" : " módulos") + '</div>'));
+
+    (c.modulos || []).forEach(function (m, mi) {
+      var bloco = el('<div class="card card-pad" style="margin-bottom:14px">' +
+        '<div class="mod-cab"><div><div class="eyebrow">Módulo ' + (mi + 1) + '</div>' +
+        '<h3 class="serif mod-t">' + esc(m.titulo) + '</h3>' +
+        (m.descricao ? '<p class="small muted" style="margin:4px 0 0">' +
+          esc(m.descricao) + '</p>' : '') + '</div></div></div>');
+      var cab = bloco.querySelector(".mod-cab");
+      var ax = el('<div class="aula-x"></div>');
+      [["↑", "cima"], ["↓", "baixo"]].forEach(function (d) {
+        var b = el('<button class="acao-x" title="Mover">' + d[0] + '</button>');
+        b.onclick = function () {
+          api("/api/admin/modulo-mover", { id: m.id, direcao: d[1] })
+            .then(function () { abrirCurso(c.id); });
+        };
+        ax.appendChild(b);
+      });
+      var bem = el('<button class="acao-x" title="Editar">✎</button>');
+      bem.onclick = function () { modalModulo(c, m); };
+      var bxm = el('<button class="acao-x" title="Remover">×</button>');
+      bxm.onclick = function () {
+        if (!confirm('Remover o módulo "' + m.titulo + '"?\nAs aulas dele não se perdem, ' +
+          'voltam para fora dos módulos.')) return;
+        api("/api/admin/modulo-excluir", { id: m.id }).then(function () { abrirCurso(c.id); });
+      };
+      ax.appendChild(bem); ax.appendChild(bxm);
+      cab.appendChild(ax);
+      if (!m.aulas.length) {
+        bloco.appendChild(el('<p class="small muted" style="margin-top:12px">Módulo vazio.</p>'));
+      }
+      m.aulas.forEach(function (a, i) { bloco.appendChild(linhaAula(a, i)); });
+      var bna = el('<button class="btn btn-linha btn-sm" style="margin-top:14px">+ Aula neste módulo</button>');
+      bna.onclick = function () { modalAula(c, null, m.id); };
+      bloco.appendChild(bna);
+      lista.appendChild(bloco);
     });
-    var bNova = el('<button class="btn btn-ouro btn-sm" style="margin-top:16px">+ Nova aula</button>');
-    bNova.onclick = function () { modalAula(c, null); };
-    lista.appendChild(bNova);
+
+    if ((c.soltas || []).length) {
+      var fora = el('<div class="card card-pad" style="margin-bottom:14px">' +
+        '<div class="eyebrow">Fora de módulo</div></div>');
+      c.soltas.forEach(function (a, i) { fora.appendChild(linhaAula(a, i)); });
+      lista.appendChild(fora);
+    }
+
+    if (!c.modulos.length && !(c.soltas || []).length) {
+      lista.appendChild(el('<div class="card card-pad center" style="padding:38px 24px">' +
+        '<p class="muted small">Curso vazio. Crie o primeiro módulo e depois as aulas dele.</p>' +
+        '</div>'));
+    }
+
+    var acoesL = el('<div style="display:flex;gap:9px;flex-wrap:wrap;margin-top:6px"></div>');
+    var bMod = el('<button class="btn btn-ouro btn-sm">+ Novo módulo</button>');
+    bMod.onclick = function () { modalModulo(c, null); };
+    var bNova = el('<button class="btn btn-linha btn-sm">+ Aula avulsa</button>');
+    bNova.onclick = function () { modalAula(c, null, ""); };
+    acoesL.appendChild(bMod); acoesL.appendChild(bNova);
+    lista.appendChild(acoesL);
     wrap.appendChild(lista);
 
     var bDel = el('<button class="btn btn-linha btn-sm" style="margin-top:20px">Excluir este curso</button>');
@@ -570,14 +641,36 @@
     return wrap;
   }
 
-  function modalAula(c, a) {
+
+  function modalModulo(c, m) {
+    m = m || {};
+    var corpo = el('<div>' +
+      campoTexto("mo_tit", "Nome do módulo", "Ex: Comece por aqui", m.titulo) +
+      '<div class="campo"><label class="small" style="color:var(--ameixa-700);' +
+      'margin-bottom:5px;display:block">Sobre o módulo</label>' +
+      '<textarea id="mo_desc" style="min-height:70px">' + esc(m.descricao || "") +
+      '</textarea></div></div>');
+    var bs = el('<button class="btn btn-ouro">Salvar</button>');
+    var f = modal(m.id ? "Editar módulo" : "Novo módulo", esc(c.titulo), corpo, [bs]);
+    bs.onclick = function () {
+      var t = f.querySelector("#mo_tit").value.trim();
+      if (!t) return toast("Dê um nome ao módulo");
+      api("/api/admin/modulo-salvar", { id: m.id, curso_id: c.id, titulo: t,
+        descricao: f.querySelector("#mo_desc").value })
+        .then(function (r) {
+          if (r.erro) return toast(r.erro);
+          f.remove(); toast("Módulo salvo"); abrirCurso(c.id);
+        });
+    };
+  }
+
+  function modalAula(c, a, moduloId) {
     a = a || {};
     var corpo = el('<div>' +
       campoTexto("au_tit", "Nome da aula", "Ex: Como abrir a ligação", a.titulo) +
       campoTexto("au_dur", "Duração", "Ex: 42 min", a.duracao) +
-      campoTexto("au_url", "Link do vídeo", "Panda, YouTube ou Vimeo", a.url) +
-      '<p class="small muted" style="margin:-8px 0 14px">Aula longa por link carrega ' +
-      'mais rápido e não pesa no servidor.</p>' +
+      campoTexto("au_url", "Link do vídeo", "Panda, YouTube, Vimeo ou Meet", a.url) +
+      '<div id="au_video" style="margin:-8px 0 16px"></div>' +
       '<div class="campo" style="margin-bottom:14px"><label class="small" ' +
       'style="color:var(--ameixa-700);margin-bottom:5px;display:block">Sobre a aula</label>' +
       '<textarea id="au_desc" style="min-height:70px">' + esc(a.descricao || "") + '</textarea></div>' +
@@ -586,6 +679,21 @@
 
     var capaId = a.capa_midia_id || "";
     var matId = a.material_midia_id || "";
+    var videoId = a.midia_id || "";
+
+    var areaVid = corpo.querySelector("#au_video");
+    function pintarVideo() {
+      areaVid.innerHTML = "";
+      areaVid.appendChild(el('<p class="small muted" style="margin:0 0 8px">Ou envie o ' +
+        'arquivo da aula. Sobe em pedaços, então gravação longa passa.</p>'));
+      if (videoId) {
+        areaVid.appendChild(el('<video controls style="width:100%;border-radius:var(--r-sm);' +
+          'background:#000;margin-bottom:8px" src="/api/midia/' + esc(videoId) + '"></video>'));
+      }
+      areaVid.appendChild(botaoEnviar(videoId ? "↑ Trocar o vídeo" : "↑ Enviar o vídeo da aula",
+        null, "aula", function (r) { videoId = r.id; pintarVideo(); }, "video/*"));
+    }
+    pintarVideo();
 
     var areaCapa = corpo.querySelector("#au_capa");
     function pintarCapa() {
@@ -623,7 +731,8 @@
       if (!t) return toast("Dê um nome à aula");
       api("/api/admin/aula-salvar", { id: a.id, curso_id: c.id, titulo: t,
         duracao: f.querySelector("#au_dur").value, url: f.querySelector("#au_url").value,
-        descricao: f.querySelector("#au_desc").value, midia_id: a.midia_id || "",
+        descricao: f.querySelector("#au_desc").value, midia_id: videoId,
+        modulo_id: moduloId !== undefined ? moduloId : (a.modulo_id || ""),
         capa_midia_id: capaId, material_midia_id: matId })
         .then(function (r) {
           if (r.erro) return toast(r.erro);
@@ -1508,6 +1617,19 @@
     return h;
   }
 
+  /* cada empresa ganha um tom próprio, para o olho achar rápido no quadro */
+  var TONS = ["linear-gradient(140deg,#472B60,#241030)",
+              "linear-gradient(140deg,#A8803F,#7E5A22)",
+              "linear-gradient(140deg,#B25837,#7E3A24)",
+              "linear-gradient(140deg,#5A3A6E,#37204B)",
+              "linear-gradient(140deg,#3E7D5A,#2A5740)",
+              "linear-gradient(140deg,#8E6FA3,#5A3A6E)"];
+  function corDaEmpresa(nome) {
+    var n = 0;
+    for (var i = 0; i < (nome || "").length; i++) n += nome.charCodeAt(i);
+    return TONS[n % TONS.length];
+  }
+
   function telaPainel(d) {
     var wrap = document.createElement("div");
     wrap.appendChild(el('<div class="painel-topo"><div>' +
@@ -1618,11 +1740,25 @@
       var lista = col.querySelector(".kan-lista");
       doCiclo.forEach(function (j) {
         var pct = j.acoes ? Math.round(j.acoes_feitas / j.acoes * 100) : 0;
+        var avisos = "";
+        if (j.dias_sem_contato != null && j.dias_sem_contato > 7) {
+          avisos += '<span class="kan-alerta">' + j.dias_sem_contato + ' dias sem falar</span>';
+        }
+        if (j.dias_contrato != null) {
+          var cls = j.dias_contrato < 0 ? "kan-venceu"
+                  : j.dias_contrato <= 30 ? "kan-alerta" : "kan-prazo";
+          avisos += '<span class="' + cls + '">' +
+            (j.dias_contrato < 0 ? "contrato vencido"
+              : j.dias_contrato + " dias de contrato") + '</span>';
+        }
         var c = el('<div class="kan-card">' +
-          '<div class="kan-topo"><span class="kan-ini">' +
+          '<div class="kan-topo"><span class="kan-ini" style="background:' +
+          corDaEmpresa(j.empresa) + '">' +
           esc((j.empresa || "?").slice(0, 1).toUpperCase()) + '</span>' +
           '<div class="kan-nome"><strong>' + esc(j.empresa) + '</strong>' +
-          '<span class="small muted">' + esc(j.segmento || "Sem segmento") + '</span></div></div>' +
+          (j.tipo_servico ? '<span class="small muted">' + esc(j.tipo_servico) + '</span>'
+            : '<span class="small muted">' + esc(j.segmento || "Sem segmento") + '</span>') +
+          '</div></div>' +
           (j.entrada ? '<span class="selo selo-entrada" style="margin-top:10px;display:inline-block">' +
             esc(j.entrada) + '</span>' : '') +
           '<div class="kan-linha"><span>Diagnóstico</span>' +
@@ -1632,9 +1768,7 @@
           '<div class="mini-barra"><i style="width:' + pct + '%;background:var(--terracota-500)"></i></div>' +
           '<b>' + j.acoes_feitas + '/' + j.acoes + '</b></div>' +
           '<div class="kan-pe"><span>' + (j.documentos + j.paginas) + ' materiais</span>' +
-          (j.dias_sem_contato != null && j.dias_sem_contato > 7
-            ? '<span class="kan-alerta">' + j.dias_sem_contato + 'd sem contato</span>'
-            : '') + '</div>');
+          '<span class="kan-avisos">' + avisos + '</span></div>');
         c.onclick = function () { abrirCliente(j.id); };
         lista.appendChild(c);
       });

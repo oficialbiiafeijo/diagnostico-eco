@@ -668,3 +668,16 @@ select.fmt-men{width:auto;margin:0;padding:4px 26px 4px 9px;font-size:12px;
 .barra .marca-b3 .mb,.p-topo .marca-b3 .mb{fill:#FFFCF9}
 .barra .marca-b3 .m3,.p-topo .marca-b3 .m3{fill:var(--ouro-300)}
 .barra .marca-fio,.p-topo .marca-fio{background:var(--ouro-300);opacity:.55}
+
+.kan-avisos{display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end}
+.kan-prazo{color:var(--ok);background:rgba(62,125,90,.12);border-radius:99px;padding:1px 8px}
+.kan-venceu{color:var(--critico);background:rgba(168,68,60,.12);border-radius:99px;
+  padding:1px 8px}
+.kanban{flex-wrap:wrap}
+.kan-col{flex:1 1 250px;max-width:330px}
+
+.cur-banner{height:170px;border-radius:var(--r);position:relative;margin-bottom:4px}
+.cur-banner-env{position:absolute;right:14px;bottom:14px}
+.cur-banner-env .btn{font-size:12px;padding:7px 13px}
+.mod-cab{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.mod-t{font-size:22px;color:var(--ameixa-900);margin:3px 0 0}
