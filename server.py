@@ -29,6 +29,7 @@ import analise
 import forms
 import questions
 import rota
+import central
 import conquistas
 import workspace
 
@@ -193,6 +194,29 @@ CREATE TABLE IF NOT EXISTS ws_versoes (
   id INTEGER PRIMARY KEY AUTOINCREMENT, pagina_id TEXT NOT NULL,
   snapshot TEXT, em TEXT, usuario TEXT);
 
+CREATE TABLE IF NOT EXISTS registros (
+  id TEXT PRIMARY KEY, cliente_id TEXT, tipo TEXT DEFAULT 'Tarefa',
+  titulo TEXT NOT NULL, descricao TEXT DEFAULT '', ciclo TEXT DEFAULT '',
+  pilar TEXT DEFAULT '', responsavel TEXT DEFAULT '', lado TEXT DEFAULT 'b3sales',
+  prazo TEXT, prioridade TEXT DEFAULT 'Média', status TEXT DEFAULT 'Não iniciado',
+  visibilidade TEXT DEFAULT 'interno', midia_ids TEXT DEFAULT '',
+  obs TEXT DEFAULT '', criado_por TEXT DEFAULT '',
+  criado_em TEXT, atualizado_em TEXT);
+
+CREATE INDEX IF NOT EXISTS ix_registros_cli ON registros(cliente_id);
+
+CREATE TABLE IF NOT EXISTS notas_central (
+  id TEXT PRIMARY KEY, cliente_id TEXT, titulo TEXT DEFAULT '',
+  corpo TEXT DEFAULT '', midia_ids TEXT DEFAULT '', fixada INTEGER DEFAULT 0,
+  criado_por TEXT DEFAULT '', criado_em TEXT, atualizado_em TEXT);
+
+CREATE TABLE IF NOT EXISTS central_historico (
+  id INTEGER PRIMARY KEY AUTOINCREMENT, item_id TEXT NOT NULL,
+  cliente_id TEXT, campo TEXT, anterior TEXT, novo TEXT,
+  usuario TEXT DEFAULT '', em TEXT);
+
+CREATE INDEX IF NOT EXISTS ix_central_hist ON central_historico(item_id);
+
 CREATE TABLE IF NOT EXISTS acesso_pessoa (
   id TEXT PRIMARY KEY, cliente_id TEXT NOT NULL, equipe_id TEXT DEFAULT '',
   tipo TEXT DEFAULT 'pagina', alvo_id TEXT NOT NULL,
@@ -289,6 +313,8 @@ COLUNAS_NOVAS = [
     ("recados", "midia_ids", "TEXT"),
     ("recados", "link", "TEXT"),
     ("ciclos", "foco", "TEXT"),
+    ("acoes", "prazo", "TEXT"),
+    ("acoes", "prioridade", "TEXT DEFAULT ''"),
     ("clientes", "tipo_servico", "TEXT DEFAULT ''"),
     ("clientes", "contrato_inicio", "TEXT"),
     ("clientes", "contrato_fim", "TEXT"),
@@ -689,6 +715,10 @@ class Handler(BaseHTTPRequestHandler):
         if p == "/api/admin/sessao":
             u = self.admin_user()
             return self.json({"logado": bool(u), "usuario": u})
+        if p == "/api/admin/central":
+            return self.api_central()
+        if p == "/api/admin/central-historico":
+            return self.api_central_historico()
         if p == "/api/admin/acessos-pessoa":
             return self.api_acessos_pessoa()
         if p == "/api/admin/clientes":
@@ -877,6 +907,12 @@ class Handler(BaseHTTPRequestHandler):
             return self.api_recado_apagar()
         if p == "/api/admin/acesso-pessoa":
             return self.api_acesso_pessoa()
+        if p == "/api/admin/central-salvar":
+            return self.api_central_salvar()
+        if p == "/api/admin/central-apagar":
+            return self.api_central_apagar()
+        if p == "/api/admin/central-nota":
+            return self.api_central_nota()
         if p == "/api/admin/ciclo-foco":
             return self.api_ciclo_foco()
         if p == "/api/admin/status":
@@ -1588,6 +1624,139 @@ class Handler(BaseHTTPRequestHandler):
                     m["anexos"].append(dict(r))
             m.pop("midia_ids", None)
         return linhas
+
+    # --------------------------------------------------- Central de Ação
+    def api_central(self):
+        """Tudo que a B3 Sales precisa executar, cobrar ou acompanhar.
+
+        Lê da rota, dos materiais e dos registros próprios. Nada é copiado,
+        então prazo e status nunca ficam diferentes entre a Central e a aba
+        de onde a tarefa veio.
+        """
+        cid = self.q1("cliente") or None
+        f = {}
+        for k in ("status", "prioridade", "origem", "tipo", "ciclo", "pilar",
+                  "lado", "responsavel", "busca"):
+            v = self.q1(k)
+            if v:
+                f[k] = v
+        if self.q1("aberto") == "1":
+            f["aberto"] = True
+        itens = central.listar(db(), cid, f)
+        # o resumo olha a carteira inteira do filtro, sem o recorte de status
+        base = central.listar(db(), cid, {})
+        return self.json({
+            "itens": itens, "resumo": central.resumo(base),
+            "tipos": central.TIPOS, "status": central.STATUS,
+            "prioridades": central.PRIORIDADES, "origens": central.ORIGENS,
+            "ciclos": questions.CICLOS,
+            "clientes": [dict(r) for r in db().execute(
+                "SELECT id, empresa, logo_midia_id, logo_ajuste FROM clientes "
+                "WHERE arquivado=0 ORDER BY empresa")],
+            "notas": [dict(r) for r in db().execute(
+                "SELECT * FROM notas_central WHERE (?1 IS NULL AND cliente_id IS NULL) "
+                "OR cliente_id = ?1 ORDER BY fixada DESC, atualizado_em DESC",
+                (cid,))],
+        })
+
+    def api_central_salvar(self):
+        """Cria um registro próprio ou edita qualquer item, na origem dele."""
+        b = self.body()
+        agora = now()
+        eu = self.admin_user() or ""
+        item_id = b.get("id")
+        campos = {k: v for k, v in b.items()
+                  if k in ("tipo", "titulo", "descricao", "ciclo", "pilar",
+                           "responsavel", "lado", "prazo", "prioridade", "status",
+                           "visibilidade", "midia_ids", "obs")}
+
+        if item_id:
+            antes = {i["id"]: i for i in central.listar(db(), None, {})}.get(item_id)
+            if not antes:
+                return self.erro("Este item não existe mais.", 404)
+            if not central.gravar(db(), item_id, campos, agora):
+                return self.erro("Não deu para gravar este item.")
+            for k, v in campos.items():
+                if str(antes.get(k) or "") != str(v or ""):
+                    db().execute(
+                        "INSERT INTO central_historico(item_id,cliente_id,campo,"
+                        "anterior,novo,usuario,em) VALUES(?,?,?,?,?,?,?)",
+                        (item_id, antes.get("cliente_id"), k,
+                         str(antes.get(k) or ""), str(v or ""), eu, agora))
+            db().commit()
+            return self.json({"ok": True})
+
+        titulo = (b.get("titulo") or "").strip()
+        if not titulo:
+            return self.erro("Escreva o título do registro.")
+        rid = novo_token()[:16]
+        db().execute(
+            "INSERT INTO registros(id,cliente_id,tipo,titulo,descricao,ciclo,pilar,"
+            "responsavel,lado,prazo,prioridade,status,visibilidade,midia_ids,obs,"
+            "criado_por,criado_em,atualizado_em) "
+            "VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            (rid, b.get("cliente_id") or None,
+             b.get("tipo") if b.get("tipo") in central.TIPOS else "Tarefa",
+             titulo[:200], (b.get("descricao") or "")[:4000], b.get("ciclo", ""),
+             b.get("pilar", ""), b.get("responsavel", ""),
+             "cliente" if b.get("lado") == "cliente" else "b3sales",
+             b.get("prazo") or None,
+             b.get("prioridade") if b.get("prioridade") in central.PRIORIDADES
+             else "Média",
+             b.get("status") if b.get("status") in central.STATUS else "Não iniciado",
+             # todo registro nasce interno, por decisão
+             "interno", ",".join(str(x)[:24] for x in (b.get("midia_ids") or [])),
+             (b.get("obs") or "")[:4000], eu, agora, agora))
+        db().execute("INSERT INTO central_historico(item_id,cliente_id,campo,anterior,"
+                     "novo,usuario,em) VALUES(?,?,?,?,?,?,?)",
+                     ("registro:" + rid, b.get("cliente_id"), "criado", "",
+                      titulo, eu, agora))
+        db().commit()
+        return self.json({"ok": True, "id": "registro:" + rid})
+
+    def api_central_apagar(self):
+        b = self.body()
+        item = b.get("id") or ""
+        if not item.startswith("registro:"):
+            return self.erro("Só dá para apagar um registro criado aqui. "
+                             "Os outros vivem na aba de origem.")
+        db().execute("DELETE FROM registros WHERE id=?", (item.split(":", 1)[1],))
+        db().commit()
+        return self.json({"ok": True})
+
+    def api_central_historico(self):
+        item = self.q1("item") or ""
+        return self.json({"historico": [dict(r) for r in db().execute(
+            "SELECT campo, anterior, novo, usuario, em FROM central_historico "
+            "WHERE item_id=? ORDER BY id DESC LIMIT 60", (item,))]})
+
+    def api_central_nota(self):
+        """A área de notas livres, no espírito do Notas do Mac."""
+        b = self.body()
+        agora = now()
+        if b.get("apagar"):
+            db().execute("DELETE FROM notas_central WHERE id=?", (b.get("id"),))
+            db().commit()
+            return self.json({"ok": True})
+        if b.get("id"):
+            db().execute(
+                "UPDATE notas_central SET titulo=?, corpo=?, midia_ids=?, fixada=?, "
+                "atualizado_em=? WHERE id=?",
+                ((b.get("titulo") or "")[:200], (b.get("corpo") or "")[:20000],
+                 ",".join(str(x)[:24] for x in (b.get("midia_ids") or [])),
+                 1 if b.get("fixada") else 0, agora, b["id"]))
+            db().commit()
+            return self.json({"ok": True, "id": b["id"]})
+        nid = novo_token()[:16]
+        db().execute(
+            "INSERT INTO notas_central(id,cliente_id,titulo,corpo,midia_ids,fixada,"
+            "criado_por,criado_em,atualizado_em) VALUES(?,?,?,?,?,?,?,?,?)",
+            (nid, b.get("cliente_id") or None, (b.get("titulo") or "")[:200],
+             (b.get("corpo") or "")[:20000],
+             ",".join(str(x)[:24] for x in (b.get("midia_ids") or [])),
+             1 if b.get("fixada") else 0, self.admin_user() or "", agora, agora))
+        db().commit()
+        return self.json({"ok": True, "id": nid})
 
     def api_acesso_pessoa(self):
         """Libera uma página ou um curso para uma pessoa do time do cliente.

@@ -1229,3 +1229,77 @@ select.fmt-men{width:auto;margin:0;padding:4px 26px 4px 9px;font-size:12px;
 .ae-mais{background:none;border:none;padding:5px 0 0 26px;cursor:pointer;
   font-family:var(--sans);font-size:12px;color:var(--ameixa-700)}
 .ae-mais:hover{color:var(--ameixa-900)}
+
+/* ================================================================
+   Central de Ação: o controle interno da execução
+   ================================================================ */
+.ca-proximo{background:var(--ameixa-900);color:#FFFCF9;border-radius:var(--r);
+  padding:18px 22px;margin-bottom:16px;display:flex;align-items:baseline;
+  gap:14px;flex-wrap:wrap}
+.ca-proximo .eyebrow{color:var(--ouro-300);margin:0}
+.ca-proximo strong{font-family:var(--serif);font-size:23px;font-weight:500;flex:1}
+.ca-proximo .ca-prazo{background:rgba(255,255,255,.14);color:var(--ouro-300)}
+
+.ca-filtros{display:flex;gap:9px;flex-wrap:wrap;align-items:center;margin:18px 0 14px}
+.ca-filtros select{width:auto;min-width:132px;font-size:12.5px;padding:8px 11px}
+.ca-filtros input[type=text]{width:auto;font-size:12.5px;padding:8px 11px}
+.ca-check{display:flex;align-items:center;gap:7px;font-size:12.5px;
+  color:var(--texto-2);white-space:nowrap}
+
+.ca-lista{display:flex;flex-direction:column;gap:8px}
+.ca-i{display:flex;align-items:center;gap:14px;background:var(--branco);
+  border:1px solid var(--linha);border-radius:var(--r-sm);padding:13px 16px;
+  transition:.15s}
+.ca-i:hover{border-color:var(--linha-2);box-shadow:var(--sombra)}
+.ca-i.atrasada{border-left:3px solid var(--critico);border-radius:0 var(--r-sm) var(--r-sm) 0}
+.ca-pr{width:8px;height:8px;border-radius:50%;flex:none;background:var(--creme-3)}
+.ca-pr-urgente{background:var(--critico)}
+.ca-pr-alta{background:var(--terracota-500)}
+.ca-pr-media{background:var(--ouro-500)}
+.ca-pr-baixa{background:var(--creme-3)}
+.ca-meio{flex:1;min-width:0}
+.ca-meio strong{display:block;font-size:14px;color:var(--ameixa-900);font-weight:500;
+  line-height:1.35}
+.ca-etq{display:flex;gap:6px;flex-wrap:wrap;margin-top:5px}
+.ca-tag{font-size:10.5px;letter-spacing:.05em;color:var(--texto-2);
+  background:var(--creme-2);border-radius:99px;padding:2px 9px;white-space:nowrap}
+.ca-tag-cli{background:var(--ameixa-900);color:#FFFCF9}
+.ca-lado-cliente{background:var(--terracota-100);color:var(--terracota-700)}
+.ca-lado-b3sales{background:var(--ouro-100);color:var(--ouro-800)}
+.ca-dir{display:flex;align-items:center;gap:9px;flex:none;flex-wrap:wrap;
+  justify-content:flex-end}
+.ca-prazo{font-size:11.5px;color:var(--muted);white-space:nowrap;
+  background:var(--creme-2);border-radius:99px;padding:3px 10px;
+  font-variant-numeric:lining-nums tabular-nums}
+.ca-atraso{font-size:11.5px;color:#fff;background:var(--critico);border-radius:99px;
+  padding:3px 10px;white-space:nowrap}
+.ca-st{width:auto;min-width:150px;font-size:12px;padding:7px 10px}
+
+.ca-lb{display:block;color:var(--ameixa-700);margin:14px 0 5px;font-weight:500}
+.ca-dupla{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.ca-h{display:grid;grid-template-columns:110px minmax(0,1fr) auto;gap:10px;
+  padding:8px 0;border-top:1px solid var(--linha-2);font-size:12px}
+.ca-h span{color:var(--ouro-700);text-transform:uppercase;letter-spacing:.08em;
+  font-size:10.5px}
+.ca-h b{color:var(--texto-2);font-weight:400}
+.ca-h i{font-style:normal;color:var(--muted);white-space:nowrap;
+  font-variant-numeric:lining-nums tabular-nums}
+
+.ca-notas{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));
+  gap:12px;margin-top:16px}
+.ca-nota{background:var(--creme-2);border:1px solid var(--linha-2);
+  border-radius:var(--r-sm);padding:15px 16px;cursor:pointer;transition:.15s}
+.ca-nota:hover{border-color:var(--ouro-500)}
+.ca-nota.fixada{background:var(--ouro-100);border-color:var(--ouro-300)}
+.ca-nota strong{display:block;font-family:var(--serif);font-size:18px;
+  color:var(--ameixa-900);font-weight:500}
+.ca-nota p{margin:6px 0 8px;font-size:12.5px;color:var(--texto-2);line-height:1.6;
+  white-space:pre-wrap}
+.ca-nota i{font-style:normal;font-size:11px;color:var(--muted);
+  font-variant-numeric:lining-nums tabular-nums}
+
+@media (max-width:820px){
+  .ca-i{flex-wrap:wrap}
+  .ca-dir{width:100%;justify-content:flex-start}
+  .ca-dupla{grid-template-columns:1fr}
+}
