@@ -995,7 +995,28 @@ class Handler(BaseHTTPRequestHandler):
         self.erro("Rota não encontrada.", 404)
 
     # ------------------------------------------------------------ estaticos
+    def admin_js(self):
+        """Monta o admin.js a partir das partes em web/admin/.
+
+        O projeto nao tem etapa de build, entao a juncao acontece aqui. As
+        partes sao pedacos do mesmo escopo, na ordem do nome do arquivo, e
+        o invólucro que fecha esse escopo mora so neste lugar.
+        """
+        pasta = WEB_DIR / "admin"
+        partes = []
+        for f in sorted(pasta.glob("*.js")):
+            t = f.read_text(encoding="utf-8")
+            partes.append(t[:-1] if t.endswith("\n") else t)
+        corpo = ("/* Diagnostico Comercial ECO - area interna do Grupo B3 Sales */\n"
+                 "(function () {\n" + "\n".join(partes) + "\n})();\n")
+        self._send(200, corpo.encode("utf-8"),
+                   "application/javascript; charset=utf-8",
+                   {"Cache-Control": "no-cache"})
+
     def static(self, rel):
+        # admin.js vem das partes, quando elas existem
+        if rel == "admin.js" and (WEB_DIR / "admin").is_dir():
+            return self.admin_js()
         f = (WEB_DIR / rel).resolve()
         if not str(f).startswith(str(WEB_DIR.resolve())) or not f.is_file():
             return self._send(404, "não encontrado", "text/plain; charset=utf-8")
