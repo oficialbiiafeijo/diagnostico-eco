@@ -2222,9 +2222,22 @@ class Handler(BaseHTTPRequestHandler):
             "SELECT nome, funcao, area FROM equipe WHERE cliente_id=? AND ativo=1 "
             "ORDER BY ordem LIMIT 8", (cid,))]
 
+        modulos_lib = 0
+        if cursos:
+            ids = [x["id"] for x in cursos]
+            modulos_lib = conn.execute(
+                "SELECT COUNT(*) n FROM modulos WHERE curso_id IN (%s)" %
+                ",".join("?" * len(ids)), ids).fetchone()["n"]
+        provas = conn.execute("SELECT COUNT(*) n FROM provas WHERE cliente_id=?",
+                              (cid,)).fetchone()["n"]
+
         return self.json({
             "cliente": c, "frentes": frentes, "equipe": equipe,
             "equipe_lista": equipe_lista,
+            "compartilhado": {"cursos": len(cursos), "modulos": modulos_lib,
+                              "paginas_liberadas": liberadas, "paginas": len(paginas),
+                              "arquivos_nossos": docs_nossos,
+                              "arquivos_dele": docs_cliente, "provas": provas},
             "proximas": proximas, "feitas_recentes": feitas_recentes,
             "ciclos": ciclos, "cursos": cursos,
             "score": sc, "dias_contrato": dias_contrato, "dias_contato": dias_contato,

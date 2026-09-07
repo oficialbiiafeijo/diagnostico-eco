@@ -1838,9 +1838,9 @@
 
   /* ------------------------------------------- painel do cliente */
   var COR_FRENTE = {
-    diagnostico: "var(--ameixa-600)", jornada: "var(--ouro-600)",
-    rota: "var(--terracota-500)", materiais: "var(--ameixa-400)",
-    treinamento: "#3E7D5A", arquivos: "var(--ouro-800)"
+    diagnostico: "var(--azul-500)", jornada: "var(--ameixa-600)",
+    rota: "var(--terracota-500)", materiais: "var(--ouro-600)",
+    treinamento: "var(--verde-500)", arquivos: "var(--azul-800)"
   };
 
   function anel(pct, cor, tamanho) {
@@ -2043,7 +2043,7 @@
       '<div class="pilares-graf" id="q_pil"></div></div>');
     var gp = pil.querySelector("#q_pil");
     if (d.score) {
-      [["E", "Estratégia", "var(--ameixa-600)"], ["C", "Condução", "var(--ouro-600)"],
+      [["E", "Estratégia", "var(--azul-500)"], ["C", "Condução", "var(--ouro-600)"],
        ["O", "Operação", "var(--terracota-500)"]].forEach(function (x) {
         var v = d.score.pilares[x[0]].score;
         gp.appendChild(el('<div class="pil-linha"><span class="pil-k">' + x[0] + '</span>' +
@@ -2071,7 +2071,7 @@
         'Gere a rota pelo diagnóstico.</p>'));
     }
     (d.proximas || []).forEach(function (a) {
-      var cor = ({ E: "var(--ameixa-600)", C: "var(--ouro-600)",
+      var cor = ({ E: "var(--azul-500)", C: "var(--ouro-600)",
                    O: "var(--terracota-500)" })[a.pilar] || "var(--muted)";
       lt.appendChild(el('<div class="q-tar"><span class="q-tar-p" style="background:' +
         cor + '"></span><div><strong>' + esc(a.titulo) + '</strong>' +
@@ -2120,24 +2120,34 @@
     });
     q.appendChild(ent);
 
-    /* 7. materiais e treinamento, dois números que contam história */
-    var mat = d.frentes[3], tre = d.frentes[4], acv = d.frentes[5];
-    var res = el('<div class="q-card q-mini"><div class="q-mini-i" style="background:' +
-      COR_FRENTE.materiais + '">▤</div><b>' + mat.total + '</b>' +
-      '<span>páginas de material</span><small>' + esc(mat.detalhe) + '</small></div>');
-    res.onclick = destinos.materiais;
-    q.appendChild(res);
-
-    var tr2 = el('<div class="q-card q-mini"><div class="q-mini-i" style="background:' +
-      COR_FRENTE.treinamento + '">▶</div><b>' + tre.feito + '<i>/' + tre.total + '</i></b>' +
-      '<span>aulas assistidas</span><small>' + esc(tre.detalhe) + '</small></div>');
-    tr2.onclick = destinos.treinamento;
-    q.appendChild(tr2);
-
-    var ac2 = el('<div class="q-card q-mini"><div class="q-mini-i" style="background:' +
-      COR_FRENTE.arquivos + '">⇩</div><b>' + acv.total + '</b>' +
-      '<span>arquivos no acervo</span><small>' + esc(acv.detalhe) + '</small></div>');
-    q.appendChild(ac2);
+    /* 7. o que já foi compartilhado com ele, e o que ele mandou de volta */
+    var cp = d.compartilhado || {};
+    var tre = d.frentes[4];
+    var troca = el('<div class="q-card q-troca"><div class="eyebrow">A troca</div>' +
+      '<h3 class="q-t">O que já <em class="grifo">passou entre vocês</em></h3>' +
+      '<div class="q-troca-grade"></div></div>');
+    var tg = troca.querySelector(".q-troca-grade");
+    [["▤", "Páginas de material", cp.paginas || 0,
+      (cp.paginas_liberadas || 0) + " liberadas para ele", "var(--ouro-600)", destinos.materiais],
+     ["▶", "Módulos de curso", cp.modulos || 0,
+      (cp.cursos || 0) + " cursos com acesso", "var(--verde-500)", destinos.treinamento],
+     ["♪", "Aulas assistidas", tre.feito + "/" + tre.total,
+      "pela equipe dele", "var(--azul-500)", destinos.treinamento],
+     ["↑", "Arquivos que enviamos", cp.arquivos_nossos || 0,
+      "materiais, contratos, provas", "var(--ameixa-600)", null],
+     ["↓", "Arquivos que ele mandou", cp.arquivos_dele || 0,
+      "anexos do diagnóstico", "var(--terracota-500)", null],
+     ["★", "Provas sociais dele", cp.provas || 0,
+      "guardadas no arsenal", "var(--ouro-800)", function () { PROVA_CLI = c.id; abrirProvas(); }]
+    ].forEach(function (x) {
+      var it = el('<div class="q-troca-i"' + (x[5] ? ' style="cursor:pointer"' : '') + '>' +
+        '<span class="q-troca-ic" style="background:' + x[4] + '">' + x[0] + '</span>' +
+        '<div><b>' + x[2] + '</b><strong>' + esc(x[1]) + '</strong>' +
+        '<span class="small muted">' + esc(x[3]) + '</span></div></div>');
+      if (x[5]) it.onclick = x[5];
+      tg.appendChild(it);
+    });
+    q.appendChild(troca);
 
     /* 8. quem é quem */
     if ((d.equipe_lista || []).length) {
@@ -2184,8 +2194,8 @@
   }
 
   /* ------------------------------------------------------- visão geral */
-  var CORES_CICLO = ["#472B60", "#5A3A6E", "#8E6FA3", "#C09052",
-                     "#CFA467", "#C2683F", "#9C4A2F"];
+  var CORES_CICLO = ["#1B2A4A", "#263A63", "#472B60", "#8E6FA3",
+                     "#A8803F", "#C2683F", "#3E7D5A"];
 
   function rosca(dados, tamanho, centro, legenda) {
     /* dados: [{rotulo, valor, cor}] */
@@ -2235,7 +2245,7 @@
   }
 
   function barrasPilar(p) {
-    var itens = [{ k: "E", n: "Estratégia", v: p.E, c: "var(--ameixa-600)" },
+    var itens = [{ k: "E", n: "Estratégia", v: p.E, c: "var(--azul-500)" },
                  { k: "C", n: "Condução", v: p.C, c: "var(--ouro-600)" },
                  { k: "O", n: "Operação", v: p.O, c: "var(--terracota-500)" }];
     var h = "";
@@ -2251,11 +2261,13 @@
 
   /* cada empresa ganha um tom próprio, para o olho achar rápido no quadro */
   var TONS = ["linear-gradient(140deg,#472B60,#241030)",
+              "linear-gradient(140deg,#263A63,#111E38)",
               "linear-gradient(140deg,#A8803F,#7E5A22)",
               "linear-gradient(140deg,#B25837,#7E3A24)",
-              "linear-gradient(140deg,#5A3A6E,#37204B)",
               "linear-gradient(140deg,#3E7D5A,#2A5740)",
-              "linear-gradient(140deg,#8E6FA3,#5A3A6E)"];
+              "linear-gradient(140deg,#3D5A8F,#1B2A4A)",
+              "linear-gradient(140deg,#8E6FA3,#5A3A6E)",
+              "linear-gradient(140deg,#C2683F,#7E3A24)"];
   function corDaEmpresa(nome) {
     var n = 0;
     for (var i = 0; i < (nome || "").length; i++) n += nome.charCodeAt(i);
