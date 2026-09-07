@@ -770,6 +770,11 @@ class Handler(BaseHTTPRequestHandler):
             return self.api_equipe(m.group(1))
 
         # -------- anexos
+        m = re.fullmatch(r"/api/midia-info/([\w\-]+)", p)
+        if m:
+            if not self.exige_admin():
+                return
+            return self.api_midia_info(m.group(1))
         m = re.fullmatch(r"/api/midia/([\w\-]+)", p)
         if m:
             return self.api_baixar_midia(m.group(1))
@@ -1835,9 +1840,12 @@ class Handler(BaseHTTPRequestHandler):
         que permite ao player pular para o meio da aula sem baixar o resto.
         """
         tamanho = f.stat().st_size
+        # o tipo vem do banco e pode ter vindo torto do navegador
+        tipo = re.sub(r"[^\w./+-]", "", str(tipo or ""))[:80] or "application/octet-stream"
         inline = tipo.split("/")[0] in ("image", "audio", "video") or tipo == "application/pdf"
         disp = "inline" if inline else "attachment"
-        nome_seguro = re.sub(r'["\r\n]', "", nome)[:120]
+        # cabecalho HTTP so aceita latin-1: tiramos acento e o que nao couber
+        nome_seguro = re.sub(r'[^A-Za-z0-9 ._-]', "_", str(nome or "arquivo"))[:120] or "arquivo"
 
         faixa = self.headers.get("Range") or ""
         ini, fim = 0, tamanho - 1
@@ -1880,6 +1888,32 @@ class Handler(BaseHTTPRequestHandler):
                     falta -= len(pedaco)
         except (BrokenPipeError, ConnectionResetError):
             pass   # o navegador desistiu no meio, e normal em video
+        except Exception as e:
+            # em vez de derrubar a conexao e virar 502, registramos e seguimos
+            sys.stderr.write(f"[eco] falha ao entregar {f}: {type(e).__name__}: {e}\n")
+            sys.stderr.flush()
+
+    def api_midia_info(self, mid):
+        """Conta o que se sabe sobre um arquivo, sem tentar entrega-lo."""
+        r = db().execute("SELECT * FROM midia WHERE id=?", (mid,)).fetchone()
+        if not r:
+            return self.json({"achou": False})
+        f = DATA_DIR / r["arquivo"]
+        existe = False
+        tam = None
+        erro = None
+        try:
+            existe = f.is_file()
+            if existe:
+                tam = f.stat().st_size
+        except OSError as e:
+            erro = f"{type(e).__name__}: {e}"
+        return self.json({
+            "achou": True, "nome": r["nome"], "tipo_no_banco": r["tipo"],
+            "tamanho_no_banco": r["tamanho"], "caminho": r["arquivo"],
+            "arquivo_existe": existe, "tamanho_no_disco": tam,
+            "pasta_de_dados": str(DATA_DIR), "erro": erro,
+        })
 
     def api_baixar_midia(self, mid):
         r = db().execute("SELECT * FROM midia WHERE id=?", (mid,)).fetchone()
