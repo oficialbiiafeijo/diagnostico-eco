@@ -122,6 +122,17 @@
     padding:11px 13px;border:1px solid var(--linha-2);border-radius:10px;
     background:var(--creme);color:var(--texto)}
   .p-fala textarea{min-height:120px;resize:vertical}
+  .p-ax-lista{display:flex;gap:7px;flex-wrap:wrap;margin-top:8px}
+  .p-ax-t{background:var(--creme-2);border:1px solid var(--linha-2);border-radius:99px;
+    padding:3px 11px;font-size:11.5px;color:var(--texto-2)}
+  .p-ax-t button{background:none;border:none;cursor:pointer;color:var(--muted);
+    font-size:13px;padding:0 0 0 4px}
+  .p-fala-i.casa{border-left:3px solid var(--ouro-600);padding-left:11px}
+  .p-fala-i.meu{border-left:3px solid var(--linha-2);padding-left:11px}
+  .p-fala-d{font-size:11px;color:var(--muted);margin-left:8px;
+    font-variant-numeric:lining-nums tabular-nums}
+  .p-fala-lk{display:block;margin-top:5px;font-size:12.5px;color:var(--ameixa-700);
+    word-break:break-all}
   .p-fala-hist{margin-top:20px;border-top:1px solid var(--linha-2);padding-top:16px}
   .p-fala-i{padding:11px 0;border-bottom:1px solid var(--linha-2)}
   .p-fala-i:last-child{border-bottom:0}
@@ -537,6 +548,38 @@
     window.scrollTo(0, 0);
   }
 
+  /* Envio em pedaços de 4MB: sem isso, um vídeo grande derruba a página.
+     Assim não existe limite de tamanho, só o espaço do servidor. */
+  var PEDACO = 4 * 1024 * 1024;
+
+  function enviarArquivoPortal(file, aoProgredir) {
+    var envio = "p" + Date.now() + Math.random().toString(36).slice(2, 8);
+    var total = Math.max(1, Math.ceil(file.size / PEDACO));
+    var i = 0;
+    function proximo() {
+      var fatia = file.slice(i * PEDACO, (i + 1) * PEDACO);
+      return new Promise(function (ok, nao) {
+        var fr = new FileReader();
+        fr.onload = function () { ok(fr.result); };
+        fr.onerror = function () { nao(new Error("Não deu para ler o arquivo.")); };
+        fr.readAsDataURL(fatia);
+      }).then(function (dados) {
+        return fetch("/api/c/" + encodeURIComponent(token) + "/recado-pedaco", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ envio_id: envio, indice: i, total: total,
+            dados: dados, nome: file.name, tipo: file.type,
+            categoria: "recado" })
+        }).then(function (r) { return r.json(); });
+      }).then(function (r) {
+        if (r.erro) throw new Error(r.erro);
+        i += 1;
+        if (aoProgredir) aoProgredir(Math.round(i / total * 100));
+        return r.pronto ? r : proximo();
+      });
+    }
+    return proximo();
+  }
+
   /* O cliente fala com o CS dele: pedido, observação ou informação. */
   function secaoFalar(d, ciclo) {
     var caixa = el('<div></div>');
@@ -552,22 +595,62 @@
       '<textarea id="fa_texto" placeholder="Escreva aqui"></textarea>' +
       '<label for="fa_autor">Quem está escrevendo</label>' +
       '<input type="text" id="fa_autor" placeholder="Seu nome"></div>');
+    var anexados = [], listaAx = el('<div class="p-ax-lista"></div>');
+    function pintarAx() {
+      listaAx.innerHTML = "";
+      anexados.forEach(function (a, ix) {
+        var t = el('<span class="p-ax-t">' + esc(a.nome) + ' <button>×</button></span>');
+        t.querySelector("button").onclick = function () { anexados.splice(ix, 1); pintarAx(); };
+        listaAx.appendChild(t);
+      });
+    }
+    var inp = document.createElement("input");
+    inp.type = "file"; inp.style.display = "none";
+    var bAx = el('<button class="btn btn-linha" style="margin-top:16px">↑ Anexar arquivo</button>');
+    var stAx = el('<span class="small muted" style="margin-left:10px"></span>');
+    bAx.onclick = function () { inp.click(); };
+    inp.onchange = function () {
+      var arq = inp.files[0];
+      if (!arq) return;
+      bAx.disabled = true; stAx.textContent = "Enviando " + arq.name + "…";
+      enviarArquivoPortal(arq, function (pct) {
+        stAx.textContent = "Enviando " + arq.name + "  ·  " + pct + "%";
+      }).then(function (r) {
+        bAx.disabled = false; inp.value = ""; stAx.textContent = "";
+        anexados.push({ id: r.id, nome: r.nome }); pintarAx();
+      }).catch(function (e) {
+        bAx.disabled = false; stAx.textContent = e.message;
+      });
+    };
+    f.appendChild(el('<label>Anexos e links</label>'));
+    f.appendChild(el('<input type="text" id="fa_link" placeholder="Colar um link (opcional)">'));
+    f.appendChild(listaAx);
+    var linhaAx = el('<div style="display:flex;align-items:center;flex-wrap:wrap"></div>');
+    linhaAx.appendChild(bAx); linhaAx.appendChild(stAx); linhaAx.appendChild(inp);
+    f.appendChild(linhaAx);
+
     var b = el('<button class="btn btn-ameixa" style="margin-top:16px">Enviar mensagem</button>');
     var st = el('<p class="small muted" style="margin:10px 0 0"></p>');
     b.onclick = function () {
       var texto = f.querySelector("#fa_texto").value.trim();
-      if (!texto) { st.textContent = "Escreva a sua mensagem antes de enviar."; return; }
+      var lk = f.querySelector("#fa_link").value.trim();
+      if (!texto && !lk && !anexados.length) {
+        st.textContent = "Escreva a sua mensagem ou anexe alguma coisa."; return;
+      }
       b.disabled = true; b.textContent = "Enviando…";
       fetch("/api/c/" + encodeURIComponent(token) + "/recado", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ texto: texto, ciclo: ciclo || "",
+        body: JSON.stringify({ texto: texto || "(arquivo enviado)", ciclo: ciclo || "",
           assunto: f.querySelector("#fa_assunto").value,
-          autor: f.querySelector("#fa_autor").value })
+          autor: f.querySelector("#fa_autor").value,
+          link: lk, midia_ids: anexados.map(function (a) { return a.id; }) })
       }).then(function (r) { return r.json(); }).then(function (r) {
         b.disabled = false; b.textContent = "Enviar mensagem";
         if (r.erro) { st.textContent = r.erro; return; }
         f.querySelector("#fa_texto").value = "";
         f.querySelector("#fa_assunto").value = "";
+        f.querySelector("#fa_link").value = "";
+        anexados = []; pintarAx();
         st.textContent = "Recebido. O time já foi avisado.";
         carregar();
       }).catch(function () {
@@ -579,11 +662,23 @@
     var antes = (d.recados || []);
     if (antes.length) {
       var h = el('<div class="p-fala-hist"><p class="small muted" ' +
-        'style="margin:0 0 8px">O que você já enviou</p></div>');
-      antes.slice(0, 8).forEach(function (m) {
-        h.appendChild(el('<div class="p-fala-i"><b>' + dataBr(m.criado_em) + '</b>' +
-          (m.assunto ? ' <span class="small muted">' + esc(m.assunto) + '</span>' : '') +
-          '<p>' + esc(m.texto) + '</p></div>'));
+        'style="margin:0 0 8px">A conversa</p></div>');
+      antes.slice().reverse().forEach(function (m) {
+        var daCasa = m.de === "b3sales";
+        var i = el('<div class="p-fala-i ' + (daCasa ? "casa" : "meu") + '">' +
+          '<b>' + (daCasa ? "Grupo B3 Sales" : "Você") + '</b>' +
+          '<span class="p-fala-d">' + dataBr(m.criado_em) + '</span>' +
+          (m.assunto ? '<span class="small muted"> · ' + esc(m.assunto) + '</span>' : '') +
+          (m.texto ? '<p>' + esc(m.texto) + '</p>' : '') + '</div>');
+        if (m.link) {
+          i.appendChild(el('<a class="p-fala-lk" href="' + esc(m.link) +
+            '" target="_blank" rel="noopener">' + esc(m.link) + '</a>'));
+        }
+        (m.anexos || []).forEach(function (a) {
+          i.appendChild(el('<a class="p-fala-lk" href="/api/midia/' + esc(a.id) +
+            '" target="_blank" rel="noopener">⇩ ' + esc(a.nome) + '</a>'));
+        });
+        h.appendChild(i);
       });
       f.appendChild(h);
     }

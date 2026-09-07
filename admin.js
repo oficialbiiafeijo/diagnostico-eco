@@ -115,6 +115,49 @@
       '<div class="marca-sub">Group</div></div></div>';
   }
 
+  /* Atalho para ver o sistema pelos olhos de qualquer cliente. */
+  function modalModoCliente() {
+    var corpo = el('<div><p style="margin-top:0">Abra o acompanhamento exatamente ' +
+      'como o cliente vê. Nada da sua análise interna aparece por lá.</p>' +
+      '<div id="mc_lista" style="margin-top:16px"></div></div>');
+    modal("Modo cliente", "Ver como ele vê", corpo);
+    var lista = corpo.querySelector("#mc_lista");
+    lista.appendChild(el('<p class="small muted">Carregando…</p>'));
+    api("/api/admin/clientes").then(function (d) {
+      lista.innerHTML = "";
+      var cs = (d.clientes || []);
+      if (!cs.length) {
+        lista.appendChild(el('<p class="small muted">Nenhum cliente cadastrado.</p>'));
+        return;
+      }
+      cs.forEach(function (c) {
+        var aberto = c.portal_ativo && c.token_portal;
+        var it = el('<div class="mc-i"><div class="fc-foto" style="' +
+          estiloLogo(c, 36) + '">' +
+          (c.logo_midia_id ? '' : esc((c.empresa || "?").slice(0, 1).toUpperCase())) +
+          '</div><div class="fc-t"><strong>' + esc(c.empresa) + '</strong>' +
+          '<p>' + (aberto ? "Acompanhamento aberto"
+                          : "Acompanhamento ainda fechado") + '</p></div></div>');
+        if (aberto) {
+          var a = el('<a class="btn btn-linha btn-sm" target="_blank" rel="noopener" ' +
+            'href="' + esc(location.origin + "/c/" + c.token_portal) + '">Abrir →</a>');
+          it.appendChild(a);
+        } else {
+          var b = el('<button class="btn btn-ouro btn-sm">Abrir para ele</button>');
+          b.onclick = function () {
+            api("/api/admin/portal", { cliente_id: c.id, ativo: true }).then(function (r) {
+              if (r.erro) return toast(r.erro);
+              window.open(location.origin + "/c/" + r.token, "_blank");
+              toast("Acompanhamento liberado");
+            });
+          };
+          it.appendChild(b);
+        }
+        lista.appendChild(it);
+      });
+    });
+  }
+
   function shell(conteudo) {
     app.innerHTML = "";
     var barra = el('<div class="barra"><div class="barra-in">' +
@@ -146,6 +189,9 @@
     var bu = el('<button class="btn btn-fantasma btn-sm">Acessos</button>');
     bu.onclick = modalUsuarios;
     dir.appendChild(bu);
+    var bmc = el('<button class="btn btn-fantasma btn-sm">Modo cliente</button>');
+    bmc.onclick = modalModoCliente;
+    dir.appendChild(bmc);
     var bc = el('<button class="btn btn-fantasma btn-sm">Configurações</button>');
     bc.onclick = modalConfig;
     var bs = el('<button class="btn btn-fantasma btn-sm">Sair</button>');
@@ -1724,6 +1770,10 @@
       var bTraz = el('<button class="btn btn-ouro btn-sm" style="width:100%;margin-top:8px">↓ Trazer da metodologia</button>');
       bTraz.onclick = function () { modalTrazer(cid); };
       lat.appendChild(bTraz);
+      var bEq = el('<button class="btn btn-linha btn-sm" style="width:100%;margin-top:8px">' +
+        '⚙ Acesso da equipe</button>');
+      bEq.onclick = function () { modalAcessoEquipe(cid, dados.paginas || []); };
+      lat.appendChild(bEq);
     }
     grade.appendChild(lat);
 
@@ -2099,6 +2149,352 @@
     };
   }
 
+  /* Conversa com o cliente por dentro do sistema: texto, arquivo e link,
+     nos dois sentidos. O que ele manda chega marcado como novo. */
+  function cartaoFala(c, msgs, aoMudar) {
+    var card = el('<div class="q-card q-fala"><div class="q-cab">' +
+      '<div><div class="eyebrow">Fale conosco</div>' +
+      '<h3 class="q-t">Conversa com <em class="grifo">' + esc(c.empresa) + '</em></h3></div>' +
+      '</div></div>');
+    var novos = msgs.filter(function (m) { return m.de === "cliente" && !m.lido; });
+    if (novos.length) {
+      var bl = el('<button class="btn btn-fantasma btn-sm">Marcar como lidas</button>');
+      bl.onclick = function () {
+        api("/api/admin/recado-lido", { cliente_id: c.id }).then(aoMudar);
+      };
+      card.querySelector(".q-cab").appendChild(bl);
+    }
+
+    var fio = el('<div class="fala-fio"></div>');
+    if (!msgs.length) {
+      fio.appendChild(el('<p class="small muted">Nenhuma mensagem ainda. ' +
+        'O que você escrever aqui aparece no acompanhamento dele.</p>'));
+    }
+    msgs.slice().reverse().forEach(function (m) {
+      var meu = m.de === "b3sales";
+      var bal = el('<div class="fala-m ' + (meu ? "meu" : "dele") +
+        (!meu && !m.lido ? " novo" : "") + '"></div>');
+      bal.appendChild(el('<div class="fala-cab">' +
+        '<b>' + (meu ? "Grupo B3 Sales" : esc(m.autor || c.empresa)) + '</b>' +
+        '<span>' + dataBr(m.criado_em) + '</span></div>'));
+      if (m.assunto) bal.appendChild(el('<div class="fala-as">' + esc(m.assunto) + '</div>'));
+      if (m.texto) bal.appendChild(el('<p class="fala-tx">' + esc(m.texto) + '</p>'));
+      if (m.link) {
+        bal.appendChild(el('<a class="fala-lk" href="' + esc(m.link) +
+          '" target="_blank" rel="noopener">' + esc(m.link) + '</a>'));
+      }
+      (m.anexos || []).forEach(function (a) {
+        bal.appendChild(el('<a class="fala-ax" href="/api/midia/' + esc(a.id) +
+          '" target="_blank" rel="noopener">⇩ ' + esc(a.nome) + '</a>'));
+      });
+      var bx = el('<button class="fala-x" title="Apagar">×</button>');
+      bx.onclick = function () {
+        api("/api/admin/recado-apagar", { id: m.id }).then(aoMudar);
+      };
+      bal.appendChild(bx);
+      fio.appendChild(bal);
+    });
+    card.appendChild(fio);
+
+    /* resposta */
+    var caixa = el('<div class="fala-nova">' +
+      '<input type="text" class="fala-as-in" placeholder="Assunto (opcional)">' +
+      '<textarea class="fala-tx-in" placeholder="Escreva para ' +
+      esc(c.responsavel || c.empresa) + '"></textarea>' +
+      '<input type="text" class="fala-lk-in" placeholder="Colar um link (opcional)">' +
+      '</div>');
+    var anexados = [];
+    var listaAx = el('<div class="fala-ax-lista"></div>');
+    function pintarAx() {
+      listaAx.innerHTML = "";
+      anexados.forEach(function (a, i) {
+        var t = el('<span class="fala-ax-t">' + esc(a.nome) + ' <button>×</button></span>');
+        t.querySelector("button").onclick = function () {
+          anexados.splice(i, 1); pintarAx();
+        };
+        listaAx.appendChild(t);
+      });
+    }
+    var linha = el('<div style="display:flex;gap:9px;align-items:center;flex-wrap:wrap;' +
+      'margin-top:10px"></div>');
+    linha.appendChild(botaoEnviar("↑ Anexar arquivo", c.id, "recado", function (r) {
+      anexados.push({ id: r.id, nome: r.nome }); pintarAx();
+    }));
+    var bEnv = el('<button class="btn btn-ameixa btn-sm">Enviar para o cliente</button>');
+    bEnv.onclick = function () {
+      var corpo = {
+        cliente_id: c.id, ciclo: S.ciclo || "",
+        assunto: caixa.querySelector(".fala-as-in").value,
+        texto: caixa.querySelector(".fala-tx-in").value,
+        link: caixa.querySelector(".fala-lk-in").value,
+        midia_ids: anexados.map(function (a) { return a.id; })
+      };
+      bEnv.disabled = true;
+      api("/api/admin/recado", corpo).then(function (r) {
+        bEnv.disabled = false;
+        if (r.erro) return toast(r.erro);
+        toast("Mensagem enviada ao cliente");
+        aoMudar();
+      });
+    };
+    linha.appendChild(bEnv);
+    caixa.appendChild(listaAx); caixa.appendChild(linha);
+    card.appendChild(caixa);
+    return card;
+  }
+
+  /* Quem do time do cliente enxerga cada página. Nome e email obrigatórios:
+     é o que garante que a página de um cliente nunca chega a outro. */
+  function modalAcessoEquipe(cid, paginas) {
+    var cx = el('<div><p style="margin-top:0">Escolha o que este cliente pode ver e ' +
+      'para quem do time dele. Tudo que você liberar vale <strong>só para ele</strong>.</p>' +
+      '<div id="ae_corpo" style="margin-top:16px"><p class="small muted">Carregando…</p></div>' +
+      '</div>');
+    modal("Acesso da equipe", "Só para este cliente", cx);
+    var corpo = cx.querySelector("#ae_corpo");
+
+    function pintar() {
+      Promise.all([
+        api("/api/admin/cliente-painel/" + cid),
+        api("/api/admin/acessos-pessoa?cliente=" + encodeURIComponent(cid))
+      ]).then(function (r) {
+        var equipe = r[0].equipe_lista || [];
+        var acessos = (r[1].acessos || []).filter(function (a) { return a.tipo === "pagina"; });
+        corpo.innerHTML = "";
+
+        var todas = el('<label class="ws-vis" style="margin-bottom:12px">' +
+          '<input type="checkbox" id="ae_todas"> ' +
+          '<span>Liberar todas as páginas deste cliente para ele ver</span></label>');
+        var marcadas = paginas.filter(function (p) { return p.visivel_cliente; }).length;
+        todas.querySelector("input").checked = marcadas === paginas.length && paginas.length > 0;
+        todas.querySelector("input").onchange = function (e) {
+          var v = e.target.checked ? 1 : 0;
+          Promise.all(paginas.map(function (p) {
+            return api("/api/admin/ws-pagina", { id: p.id, visivel_cliente: v });
+          })).then(function () {
+            toast(v ? "Todas liberadas" : "Todas fechadas");
+            abrirMateriais(cid);
+          });
+        };
+        corpo.appendChild(todas);
+
+        paginas.forEach(function (pg) {
+          var bloco = el('<div class="ae-pg"></div>');
+          var lin = el('<label class="ws-vis"><input type="checkbox"' +
+            (pg.visivel_cliente ? " checked" : "") + '> <span><strong>' +
+            esc(pg.titulo) + '</strong></span></label>');
+          lin.querySelector("input").onchange = function (e) {
+            api("/api/admin/ws-pagina",
+                { id: pg.id, visivel_cliente: e.target.checked ? 1 : 0 })
+              .then(function () { pg.visivel_cliente = e.target.checked ? 1 : 0; pintar(); });
+          };
+          bloco.appendChild(lin);
+
+          var desta = acessos.filter(function (a) { return a.alvo_id === pg.id; });
+          desta.forEach(function (a) {
+            var i = el('<div class="ae-p"><span>' + esc(a.nome) +
+              ' <span class="small muted">' + esc(a.email) + '</span></span></div>');
+            var bx = el('<button class="btn btn-fantasma btn-sm">Tirar</button>');
+            bx.onclick = function () {
+              api("/api/admin/acesso-pessoa", { cliente_id: cid, tipo: "pagina",
+                alvo_id: pg.id, id: a.id, remover: true })
+                .then(function () { toast("Acesso retirado"); pintar(); });
+            };
+            i.appendChild(bx);
+            bloco.appendChild(i);
+          });
+          var b = el('<button class="ae-mais">+ liberar para alguém do time</button>');
+          b.onclick = function () {
+            modalLiberarPessoa(cid, "pagina", pg.id, pg.titulo, equipe, pintar);
+          };
+          bloco.appendChild(b);
+          corpo.appendChild(bloco);
+        });
+      });
+    }
+    pintar();
+  }
+
+  /* Os cursos daquele cliente: quais ele tem, quais faltam e quem do time
+     dele pode assistir. Espelha a página de cursos, mas fechada nele. */
+  function abrirCursosCliente(cid) {
+    S.rota = "cursos-cliente"; S.cid = cid;
+    Promise.all([
+      api("/api/admin/cursos"),
+      api("/api/admin/cliente-painel/" + cid),
+      api("/api/admin/acessos-pessoa?cliente=" + encodeURIComponent(cid))
+    ]).then(function (r) {
+      shell(telaCursosCliente(cid, r[0], r[1], r[2].acessos || []));
+    });
+  }
+
+  function telaCursosCliente(cid, d, painel, acessos) {
+    var c = painel.cliente || { id: cid, empresa: "Cliente" };
+    var cursos = d.cursos || [];
+    var meus = cursos.filter(function (x) { return (x.clientes || []).indexOf(cid) >= 0; });
+    var outros = cursos.filter(function (x) { return (x.clientes || []).indexOf(cid) < 0; });
+    var wrap = document.createElement("div");
+
+    var topo = el('<div class="painel-topo"><div>' +
+      '<div class="eyebrow">Cursos do cliente</div>' +
+      '<h1 class="serif">O que <em class="grifo">' + esc(c.empresa) + '</em> pode assistir</h1>' +
+      '<p class="muted small" style="margin-top:6px">Só os cursos liberados aqui aparecem ' +
+      'no acompanhamento dele. Nada de outro cliente chega junto.</p></div>' +
+      '<div style="display:flex;gap:10px"></div></div>');
+    var volta = el('<button class="btn btn-fantasma btn-sm">← Voltar para o cliente</button>');
+    volta.onclick = function () { abrirCliente(cid, S.ciclo); };
+    topo.lastChild.appendChild(volta);
+    wrap.appendChild(topo);
+
+    var corpo = el('<div class="ws"></div>');
+
+    /* menu da esquerda: acrescentar e remover curso */
+    var lado = el('<div class="ws-lado"><div class="eyebrow">Cursos</div></div>');
+    var listaL = el('<div class="ws-paginas"></div>');
+    if (!meus.length) {
+      listaL.appendChild(el('<p class="small muted" style="padding:8px 2px">' +
+        'Nenhum curso liberado ainda.</p>'));
+    }
+    meus.forEach(function (x) {
+      var it = el('<div class="ws-pg at"><span class="ws-pg-t">' + esc(x.titulo) + '</span>' +
+        '<button class="ws-pg-x" title="Remover deste cliente">×</button></div>');
+      it.querySelector("button").onclick = function (e) {
+        e.stopPropagation();
+        if (!confirm("Remover " + x.titulo + " do acesso de " + c.empresa + "?")) return;
+        var novos = (x.clientes || []).filter(function (y) { return y !== cid; });
+        api("/api/admin/curso-acesso", { curso_id: x.id, clientes: novos })
+          .then(function () { toast("Curso removido"); abrirCursosCliente(cid); });
+      };
+      listaL.appendChild(it);
+    });
+    lado.appendChild(listaL);
+
+    var bAdd = el('<button class="btn btn-linha btn-sm" style="width:100%;margin-top:12px">' +
+      '+ Acrescentar curso</button>');
+    bAdd.onclick = function () {
+      if (!outros.length) return toast("Este cliente já tem todos os cursos.");
+      var cx = el('<div><p style="margin-top:0">Escolha o que liberar para ' +
+        esc(c.empresa) + '.</p><div id="ac_lista"></div></div>');
+      var lst = cx.querySelector("#ac_lista");
+      outros.forEach(function (x) {
+        var l = el('<label class="ws-vis" style="margin:6px 0"><input type="checkbox" value="' +
+          esc(x.id) + '"> <span>' + esc(x.titulo) +
+          (x.trilha ? ' <span class="small muted">· ' + esc(x.trilha) + '</span>' : '') +
+          '</span></label>');
+        lst.appendChild(l);
+      });
+      var bs = el('<button class="btn btn-ouro">Liberar</button>');
+      var f = modal("Acrescentar curso", "Acesso do cliente", cx, [bs]);
+      bs.onclick = function () {
+        var ids = [].slice.call(lst.querySelectorAll("input:checked"))
+          .map(function (i) { return i.value; });
+        if (!ids.length) return toast("Escolha ao menos um curso.");
+        Promise.all(ids.map(function (id) {
+          var cur = cursos.filter(function (y) { return y.id === id; })[0];
+          return api("/api/admin/curso-acesso",
+                     { curso_id: id, clientes: (cur.clientes || []).concat([cid]) });
+        })).then(function () {
+          f.remove(); toast("Liberado"); abrirCursosCliente(cid);
+        });
+      };
+    };
+    lado.appendChild(bAdd);
+    corpo.appendChild(lado);
+
+    /* corpo: cada curso liberado, com módulos e quem do time pode ver */
+    var col = el('<div class="ws-col"></div>');
+    if (!meus.length) {
+      col.appendChild(el('<div class="card card-pad"><p class="muted">' +
+        'Use o botão à esquerda para liberar o primeiro curso.</p></div>'));
+    }
+    var equipe = painel.equipe_lista || [];
+    meus.forEach(function (x) {
+      var fundo = x.capa_midia_id
+        ? "#241030 url(/api/midia/" + esc(x.capa_midia_id) + ") center/cover"
+        : (CAPA_CSS[x.capa] || "var(--creme-3)");
+      var card = el('<div class="card" style="margin-bottom:16px;overflow:hidden">' +
+        '<div style="height:110px;background:' + fundo + '"></div>' +
+        '<div class="card-pad"><h3 class="serif" style="font-size:23px;' +
+        'color:var(--ameixa-900);margin:0 0 4px">' + esc(x.titulo) + '</h3>' +
+        '<p class="small muted" style="margin:0 0 12px">' + x.aulas +
+        (x.aulas === 1 ? " aula" : " aulas") +
+        (x.trilha ? "  ·  " + esc(x.trilha) : "") + '</p></div>');
+      var pad = card.querySelector(".card-pad");
+
+      var bAb = el('<button class="btn btn-linha btn-sm">Abrir o curso</button>');
+      bAb.onclick = function () { abrirCurso(x.id); };
+      pad.appendChild(bAb);
+
+      /* quem do time dele pode assistir */
+      var doCurso = acessos.filter(function (a) {
+        return a.tipo === "curso" && a.alvo_id === x.id;
+      });
+      var pes = el('<div style="margin-top:16px;border-top:1px solid var(--linha-2);' +
+        'padding-top:12px"><div class="eyebrow">Quem do time dele pode assistir</div></div>');
+      if (!doCurso.length) {
+        pes.appendChild(el('<p class="small muted" style="margin:8px 0 0">' +
+          'Ninguém liberado individualmente. O curso aparece para a empresa toda.</p>'));
+      }
+      doCurso.forEach(function (a) {
+        var i = el('<div class="ind"><div><strong>' + esc(a.nome) + '</strong>' +
+          '<div class="small muted">' + esc(a.email) + '</div></div></div>');
+        var bx = el('<button class="btn btn-fantasma btn-sm">Tirar</button>');
+        bx.onclick = function () {
+          api("/api/admin/acesso-pessoa", { cliente_id: cid, tipo: "curso",
+            alvo_id: x.id, id: a.id, remover: true })
+            .then(function () { toast("Acesso retirado"); abrirCursosCliente(cid); });
+        };
+        i.appendChild(bx);
+        pes.appendChild(i);
+      });
+      var bLib = el('<button class="btn btn-ouro btn-sm" style="margin-top:10px">' +
+        '+ Liberar para alguém</button>');
+      bLib.onclick = function () {
+        modalLiberarPessoa(cid, "curso", x.id, x.titulo, equipe,
+                           function () { abrirCursosCliente(cid); });
+      };
+      pes.appendChild(bLib);
+      pad.appendChild(pes);
+      col.appendChild(card);
+    });
+    corpo.appendChild(col);
+    wrap.appendChild(corpo);
+    return wrap;
+  }
+
+  /* O acesso só sai com nome e email. É isso que impede o material de um
+     cliente de escorregar para outro. */
+  function modalLiberarPessoa(cid, tipo, alvoId, titulo, equipe, aoTerminar) {
+    var cx = el('<div><p style="margin-top:0">Liberar <strong>' + esc(titulo) +
+      '</strong> para uma pessoa. O acesso só vale com o nome e o email ' +
+      'confirmados.</p>' +
+      '<label class="small" style="color:var(--ameixa-700);margin:14px 0 5px;display:block">' +
+      'Pessoa do time</label><select id="lp_eq"><option value="">Escrever outro nome</option>' +
+      '</select>' +
+      campoTexto("lp_nome", "Nome completo", "Como está no contrato") +
+      campoTexto("lp_mail", "Email", "nome@empresa.com.br") + '</div>');
+    var sel = cx.querySelector("#lp_eq");
+    equipe.forEach(function (p) {
+      sel.appendChild(el('<option value="' + esc(p.nome) + '">' + esc(p.nome) +
+        (p.funcao ? " · " + esc(p.funcao) : "") + '</option>'));
+    });
+    sel.onchange = function () {
+      if (sel.value) cx.querySelector("#lp_nome").value = sel.value;
+    };
+    var bs = el('<button class="btn btn-ouro">Liberar acesso</button>');
+    var f = modal("Liberar acesso", "Time do cliente", cx, [bs]);
+    bs.onclick = function () {
+      api("/api/admin/acesso-pessoa", {
+        cliente_id: cid, tipo: tipo, alvo_id: alvoId,
+        nome: cx.querySelector("#lp_nome").value,
+        email: cx.querySelector("#lp_mail").value
+      }).then(function (r) {
+        if (r.erro) return toast(r.erro);
+        f.remove(); toast("Acesso liberado"); aoTerminar();
+      });
+    };
+  }
+
   function telaCliente(d) {
     var c = d.cliente;
     var wrap = document.createElement("div");
@@ -2111,6 +2507,13 @@
 
     /* capa do cliente: cor da casa ou imagem enviada */
     var fundo = CAPA_CSS[c.capa] || "linear-gradient(135deg,#241030,#5A3A6E 62%,#8E6FA3)";
+    if (c.capa_midia_id) {
+      var ajC = {};
+      try { ajC = JSON.parse(c.capa_ajuste || "{}") || {}; } catch (e) { ajC = {}; }
+      fundo = "url(/api/midia/" + esc(c.capa_midia_id) + ") " +
+        (ajC.x == null ? 50 : ajC.x) + "% " + (ajC.y == null ? 50 : ajC.y) + "%/" +
+        (ajC.zoom || 100) + "% auto no-repeat, " + fundo;
+    }
     var capa = el('<div class="cli-capa" style="' +
       (c.capa_midia_id ? fundoImagem(c.capa_midia_id, c.capa_ajuste)
                        : "background:" + fundo) + '"></div>');
@@ -2216,8 +2619,10 @@
     bEd.onclick = function () { modalEditar(c); };
     var bCiclo = el('<button class="btn btn-ameixa btn-sm">+ Novo ciclo</button>');
     bCiclo.onclick = function () { modalNovoCiclo(S.det); };
-    acoes.appendChild(bMat); acoes.appendChild(bPortal);
-    acoes.appendChild(bEd); acoes.appendChild(bCiclo);
+    var bCur = el('<button class="btn btn-linha btn-sm">Cursos do cliente</button>');
+    bCur.onclick = function () { abrirCursosCliente(c.id); };
+    acoes.appendChild(bMat); acoes.appendChild(bCur);
+    acoes.appendChild(bEd); acoes.appendChild(bCiclo); acoes.appendChild(bPortal);
 
     var mais = el('<div class="cli-mais"><button class="btn btn-fantasma btn-sm">⋯</button>' +
       '<div class="cli-menu"></div></div>');
@@ -2260,7 +2665,7 @@
       jornada: function () { S.aba = "respostas"; abrirDetalhe(c.id); },
       rota: function () { S.aba = "rota"; abrirDetalhe(c.id); },
       materiais: function () { abrirMateriais(c.id); },
-      treinamento: function () { abrirCursos(); },
+      treinamento: function () { abrirCursosCliente(c.id); },
       arquivos: function () { S.aba = "respostas"; abrirDetalhe(c.id); }
     };
 
@@ -2296,7 +2701,20 @@
       '<div><b>' + (d.ciclos || []).length + '</b><span>ciclos</span></div>' +
       '<div><b>' + (d.dias_contrato != null ? d.dias_contrato : "—") + '</b>' +
       '<span>dias de contrato</span></div></div></div></div>');
+    var novos = (d.recados || []).filter(function (m) {
+      return m.de === "cliente" && !m.lido;
+    }).length;
+    var bFala = el('<button class="q-fala-b' + (novos ? " tem" : "") + '">✉ Fale conosco' +
+      (novos ? '<span class="q-fala-n">' + novos + '</span>' : '') + '</button>');
+    bFala.onclick = function () {
+      var alvo = document.querySelector(".q-fala");
+      if (alvo) alvo.scrollIntoView({ behavior: "smooth", block: "center" });
+    };
+    idc.querySelector(".q-ident-in").appendChild(bFala);
     q.appendChild(idc);
+
+    /* 1b. a conversa com o cliente, por dentro do sistema */
+    q.appendChild(cartaoFala(c, d.recados || [], function () { abrirCliente(c.id, S.ciclo); }));
 
     /* 2. o anel grande do progresso geral */
     var ger = el('<div class="q-card q-geral">' +
@@ -2574,7 +2992,35 @@
         '</i></b><span>Processos implantados</span></div>' +
       '<div class="kpi"><b>' + d.documentos + '</b><span>Documentos recebidos</span></div>' +
       '<div class="kpi"><b>' + d.paginas + '</b><span>Materiais criados</span></div>' +
+      '<div class="kpi' + (d.nao_lidos ? ' kpi-alerta' : '') + '"><b>' +
+        (d.nao_lidos || 0) + '</b><span>Mensagens novas</span></div>' +
       '</div>'));
+
+    /* fale conosco: o que os clientes escreveram, com atalho para o cartão dele */
+    var fc = el('<div class="card card-pad" style="margin-bottom:18px">' +
+      '<div class="eyebrow">Fale conosco</div>' +
+      '<h2 class="serif tit-card" style="margin-bottom:4px">O que os clientes ' +
+      '<em class="grifo">mandaram</em></h2>' +
+      '<p class="small muted" style="margin:0 0 14px">Chega por dentro do sistema, ' +
+      'pelo acompanhamento de cada um. Clique para abrir o cliente e responder.</p></div>');
+    if (!(d.fale_conosco || []).length) {
+      fc.appendChild(el('<p class="small muted">Nenhuma mensagem por enquanto.</p>'));
+    }
+    (d.fale_conosco || []).forEach(function (m) {
+      var it = el('<div class="fc-i' + (m.lido ? '' : ' novo') + '">' +
+        '<div class="fc-foto" style="' +
+        estiloLogo({ logo_midia_id: m.logo_midia_id, logo_ajuste: m.logo_ajuste,
+                     empresa: m.empresa }, 38) + '">' +
+        (m.logo_midia_id ? '' : esc((m.empresa || "?").slice(0, 1).toUpperCase())) + '</div>' +
+        '<div class="fc-t"><strong>' + esc(m.empresa) + '</strong>' +
+        (m.assunto ? '<span class="fc-as">' + esc(m.assunto) + '</span>' : '') +
+        '<p>' + esc(String(m.texto || "").slice(0, 160)) + '</p></div>' +
+        '<div class="fc-d">' + dataBr(m.criado_em) +
+        (m.lido ? '' : '<span class="fc-tag">novo</span>') + '</div></div>');
+      it.onclick = function () { abrirCliente(m.cliente_id); };
+      fc.appendChild(it);
+    });
+    wrap.appendChild(fc);
 
     var grade = el('<div class="grade-painel"></div>');
 
@@ -2775,6 +3221,13 @@
       }
       var capa = (c.capa && CAPA_LISTA[c.capa]) ||
         "linear-gradient(135deg,#241030,#5A3A6E 62%,#8E6FA3)";
+      if (c.capa_midia_id) {
+        var aj = {};
+        try { aj = JSON.parse(c.capa_ajuste || "{}") || {}; } catch (e) { aj = {}; }
+        capa = "url(/api/midia/" + esc(c.capa_midia_id) + ") " +
+          (aj.x == null ? 50 : aj.x) + "% " + (aj.y == null ? 50 : aj.y) + "%/" +
+          (aj.zoom || 100) + "% auto no-repeat, " + capa;
+      }
       var cartao = el('<div class="cli-c">' +
         '<div class="cli-c-capa" style="background:' + capa + '"></div>' +
         '<div class="cli-c-in">' +
@@ -2793,6 +3246,10 @@
         '</div>' +
         '<div class="cli-c-pe">' +
         '<span>' + c.anexos + (c.anexos === 1 ? " anexo" : " anexos") + '</span>' +
+        (c.recados_novos
+          ? '<span class="selo-fala">✉ ' + c.recados_novos +
+            (c.recados_novos === 1 ? " mensagem" : " mensagens") + '</span>'
+          : '') +
         (dias != null
           ? '<span class="' + (dias < 0 ? "kan-venceu" : dias <= 30 ? "kan-alerta" : "kan-prazo") +
             '">' + (dias < 0 ? "vencido" : dias + " dias") + '</span>'
@@ -2865,9 +3322,12 @@
     };
     var bDel = el('<button class="btn btn-fantasma btn-sm" style="color:var(--critico)">Excluir</button>');
     bDel.onclick = function () { modalExcluir(c); };
-    acoes.appendChild(bEd);
-    acoes.appendChild(bMat); acoes.appendChild(bPortal); acoes.appendChild(bJson); acoes.appendChild(bCsv);
-    acoes.appendChild(bArq2); acoes.appendChild(bDel); acoes.appendChild(bCiclo);
+    var bCur2 = el('<button class="btn btn-linha btn-sm">Cursos do cliente</button>');
+    bCur2.onclick = function () { abrirCursosCliente(c.id); };
+    acoes.appendChild(bMat); acoes.appendChild(bCur2); acoes.appendChild(bEd);
+    acoes.appendChild(bCiclo); acoes.appendChild(bPortal);
+    acoes.appendChild(bJson); acoes.appendChild(bCsv);
+    acoes.appendChild(bArq2); acoes.appendChild(bDel);
     wrap.appendChild(cab);
 
     /* abas de ciclo */

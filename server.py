@@ -192,6 +192,14 @@ CREATE TABLE IF NOT EXISTS ws_versoes (
   id INTEGER PRIMARY KEY AUTOINCREMENT, pagina_id TEXT NOT NULL,
   snapshot TEXT, em TEXT, usuario TEXT);
 
+CREATE TABLE IF NOT EXISTS acesso_pessoa (
+  id TEXT PRIMARY KEY, cliente_id TEXT NOT NULL, equipe_id TEXT DEFAULT '',
+  tipo TEXT DEFAULT 'pagina', alvo_id TEXT NOT NULL,
+  nome TEXT DEFAULT '', email TEXT DEFAULT '', criado_em TEXT,
+  FOREIGN KEY(cliente_id) REFERENCES clientes(id) ON DELETE CASCADE);
+
+CREATE INDEX IF NOT EXISTS ix_acesso_pessoa ON acesso_pessoa(cliente_id, tipo);
+
 CREATE TABLE IF NOT EXISTS analise_notas (
   id TEXT PRIMARY KEY, cliente_id TEXT NOT NULL, ciclo TEXT,
   gargalos TEXT DEFAULT '', prioridades TEXT DEFAULT '',
@@ -277,6 +285,8 @@ COLUNAS_NOVAS = [
     ("clientes", "token_portal", "TEXT"),
     ("clientes", "instagram_empresa", "TEXT"),
     ("clientes", "instagram_pessoal", "TEXT"),
+    ("recados", "midia_ids", "TEXT"),
+    ("recados", "link", "TEXT"),
     ("clientes", "tipo_servico", "TEXT DEFAULT ''"),
     ("clientes", "contrato_inicio", "TEXT"),
     ("clientes", "contrato_fim", "TEXT"),
@@ -677,6 +687,8 @@ class Handler(BaseHTTPRequestHandler):
         if p == "/api/admin/sessao":
             u = self.admin_user()
             return self.json({"logado": bool(u), "usuario": u})
+        if p == "/api/admin/acessos-pessoa":
+            return self.api_acessos_pessoa()
         if p == "/api/admin/clientes":
             if not self.exige_admin():
                 return
@@ -825,6 +837,12 @@ class Handler(BaseHTTPRequestHandler):
         m = re.fullmatch(r"/api/d/([\w\-]+)/enviar", p)
         if m:
             return self.api_enviar(m.group(1))
+        m = re.fullmatch(r"/api/c/([\w\-]+)/recado-pedaco", p)
+        if m:
+            cid = self._cliente_do_portal(m.group(1))
+            if not cid:
+                return self.erro("Acompanhamento indisponível.", 404)
+            return self.api_midia_pedaco(forcar_cliente=cid)
         m = re.fullmatch(r"/api/c/([\w\-]+)/recado", p)
         if m:
             return self.api_portal_recado(m.group(1))
@@ -849,6 +867,14 @@ class Handler(BaseHTTPRequestHandler):
             return self.api_salvar_analise()
         if p == "/api/admin/analise-apagar":
             return self.api_analise_apagar()
+        if p == "/api/admin/recado":
+            return self.api_recado_enviar()
+        if p == "/api/admin/recado-lido":
+            return self.api_recado_lido()
+        if p == "/api/admin/recado-apagar":
+            return self.api_recado_apagar()
+        if p == "/api/admin/acesso-pessoa":
+            return self.api_acesso_pessoa()
         if p == "/api/admin/status":
             return self.api_set_status()
         if p == "/api/admin/ciclo-novo":
@@ -1343,9 +1369,7 @@ class Handler(BaseHTTPRequestHandler):
             "capas": workspace.CAPAS,
             "ciclos": ciclos, "paginas": paginas, "cursos": cursos,
             "metodologia": metodologia,
-            "recados": [dict(r) for r in db().execute(
-                "SELECT id, assunto, texto, de, criado_em FROM recados "
-                "WHERE cliente_id=? ORDER BY criado_em DESC LIMIT 30", (cid,))],
+            "recados": self.recados_de(cid),
             "resumo": {"entregas": total_acoes, "concluidas": feitas,
                        "documentos": db().execute(
                            "SELECT COUNT(*) n FROM anexos WHERE cliente_id=?",
@@ -1481,6 +1505,111 @@ class Handler(BaseHTTPRequestHandler):
             "VALUES(?,?,?,?,?,?,?,?)",
             (novo_token()[:16], cid, b.get("ciclo", ""), (b.get("assunto") or "")[:80],
              texto[:4000], (b.get("autor") or "")[:80], "cliente", now()))
+        db().execute("UPDATE recados SET midia_ids=?, link=? WHERE id=("
+                     "SELECT id FROM recados WHERE cliente_id=? ORDER BY rowid DESC LIMIT 1)",
+                     (",".join(str(x)[:24] for x in (b.get("midia_ids") or []))[:400],
+                      (b.get("link") or "")[:400], cid))
+        db().commit()
+        return self.json({"ok": True})
+
+    def recados_de(self, cid, limite=60):
+        """A conversa inteira, com o nome de cada arquivo anexado."""
+        linhas = [dict(r) for r in db().execute(
+            "SELECT id, assunto, texto, autor, de, lido, midia_ids, link, criado_em "
+            "FROM recados WHERE cliente_id=? ORDER BY criado_em DESC LIMIT ?",
+            (cid, limite))]
+        for m in linhas:
+            ids = [x for x in (m.get("midia_ids") or "").split(",") if x]
+            m["anexos"] = []
+            for i in ids:
+                r = db().execute("SELECT id, nome, tipo FROM midia WHERE id=?", (i,)).fetchone()
+                if r:
+                    m["anexos"].append(dict(r))
+            m.pop("midia_ids", None)
+        return linhas
+
+    def api_acesso_pessoa(self):
+        """Libera uma página ou um curso para uma pessoa do time do cliente.
+
+        O acesso só vale com nome e email confirmados. Sem os dois, nada é
+        liberado: é isso que garante que o material de um cliente nunca
+        aparece para outro.
+        """
+        b = self.body()
+        cid = b.get("cliente_id")
+        if not cliente_dict(cid):
+            return self.erro("Cliente não encontrado.", 404)
+        tipo = b.get("tipo") if b.get("tipo") in ("pagina", "curso") else "pagina"
+        alvo = b.get("alvo_id")
+        if not alvo:
+            return self.erro("Escolha o que vai ser liberado.")
+        if b.get("remover"):
+            db().execute("DELETE FROM acesso_pessoa WHERE cliente_id=? AND tipo=? "
+                         "AND alvo_id=? AND id=?", (cid, tipo, alvo, b.get("id")))
+            db().commit()
+            return self.json({"ok": True})
+        nome = (b.get("nome") or "").strip()
+        email = (b.get("email") or "").strip()
+        if not nome or "@" not in email or "." not in email.split("@")[-1]:
+            return self.erro("O acesso só é liberado com o nome e o email da pessoa.")
+        # a pagina ou o curso precisa mesmo pertencer a este cliente
+        if tipo == "pagina":
+            ok = db().execute("SELECT 1 FROM ws_paginas WHERE id=? AND "
+                              "(cliente_id=? OR cliente_id IS NULL)", (alvo, cid)).fetchone()
+        else:
+            ok = db().execute("SELECT 1 FROM curso_acesso WHERE curso_id=? AND cliente_id=?",
+                              (alvo, cid)).fetchone()
+        if not ok:
+            return self.erro("Este item não está disponível para este cliente.")
+        db().execute(
+            "INSERT INTO acesso_pessoa(id,cliente_id,equipe_id,tipo,alvo_id,nome,email,"
+            "criado_em) VALUES(?,?,?,?,?,?,?,?)",
+            (novo_token()[:16], cid, b.get("equipe_id", ""), tipo, alvo,
+             nome[:120], email[:160], now()))
+        db().commit()
+        return self.json({"ok": True})
+
+    def api_acessos_pessoa(self):
+        cid = self.q1("cliente")
+        if not cid:
+            return self.erro("Informe o cliente.")
+        return self.json({"acessos": [dict(r) for r in db().execute(
+            "SELECT id, equipe_id, tipo, alvo_id, nome, email, criado_em "
+            "FROM acesso_pessoa WHERE cliente_id=? ORDER BY criado_em DESC", (cid,))]})
+
+    def api_recado_enviar(self):
+        """A B3 Sales fala com o cliente por dentro do sistema."""
+        b = self.body()
+        cid = b.get("cliente_id")
+        if not cliente_dict(cid):
+            return self.erro("Cliente não encontrado.", 404)
+        texto = (b.get("texto") or "").strip()
+        link = (b.get("link") or "").strip()
+        mids = [str(x)[:24] for x in (b.get("midia_ids") or [])]
+        if not texto and not link and not mids:
+            return self.erro("Escreva a mensagem ou anexe alguma coisa.")
+        db().execute(
+            "INSERT INTO recados(id,cliente_id,ciclo,assunto,texto,autor,de,lido,"
+            "midia_ids,link,criado_em) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+            (novo_token()[:16], cid, b.get("ciclo", ""), (b.get("assunto") or "")[:80],
+             texto[:4000], self.admin_user() or "", "b3sales", 1,
+             ",".join(mids)[:400], link[:400], now()))
+        db().commit()
+        return self.json({"ok": True})
+
+    def api_recado_lido(self):
+        b = self.body()
+        if b.get("id"):
+            db().execute("UPDATE recados SET lido=1 WHERE id=?", (b["id"],))
+        elif b.get("cliente_id"):
+            db().execute("UPDATE recados SET lido=1 WHERE cliente_id=? AND de='cliente'",
+                         (b["cliente_id"],))
+        db().commit()
+        return self.json({"ok": True})
+
+    def api_recado_apagar(self):
+        b = self.body()
+        db().execute("DELETE FROM recados WHERE id=?", (b.get("id"),))
         db().commit()
         return self.json({"ok": True})
 
@@ -1802,7 +1931,7 @@ class Handler(BaseHTTPRequestHandler):
         cfg_set("logo_midia_id", b.get("logo_midia_id") or "")
         return self.json({"ok": True})
 
-    def api_midia_pedaco(self):
+    def api_midia_pedaco(self, forcar_cliente=None):
         """Recebe um arquivo grande em pedaços.
 
         Aula de uma hora e meia passa de um giga. Mandar isso de uma vez
@@ -1835,7 +1964,7 @@ class Handler(BaseHTTPRequestHandler):
 
         # ultimo pedaco: o arquivo esta inteiro, agora vira midia
         nome = (b.get("nome") or "arquivo")[:180]
-        cid = b.get("cliente_id") or None
+        cid = forcar_cliente or b.get("cliente_id") or None
         if cid and not cliente_dict(cid):
             return self.erro("Cliente não encontrado.", 404)
         tamanho = alvo.stat().st_size
@@ -1853,7 +1982,8 @@ class Handler(BaseHTTPRequestHandler):
                      "titulo,descricao,enviado_em,enviado_por) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
                      (mid, cid, nome, b.get("tipo") or "", b.get("categoria") or "material",
                       tamanho, str(destino.relative_to(DATA_DIR)), b.get("titulo", ""),
-                      b.get("descricao", ""), now(), self.admin_user() or ""))
+                      b.get("descricao", ""), now(),
+                      "cliente" if forcar_cliente else (self.admin_user() or "")))
         db().commit()
         return self.json({"ok": True, "id": mid, "nome": nome,
                           "tipo": b.get("tipo") or "", "tamanho": tamanho, "pronto": True})
@@ -2318,6 +2448,15 @@ class Handler(BaseHTTPRequestHandler):
             "sem_contato": sorted(sem_contato, key=lambda x: -x["dias"])[:8],
             "jornada": jornada,
             "ciclos": questions.CICLOS,
+            "fale_conosco": [dict(r) for r in conn.execute(
+                "SELECT r.id, r.cliente_id, c.empresa, c.logo_midia_id, c.logo_ajuste, "
+                "r.assunto, r.texto, r.autor, r.lido, r.criado_em "
+                "FROM recados r JOIN clientes c ON c.id = r.cliente_id "
+                "WHERE r.de='cliente' AND c.arquivado=0 "
+                "ORDER BY r.lido ASC, r.criado_em DESC LIMIT 12")],
+            "nao_lidos": conn.execute(
+                "SELECT COUNT(*) n FROM recados r JOIN clientes c ON c.id = r.cliente_id "
+                "WHERE r.de='cliente' AND r.lido=0 AND c.arquivado=0").fetchone()["n"],
         })
 
     def api_cliente_painel(self, cid):
@@ -2418,9 +2557,7 @@ class Handler(BaseHTTPRequestHandler):
 
         return self.json({
             "cliente": c, "frentes": frentes, "equipe": equipe,
-            "recados": [dict(r) for r in conn.execute(
-                "SELECT id, assunto, texto, autor, de, lido, criado_em FROM recados "
-                "WHERE cliente_id=? ORDER BY criado_em DESC LIMIT 40", (cid,))],
+            "recados": self.recados_de(cid),
             "equipe_lista": equipe_lista,
             "compartilhado": {"cursos": len(cursos), "modulos": modulos_lib,
                               "paginas_liberadas": liberadas, "paginas": len(paginas),
@@ -2574,7 +2711,10 @@ class Handler(BaseHTTPRequestHandler):
                         "status": atual["status"] if atual else "Não iniciado",
                         "progresso": atual["progresso"] if atual else 0,
                         "enviado_em": atual["enviado_em"] if atual else None,
-                        "anexos": nanexos})
+                        "anexos": nanexos,
+                        "recados_novos": db().execute(
+                            "SELECT COUNT(*) n FROM recados WHERE cliente_id=? "
+                            "AND de='cliente' AND lido=0", (c["id"],)).fetchone()["n"]})
         return self.json({"clientes": out, "ciclos": questions.CICLOS,
                           "status_possiveis": questions.STATUS,
                           "tipos_servico": questions.TIPOS_SERVICO})
@@ -2765,9 +2905,7 @@ class Handler(BaseHTTPRequestHandler):
             "score": analise.score(ans), "indicadores": analise.indicadores(ans),
             "nao_informados": analise.nao_informados(ans, ciclo),
             "faltando": faltando(cid, ciclo), "historico": hist,
-            "recados": [dict(r) for r in db().execute(
-                "SELECT id, assunto, texto, autor, criado_em FROM recados "
-                "WHERE cliente_id=? ORDER BY criado_em DESC LIMIT 40", (cid,))],
+            "recados": self.recados_de(cid),
             "analise_notas": [dict(r) for r in db().execute(
                 "SELECT id, gargalos, prioridades, proximo_foco, notas, autor, criado_em "
                 "FROM analise_notas WHERE cliente_id=? AND ciclo=? "
