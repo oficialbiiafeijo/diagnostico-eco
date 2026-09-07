@@ -694,7 +694,8 @@ class Handler(BaseHTTPRequestHandler):
         if p == "/":
             return self._send(200, (WEB_DIR / "home.html").read_bytes())
         if p == "/admin":
-            return self._send(200, (WEB_DIR / "admin.html").read_bytes())
+            return self._send(200, (WEB_DIR / "admin.html").read_bytes(),
+                              extra={"Cache-Control": "no-store, must-revalidate"})
         if p.startswith("/d/"):
             return self._send(200, (WEB_DIR / "cliente.html").read_bytes())
         if p.startswith("/c/"):
@@ -1017,7 +1018,8 @@ class Handler(BaseHTTPRequestHandler):
                  "(function () {\n" + "\n".join(partes) + "\n})();\n")
         self._send(200, corpo.encode("utf-8"),
                    "application/javascript; charset=utf-8",
-                   {"Cache-Control": "no-cache"})
+                   {"Cache-Control": "no-store, must-revalidate",
+                    "Pragma": "no-cache", "Expires": "0"})
 
     def static(self, rel):
         # admin.js vem das partes, quando elas existem

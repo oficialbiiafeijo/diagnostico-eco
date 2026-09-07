@@ -4,8 +4,8 @@
       '<div style="display:flex;align-items:center;gap:18px">' +
       marcaHtml() +
       '<div class="barra-tag">Diagnóstico ECO · Área interna</div></div>' +
-      '<div style="display:flex;gap:6px"></div></div></div>');
-    var dir = barra.querySelector(".barra-in > div:last-child");
+      '<div class="barra-menu"></div></div></div>');
+    var dir = barra.querySelector(".barra-menu");
     var bv = el('<button class="btn btn-fantasma btn-sm' +
       (S.rota === "painel" ? " at" : "") + '">Visão geral</button>');
     bv.onclick = function () { abrirPainel(); };
