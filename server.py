@@ -40,9 +40,9 @@ DB_PATH = DATA_DIR / "eco.db"
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
-MAX_UPLOAD = 20 * 1024 * 1024          # 20 MB por arquivo do cliente
-MAX_UPLOAD_ADMIN = 120 * 1024 * 1024   # limite so do envio de uma vez so
-PEDACO = 4 * 1024 * 1024               # arquivo grande sobe em pedacos deste tamanho
+# Nao existe teto de tamanho de arquivo. Tudo sobe em pedacos de 4 MB, que vao
+# direto para o disco, entao o unico limite real e o espaco livre do servidor.
+PEDACO = 4 * 1024 * 1024
 MAX_BODY = 24 * 1024 * 1024            # cabe um pedaco em base64, com folga
 SESSION_HOURS = 12
 _local = threading.local()
@@ -732,6 +732,9 @@ class Handler(BaseHTTPRequestHandler):
         m = re.fullmatch(r"/api/d/([\w\-]+)/salvar", p)
         if m:
             return self.api_salvar(m.group(1))
+        m = re.fullmatch(r"/api/d/([\w\-]+)/anexo-pedaco", p)
+        if m:
+            return self.api_upload_pedaco(m.group(1))
         m = re.fullmatch(r"/api/d/([\w\-]+)/anexo", p)
         if m:
             return self.api_upload(m.group(1))
@@ -796,8 +799,6 @@ class Handler(BaseHTTPRequestHandler):
             return self.api_curso_acesso()
         if p == "/api/admin/midia-pedaco":
             return self.api_midia_pedaco()
-        if p == "/api/admin/midia-enviar":
-            return self.api_midia_enviar()
         if p == "/api/admin/midia-excluir":
             return self.api_midia_excluir()
         if p == "/api/admin/metodologia-modelo":
@@ -932,8 +933,6 @@ class Handler(BaseHTTPRequestHandler):
             bin_ = base64.b64decode(dados)
         except Exception:
             return self.erro("Arquivo inválido.")
-        if len(bin_) > MAX_UPLOAD:
-            return self.erro("O arquivo passa de 20 MB. Comprima ou envie em partes.")
         if not bin_:
             return self.erro("Arquivo vazio.")
         aid = secrets.token_urlsafe(12)
@@ -948,6 +947,55 @@ class Handler(BaseHTTPRequestHandler):
                       str(destino.relative_to(DATA_DIR)), now(), "cliente"))
         db().commit()
         return self.json({"ok": True, "anexos": anexos_de(cid, ciclo)})
+
+    def api_upload_pedaco(self, token):
+        """O cliente também manda arquivo grande em pedaços, sem teto."""
+        link, err = self.link_valido(token)
+        if err:
+            return self.erro(err, 403)
+        cid, ciclo = link["cliente_id"], link["ciclo"]
+        b = self.body()
+        envio = re.sub(r"[^\w\-]", "", (b.get("envio_id") or ""))[:40]
+        if not envio:
+            return self.erro("Envio inválido.")
+        indice = int(b.get("indice") or 0)
+        total = int(b.get("total") or 1)
+        dados = b.get("dados") or ""
+        if "," in dados[:200]:
+            dados = dados.split(",", 1)[1]
+        try:
+            pedaco = base64.b64decode(dados)
+        except Exception:
+            return self.erro("Pedaço inválido.")
+        parciais = UPLOAD_DIR / "_parciais"
+        parciais.mkdir(parents=True, exist_ok=True)
+        alvo = parciais / f"{cid}_{envio}"
+        if indice == 0 and alvo.exists():
+            alvo.unlink()
+        with open(alvo, "ab") as f:
+            f.write(pedaco)
+        if indice + 1 < total:
+            return self.json({"ok": True, "recebido": indice + 1, "de": total})
+
+        nome = (b.get("nome") or "arquivo")[:180]
+        tamanho = alvo.stat().st_size
+        livre = espaco_livre()
+        if livre is not None and livre < tamanho:
+            alvo.unlink(missing_ok=True)
+            return self.erro("Não há espaço no servidor para este arquivo agora. "
+                             "Avise a B3 Sales.")
+        aid = secrets.token_urlsafe(12)
+        pasta = UPLOAD_DIR / cid / slug(ciclo)
+        pasta.mkdir(parents=True, exist_ok=True)
+        seguro = re.sub(r"[^\w\.\- ]", "_", nome)[:120]
+        destino = pasta / f"{aid}__{seguro}"
+        alvo.replace(destino)
+        db().execute("INSERT INTO anexos(id,cliente_id,ciclo,nome,tipo,tamanho,arquivo,"
+                     "enviado_em,origem) VALUES(?,?,?,?,?,?,?,?,?)",
+                     (aid, cid, ciclo, nome, b.get("tipo") or "", tamanho,
+                      str(destino.relative_to(DATA_DIR)), now(), "cliente"))
+        db().commit()
+        return self.json({"ok": True, "pronto": True, "anexos": anexos_de(cid, ciclo)})
 
     def api_remover_anexo(self, token):
         link, err = self.link_valido(token)
@@ -1485,41 +1533,6 @@ class Handler(BaseHTTPRequestHandler):
                 d["origem_tabela"] = "anexos"
                 arquivos.append(d)
         return self.json({"arquivos": arquivos})
-
-    def api_midia_enviar(self):
-        b = self.body()
-        nome = (b.get("nome") or "arquivo")[:180]
-        dados = b.get("dados") or ""
-        if "," in dados[:200]:
-            dados = dados.split(",", 1)[1]
-        try:
-            bin_ = base64.b64decode(dados)
-        except Exception:
-            return self.erro("Arquivo inválido.")
-        if not bin_:
-            return self.erro("Arquivo vazio.")
-        if len(bin_) > MAX_UPLOAD_ADMIN:
-            return self.erro("O arquivo passa de 120 MB. Para vídeo longo, use o bloco "
-                             "de vídeo com o link do Panda, YouTube ou Vimeo: fica mais "
-                             "leve e carrega melhor para quem assiste.")
-        cid = b.get("cliente_id") or None
-        if cid and not cliente_dict(cid):
-            return self.erro("Cliente não encontrado.", 404)
-        mid = secrets.token_urlsafe(12)
-        pasta = UPLOAD_DIR / (cid or "_biblioteca")
-        pasta.mkdir(parents=True, exist_ok=True)
-        seguro = re.sub(r"[^\w\.\- ]", "_", nome)[:120]
-        destino = pasta / f"{mid}__{seguro}"
-        destino.write_bytes(bin_)
-        db().execute("INSERT INTO midia(id,cliente_id,nome,tipo,categoria,tamanho,arquivo,"
-                     "titulo,descricao,enviado_em,enviado_por) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
-                     (mid, cid, nome, b.get("tipo") or "", b.get("categoria") or "material",
-                      len(bin_), str(destino.relative_to(DATA_DIR)),
-                      b.get("titulo", ""), b.get("descricao", ""), now(),
-                      self.admin_user() or ""))
-        db().commit()
-        return self.json({"ok": True, "id": mid, "nome": nome,
-                          "tipo": b.get("tipo") or "", "tamanho": len(bin_)})
 
     def api_midia_pedaco(self):
         """Recebe um arquivo grande em pedaços.

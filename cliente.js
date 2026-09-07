@@ -581,7 +581,7 @@
     var box = document.createElement("div");
     var dz = el('<div class="dropzone"><div class="ico">⬆</div>' +
       '<p style="margin:10px 0 4px;font-size:15px;color:var(--ameixa-900)"><strong>Clique aqui ou arraste seus arquivos</strong></p>' +
-      '<p class="small muted" style="margin:0">PDF, Word, Excel, imagens, prints, áudios · até 20 MB por arquivo</p></div>');
+      '<p class="small muted" style="margin:0">PDF, Word, Excel, imagens, prints, áudios e vídeos · sem limite de tamanho</p></div>');
     var inp = document.createElement("input");
     inp.type = "file"; inp.multiple = true; inp.style.display = "none";
     dz.onclick = function () { inp.click(); };
@@ -623,6 +623,49 @@
     });
   }
 
+  /* Arquivo de qualquer tamanho: vai em pedaços de 4 MB, um de cada vez.
+     Assim vídeo de reunião e apresentação pesada passam sem travar nada. */
+  var PEDACO = 4 * 1024 * 1024;
+
+  function lerPedaco(blob) {
+    return new Promise(function (ok, falha) {
+      var fr = new FileReader();
+      fr.onerror = function () { falha(new Error("Não consegui ler o arquivo.")); };
+      fr.onload = function () { ok(String(fr.result).split(",")[1]); };
+      fr.readAsDataURL(blob);
+    });
+  }
+
+  function tamanhoBonito(b) {
+    if (b < 1024) return b + " B";
+    if (b < 1048576) return (b / 1024).toFixed(0) + " KB";
+    if (b < 1073741824) return (b / 1048576).toFixed(1) + " MB";
+    return (b / 1073741824).toFixed(1) + " GB";
+  }
+
+  function enviarUm(f) {
+    var envio = "c" + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+    var total = Math.max(1, Math.ceil(f.size / PEDACO));
+    var i = 0;
+    function passo() {
+      var ini = i * PEDACO;
+      return lerPedaco(f.slice(ini, ini + PEDACO)).then(function (dados) {
+        return api("/api/d/" + TOKEN + "/anexo-pedaco", {
+          envio_id: envio, indice: i, total: total, dados: dados,
+          nome: f.name, tipo: f.type
+        });
+      }).then(function (r) {
+        if (r.erro) throw new Error(r.erro);
+        i++;
+        if (total > 1) {
+          toast("Enviando " + f.name + "  ·  " + Math.round(i / total * 100) + "%");
+        }
+        return r.pronto ? r : passo();
+      });
+    }
+    return passo();
+  }
+
   function subir(files) {
     var arr = Array.prototype.slice.call(files);
     if (!arr.length) return;
@@ -630,19 +673,17 @@
     function proximo() {
       if (i >= arr.length) { pintarAnexos(); return; }
       var f = arr[i++];
-      if (f.size > 20 * 1024 * 1024) { toast(f.name + " passa de 20 MB e não foi enviado."); return proximo(); }
-      toast("Enviando " + f.name + "…");
-      var fr = new FileReader();
-      fr.onload = function () {
-        api("/api/d/" + TOKEN + "/anexo",
-          { nome: f.name, tipo: f.type, dados: String(fr.result).split(",")[1] })
-          .then(function (r) {
-            if (r.erro) toast(r.erro);
-            else { S.dados.anexos = r.anexos; toast(f.name + " anexado"); }
-            pintarAnexos(); proximo();
-          }).catch(function () { toast("Falha ao enviar " + f.name); proximo(); });
-      };
-      fr.readAsDataURL(f);
+      toast("Enviando " + f.name + " (" + tamanhoBonito(f.size) + ")…");
+      enviarUm(f)
+        .then(function (r) {
+          if (r.anexos) S.dados.anexos = r.anexos;
+          toast(f.name + " anexado");
+          pintarAnexos(); proximo();
+        })
+        .catch(function (e) {
+          toast(e.message || ("Falha ao enviar " + f.name));
+          proximo();
+        });
     }
     proximo();
   }
