@@ -159,6 +159,7 @@
     wrap.appendChild(lista);
 
     wrap.appendChild(blocoNotas(d));
+    if (!CF.cliente) wrap.appendChild(blocoChecklist(d.checklist || []));
     return wrap;
   }
 
@@ -386,6 +387,89 @@
         f.remove(); toast("Nota salva"); abrirCentral();
       });
     };
+  }
+
+  /* As prioridades do dia, no espírito de um quadro do Trello: uma lista
+     só, que se marca e desmarca, e some sozinha a cada dia útil novo.
+     Não é tarefa da Central (sem prazo, sem cliente, sem status) — é só
+     o que importa fazer hoje. */
+  function blocoChecklist(itens) {
+    var cx = el('<div class="card card-pad" style="margin-top:22px">' +
+      '<div class="q-cab"><div><div class="eyebrow">Checklist do dia</div>' +
+      '<h2 class="serif tit-card" style="margin-bottom:2px">Prioridades de ' +
+      '<em class="grifo">hoje</em></h2>' +
+      '<p class="small muted" style="margin:0">Reinicia sozinha toda manhã de ' +
+      'segunda a sexta. O texto continua, só a marcação some.</p></div></div></div>');
+    var bR = el('<button class="btn btn-fantasma btn-sm">↺ Reiniciar</button>');
+    bR.onclick = function () {
+      if (!confirm("Desmarcar tudo da lista de hoje?")) return;
+      api("/api/admin/checklist-reiniciar", {}).then(function () {
+        toast("Checklist reiniciado"); abrirCentral();
+      });
+    };
+    cx.querySelector(".q-cab").appendChild(bR);
+
+    var lista = el('<div class="ca-check-lista"></div>');
+    if (!itens.length) {
+      lista.appendChild(el('<p class="ca-check-vazio">Nenhuma prioridade ainda. ' +
+        'Acrescente a primeira aqui embaixo.</p>'));
+    }
+    itens.forEach(function (it) {
+      var linha = el('<div class="ca-check-item' + (it.feito ? " feito" : "") + '">' +
+        '<span class="ca-check-caixa">✓</span>' +
+        '<input class="ca-check-texto" type="text" value="' + esc(it.texto) + '">' +
+        '<span class="ca-check-acoes">' +
+        '<button type="button" data-a="cima" title="Mover para cima">↑</button>' +
+        '<button type="button" data-a="baixo" title="Mover para baixo">↓</button>' +
+        '<button type="button" data-a="apagar" title="Remover">×</button></span></div>');
+      linha.querySelector(".ca-check-caixa").onclick = function () {
+        var feito = !linha.classList.contains("feito");
+        linha.classList.toggle("feito", feito);
+        api("/api/admin/checklist-marcar", { id: it.id, feito: feito });
+      };
+      var campo = linha.querySelector(".ca-check-texto");
+      campo.addEventListener("keydown", function (e) {
+        if (e.key === "Enter") campo.blur();
+      });
+      campo.addEventListener("blur", function () {
+        var v = campo.value.trim();
+        if (!v) { campo.value = it.texto; return; }
+        if (v === it.texto) return;
+        it.texto = v;
+        api("/api/admin/checklist-texto", { id: it.id, texto: v });
+      });
+      linha.querySelector('[data-a="cima"]').onclick = function () {
+        api("/api/admin/checklist-mover", { id: it.id, direcao: "cima" })
+          .then(function () { abrirCentral(); });
+      };
+      linha.querySelector('[data-a="baixo"]').onclick = function () {
+        api("/api/admin/checklist-mover", { id: it.id, direcao: "baixo" })
+          .then(function () { abrirCentral(); });
+      };
+      linha.querySelector('[data-a="apagar"]').onclick = function () {
+        api("/api/admin/checklist-remover", { id: it.id }).then(function () { abrirCentral(); });
+      };
+      lista.appendChild(linha);
+    });
+    cx.appendChild(lista);
+
+    var add = el('<div class="ca-check-add">' +
+      '<input type="text" placeholder="Nova prioridade de hoje…"></div>');
+    var campoNovo = add.querySelector("input");
+    var bAdd = el('<button class="btn btn-linha btn-sm">+ Adicionar</button>');
+    function adicionar() {
+      var v = campoNovo.value.trim();
+      if (!v) return;
+      api("/api/admin/checklist-item", { texto: v }).then(function (r) {
+        if (r.erro) return toast(r.erro);
+        abrirCentral();
+      });
+    }
+    campoNovo.addEventListener("keydown", function (e) { if (e.key === "Enter") adicionar(); });
+    bAdd.onclick = adicionar;
+    add.appendChild(bAdd);
+    cx.appendChild(add);
+    return cx;
   }
 
   /* Atalho para ver o sistema pelos olhos de qualquer cliente. */

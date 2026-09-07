@@ -101,6 +101,19 @@ def cfg_set(k, v):
     db().commit()
 
 
+def checklist_conferir_reset():
+    """Reinicia a marcação sozinha a cada novo dia útil, de segunda a sexta.
+
+    O texto das prioridades continua o mesmo (são coisas que se repetem),
+    só o que já foi feito volta a ficar em aberto.
+    """
+    hoje = datetime.now().strftime("%Y-%m-%d")
+    if cfg_get("checklist_dia_em") != hoje and datetime.now().weekday() < 5:
+        db().execute("UPDATE checklist_dia SET feito=0")
+        db().commit()
+        cfg_set("checklist_dia_em", hoje)
+
+
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS config (k TEXT PRIMARY KEY, v TEXT);
 
@@ -209,6 +222,10 @@ CREATE TABLE IF NOT EXISTS notas_central (
   id TEXT PRIMARY KEY, cliente_id TEXT, titulo TEXT DEFAULT '',
   corpo TEXT DEFAULT '', midia_ids TEXT DEFAULT '', fixada INTEGER DEFAULT 0,
   criado_por TEXT DEFAULT '', criado_em TEXT, atualizado_em TEXT);
+
+CREATE TABLE IF NOT EXISTS checklist_dia (
+  id TEXT PRIMARY KEY, texto TEXT NOT NULL, feito INTEGER DEFAULT 0,
+  ordem INTEGER DEFAULT 0, criado_em TEXT, atualizado_em TEXT);
 
 CREATE TABLE IF NOT EXISTS central_historico (
   id INTEGER PRIMARY KEY AUTOINCREMENT, item_id TEXT NOT NULL,
@@ -962,6 +979,18 @@ class Handler(BaseHTTPRequestHandler):
             return self.api_central_apagar()
         if p == "/api/admin/central-nota":
             return self.api_central_nota()
+        if p == "/api/admin/checklist-item":
+            return self.api_checklist_item()
+        if p == "/api/admin/checklist-texto":
+            return self.api_checklist_texto()
+        if p == "/api/admin/checklist-marcar":
+            return self.api_checklist_marcar()
+        if p == "/api/admin/checklist-mover":
+            return self.api_checklist_mover()
+        if p == "/api/admin/checklist-remover":
+            return self.api_checklist_remover()
+        if p == "/api/admin/checklist-reiniciar":
+            return self.api_checklist_reiniciar()
         if p == "/api/admin/ciclo-foco":
             return self.api_ciclo_foco()
         if p == "/api/admin/status":
@@ -1820,6 +1849,7 @@ class Handler(BaseHTTPRequestHandler):
         itens = central.listar(db(), cid, f)
         # o resumo olha a carteira inteira do filtro, sem o recorte de status
         base = central.listar(db(), cid, {})
+        checklist_conferir_reset()
         return self.json({
             "itens": itens, "resumo": central.resumo(base),
             "tipos": central.TIPOS, "status": central.STATUS,
@@ -1832,7 +1862,68 @@ class Handler(BaseHTTPRequestHandler):
                 "SELECT * FROM notas_central WHERE (?1 IS NULL AND cliente_id IS NULL) "
                 "OR cliente_id = ?1 ORDER BY fixada DESC, atualizado_em DESC",
                 (cid,))],
+            "checklist": [dict(r) for r in db().execute(
+                "SELECT * FROM checklist_dia ORDER BY ordem, rowid")],
         })
+
+    def api_checklist_item(self):
+        b = self.body()
+        texto = (b.get("texto") or "").strip()
+        if not texto:
+            return self.erro("Escreva a prioridade antes de adicionar.")
+        n = db().execute("SELECT COALESCE(MAX(ordem),-1)+1 n FROM checklist_dia").fetchone()["n"]
+        iid = secrets.token_hex(8)
+        db().execute("INSERT INTO checklist_dia(id,texto,feito,ordem,criado_em,atualizado_em) "
+                     "VALUES(?,?,0,?,?,?)", (iid, texto[:200], n, now(), now()))
+        db().commit()
+        return self.json({"ok": True, "id": iid})
+
+    def api_checklist_texto(self):
+        b = self.body()
+        texto = (b.get("texto") or "").strip()
+        if not texto:
+            return self.erro("Escreva a prioridade antes de salvar.")
+        db().execute("UPDATE checklist_dia SET texto=?, atualizado_em=? WHERE id=?",
+                     (texto[:200], now(), b.get("id")))
+        db().commit()
+        return self.json({"ok": True})
+
+    def api_checklist_marcar(self):
+        b = self.body()
+        db().execute("UPDATE checklist_dia SET feito=?, atualizado_em=? WHERE id=?",
+                     (1 if b.get("feito") else 0, now(), b.get("id")))
+        db().commit()
+        return self.json({"ok": True})
+
+    def api_checklist_mover(self):
+        b = self.body()
+        conn = db()
+        it = conn.execute("SELECT * FROM checklist_dia WHERE id=?", (b.get("id"),)).fetchone()
+        if not it:
+            return self.erro("Item não encontrado.", 404)
+        op = "<" if b.get("direcao") == "cima" else ">"
+        ordem = "DESC" if b.get("direcao") == "cima" else "ASC"
+        viz = conn.execute(
+            f"SELECT * FROM checklist_dia WHERE ordem {op} ? ORDER BY ordem {ordem} LIMIT 1",
+            (it["ordem"],)).fetchone()
+        if not viz:
+            return self.json({"ok": False})
+        conn.execute("UPDATE checklist_dia SET ordem=? WHERE id=?", (viz["ordem"], it["id"]))
+        conn.execute("UPDATE checklist_dia SET ordem=? WHERE id=?", (it["ordem"], viz["id"]))
+        conn.commit()
+        return self.json({"ok": True})
+
+    def api_checklist_remover(self):
+        b = self.body()
+        db().execute("DELETE FROM checklist_dia WHERE id=?", (b.get("id"),))
+        db().commit()
+        return self.json({"ok": True})
+
+    def api_checklist_reiniciar(self):
+        db().execute("UPDATE checklist_dia SET feito=0")
+        db().commit()
+        cfg_set("checklist_dia_em", datetime.now().strftime("%Y-%m-%d"))
+        return self.json({"ok": True})
 
     def api_central_salvar(self):
         """Cria um registro próprio ou edita qualquer item, na origem dele."""
