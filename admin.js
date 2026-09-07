@@ -2149,351 +2149,133 @@
     };
   }
 
-  /* Conversa com o cliente por dentro do sistema: texto, arquivo e link,
-     nos dois sentidos. O que ele manda chega marcado como novo. */
+  /* No painel, a conversa entra só como resumo. O lugar de conversar é a
+     página própria, com largura para ler e responder. */
   function cartaoFala(c, msgs, aoMudar) {
+    var novos = msgs.filter(function (m) { return m.de === "cliente" && !m.lido; });
     var card = el('<div class="q-card q-fala"><div class="q-cab">' +
       '<div><div class="eyebrow">Fale conosco</div>' +
       '<h3 class="q-t">Conversa com <em class="grifo">' + esc(c.empresa) + '</em></h3></div>' +
-      '</div></div>');
-    var novos = msgs.filter(function (m) { return m.de === "cliente" && !m.lido; });
-    if (novos.length) {
-      var bl = el('<button class="btn btn-fantasma btn-sm">Marcar como lidas</button>');
-      bl.onclick = function () {
-        api("/api/admin/recado-lido", { cliente_id: c.id }).then(aoMudar);
-      };
-      card.querySelector(".q-cab").appendChild(bl);
-    }
-
-    var fio = el('<div class="fala-fio"></div>');
-    if (!msgs.length) {
-      fio.appendChild(el('<p class="small muted">Nenhuma mensagem ainda. ' +
+      (novos.length ? '<span class="q-conta q-conta-alerta">' + novos.length +
+        (novos.length === 1 ? " nova" : " novas") + '</span>' : '') + '</div></div>');
+    var ultima = msgs[0];
+    if (!ultima) {
+      card.appendChild(el('<p class="small muted">Nenhuma mensagem ainda. ' +
         'O que você escrever aqui aparece no acompanhamento dele.</p>'));
+    } else {
+      card.appendChild(el('<div class="fala-resumo">' +
+        '<span class="fala-quem">' +
+        (ultima.de === "b3sales" ? "Você" : esc(ultima.autor || c.empresa)) +
+        '<i>' + dataBr(ultima.criado_em) + '</i></span>' +
+        '<p>' + esc(String(ultima.texto || "").slice(0, 130)) + '</p></div>'));
+    }
+    var b = el('<button class="btn btn-ameixa btn-sm" style="margin-top:14px;width:100%">' +
+      'Abrir a conversa</button>');
+    b.onclick = function () { abrirConversa(c.id); };
+    card.appendChild(b);
+    return card;
+  }
+
+  /* A conversa em página própria: histórico largo, resposta embaixo,
+     arquivo e link nos dois sentidos. */
+  function abrirConversa(cid) {
+    S.rota = "conversa"; S.cid = cid;
+    Promise.all([
+      api("/api/admin/cliente-painel/" + cid),
+      api("/api/admin/recado-lido", { cliente_id: cid })
+    ]).then(function (r) { shell(telaConversa(r[0])); });
+  }
+
+  function telaConversa(d) {
+    var c = d.cliente, msgs = d.recados || [];
+    var wrap = document.createElement("div");
+    var topo = el('<div class="painel-topo"><div>' +
+      '<div class="eyebrow">Fale conosco</div>' +
+      '<h1 class="serif">Conversa com <em class="grifo">' + esc(c.empresa) + '</em></h1>' +
+      '<p class="muted small" style="margin-top:6px">O que você escreve aqui aparece ' +
+      'no acompanhamento dele. Ele não vê nada do resto do sistema.</p></div>' +
+      '<div style="display:flex;gap:10px"></div></div>');
+    var volta = el('<button class="btn btn-fantasma btn-sm">← Voltar para o cliente</button>');
+    volta.onclick = function () { abrirCliente(cid_de(c), S.ciclo); };
+    topo.lastChild.appendChild(volta);
+    wrap.appendChild(topo);
+
+    var caixa = el('<div class="conversa"></div>');
+    var fio = el('<div class="conversa-fio"></div>');
+    if (!msgs.length) {
+      fio.appendChild(el('<p class="muted" style="text-align:center;padding:40px 0">' +
+        'Nenhuma mensagem ainda. Escreva a primeira aqui embaixo.</p>'));
     }
     msgs.slice().reverse().forEach(function (m) {
       var meu = m.de === "b3sales";
-      var bal = el('<div class="fala-m ' + (meu ? "meu" : "dele") +
-        (!meu && !m.lido ? " novo" : "") + '"></div>');
-      bal.appendChild(el('<div class="fala-cab">' +
-        '<b>' + (meu ? "Grupo B3 Sales" : esc(m.autor || c.empresa)) + '</b>' +
+      var bal = el('<div class="conv-linha ' + (meu ? "meu" : "dele") + '"></div>');
+      var bol = el('<div class="conv-bolha"></div>');
+      bol.appendChild(el('<div class="conv-cab"><b>' +
+        (meu ? "Grupo B3 Sales" : esc(m.autor || c.empresa)) + '</b>' +
         '<span>' + dataBr(m.criado_em) + '</span></div>'));
-      if (m.assunto) bal.appendChild(el('<div class="fala-as">' + esc(m.assunto) + '</div>'));
-      if (m.texto) bal.appendChild(el('<p class="fala-tx">' + esc(m.texto) + '</p>'));
+      if (m.assunto) bol.appendChild(el('<div class="conv-as">' + esc(m.assunto) + '</div>'));
+      if (m.texto) bol.appendChild(el('<p class="conv-tx">' + esc(m.texto) + '</p>'));
       if (m.link) {
-        bal.appendChild(el('<a class="fala-lk" href="' + esc(m.link) +
+        bol.appendChild(el('<a class="conv-lk" href="' + esc(m.link) +
           '" target="_blank" rel="noopener">' + esc(m.link) + '</a>'));
       }
       (m.anexos || []).forEach(function (a) {
-        bal.appendChild(el('<a class="fala-ax" href="/api/midia/' + esc(a.id) +
+        bol.appendChild(el('<a class="conv-lk" href="/api/midia/' + esc(a.id) +
           '" target="_blank" rel="noopener">⇩ ' + esc(a.nome) + '</a>'));
       });
-      var bx = el('<button class="fala-x" title="Apagar">×</button>');
+      var bx = el('<button class="conv-x" title="Apagar">×</button>');
       bx.onclick = function () {
-        api("/api/admin/recado-apagar", { id: m.id }).then(aoMudar);
+        api("/api/admin/recado-apagar", { id: m.id })
+          .then(function () { abrirConversa(cid_de(c)); });
       };
-      bal.appendChild(bx);
+      bol.appendChild(bx);
+      bal.appendChild(bol);
       fio.appendChild(bal);
     });
-    card.appendChild(fio);
+    caixa.appendChild(fio);
 
-    /* resposta */
-    var caixa = el('<div class="fala-nova">' +
-      '<input type="text" class="fala-as-in" placeholder="Assunto (opcional)">' +
-      '<textarea class="fala-tx-in" placeholder="Escreva para ' +
+    var nova = el('<div class="conv-nova">' +
+      '<input type="text" class="conv-as-in" placeholder="Assunto (opcional)">' +
+      '<textarea class="conv-tx-in" placeholder="Escreva para ' +
       esc(c.responsavel || c.empresa) + '"></textarea>' +
-      '<input type="text" class="fala-lk-in" placeholder="Colar um link (opcional)">' +
+      '<input type="text" class="conv-lk-in" placeholder="Colar um link (opcional)">' +
       '</div>');
-    var anexados = [];
-    var listaAx = el('<div class="fala-ax-lista"></div>');
+    var anexados = [], listaAx = el('<div class="fala-ax-lista"></div>');
     function pintarAx() {
       listaAx.innerHTML = "";
       anexados.forEach(function (a, i) {
         var t = el('<span class="fala-ax-t">' + esc(a.nome) + ' <button>×</button></span>');
-        t.querySelector("button").onclick = function () {
-          anexados.splice(i, 1); pintarAx();
-        };
+        t.querySelector("button").onclick = function () { anexados.splice(i, 1); pintarAx(); };
         listaAx.appendChild(t);
       });
     }
-    var linha = el('<div style="display:flex;gap:9px;align-items:center;flex-wrap:wrap;' +
-      'margin-top:10px"></div>');
-    linha.appendChild(botaoEnviar("↑ Anexar arquivo", c.id, "recado", function (r) {
+    var linha = el('<div class="conv-acoes"></div>');
+    linha.appendChild(botaoEnviar("↑ Anexar arquivo", cid_de(c), "recado", function (r) {
       anexados.push({ id: r.id, nome: r.nome }); pintarAx();
     }));
-    var bEnv = el('<button class="btn btn-ameixa btn-sm">Enviar para o cliente</button>');
+    var bEnv = el('<button class="btn btn-ameixa">Enviar para o cliente</button>');
     bEnv.onclick = function () {
-      var corpo = {
-        cliente_id: c.id, ciclo: S.ciclo || "",
-        assunto: caixa.querySelector(".fala-as-in").value,
-        texto: caixa.querySelector(".fala-tx-in").value,
-        link: caixa.querySelector(".fala-lk-in").value,
-        midia_ids: anexados.map(function (a) { return a.id; })
-      };
       bEnv.disabled = true;
-      api("/api/admin/recado", corpo).then(function (r) {
+      api("/api/admin/recado", {
+        cliente_id: cid_de(c), ciclo: S.ciclo || "",
+        assunto: nova.querySelector(".conv-as-in").value,
+        texto: nova.querySelector(".conv-tx-in").value,
+        link: nova.querySelector(".conv-lk-in").value,
+        midia_ids: anexados.map(function (a) { return a.id; })
+      }).then(function (r) {
         bEnv.disabled = false;
         if (r.erro) return toast(r.erro);
-        toast("Mensagem enviada ao cliente");
-        aoMudar();
+        toast("Mensagem enviada"); abrirConversa(cid_de(c));
       });
     };
     linha.appendChild(bEnv);
-    caixa.appendChild(listaAx); caixa.appendChild(linha);
-    card.appendChild(caixa);
-    return card;
-  }
-
-  /* Quem do time do cliente enxerga cada página. Nome e email obrigatórios:
-     é o que garante que a página de um cliente nunca chega a outro. */
-  function modalAcessoEquipe(cid, paginas) {
-    var cx = el('<div><p style="margin-top:0">Escolha o que este cliente pode ver e ' +
-      'para quem do time dele. Tudo que você liberar vale <strong>só para ele</strong>.</p>' +
-      '<div id="ae_corpo" style="margin-top:16px"><p class="small muted">Carregando…</p></div>' +
-      '</div>');
-    modal("Acesso da equipe", "Só para este cliente", cx);
-    var corpo = cx.querySelector("#ae_corpo");
-
-    function pintar() {
-      Promise.all([
-        api("/api/admin/cliente-painel/" + cid),
-        api("/api/admin/acessos-pessoa?cliente=" + encodeURIComponent(cid))
-      ]).then(function (r) {
-        var equipe = r[0].equipe_lista || [];
-        var acessos = (r[1].acessos || []).filter(function (a) { return a.tipo === "pagina"; });
-        corpo.innerHTML = "";
-
-        var todas = el('<label class="ws-vis" style="margin-bottom:12px">' +
-          '<input type="checkbox" id="ae_todas"> ' +
-          '<span>Liberar todas as páginas deste cliente para ele ver</span></label>');
-        var marcadas = paginas.filter(function (p) { return p.visivel_cliente; }).length;
-        todas.querySelector("input").checked = marcadas === paginas.length && paginas.length > 0;
-        todas.querySelector("input").onchange = function (e) {
-          var v = e.target.checked ? 1 : 0;
-          Promise.all(paginas.map(function (p) {
-            return api("/api/admin/ws-pagina", { id: p.id, visivel_cliente: v });
-          })).then(function () {
-            toast(v ? "Todas liberadas" : "Todas fechadas");
-            abrirMateriais(cid);
-          });
-        };
-        corpo.appendChild(todas);
-
-        paginas.forEach(function (pg) {
-          var bloco = el('<div class="ae-pg"></div>');
-          var lin = el('<label class="ws-vis"><input type="checkbox"' +
-            (pg.visivel_cliente ? " checked" : "") + '> <span><strong>' +
-            esc(pg.titulo) + '</strong></span></label>');
-          lin.querySelector("input").onchange = function (e) {
-            api("/api/admin/ws-pagina",
-                { id: pg.id, visivel_cliente: e.target.checked ? 1 : 0 })
-              .then(function () { pg.visivel_cliente = e.target.checked ? 1 : 0; pintar(); });
-          };
-          bloco.appendChild(lin);
-
-          var desta = acessos.filter(function (a) { return a.alvo_id === pg.id; });
-          desta.forEach(function (a) {
-            var i = el('<div class="ae-p"><span>' + esc(a.nome) +
-              ' <span class="small muted">' + esc(a.email) + '</span></span></div>');
-            var bx = el('<button class="btn btn-fantasma btn-sm">Tirar</button>');
-            bx.onclick = function () {
-              api("/api/admin/acesso-pessoa", { cliente_id: cid, tipo: "pagina",
-                alvo_id: pg.id, id: a.id, remover: true })
-                .then(function () { toast("Acesso retirado"); pintar(); });
-            };
-            i.appendChild(bx);
-            bloco.appendChild(i);
-          });
-          var b = el('<button class="ae-mais">+ liberar para alguém do time</button>');
-          b.onclick = function () {
-            modalLiberarPessoa(cid, "pagina", pg.id, pg.titulo, equipe, pintar);
-          };
-          bloco.appendChild(b);
-          corpo.appendChild(bloco);
-        });
-      });
-    }
-    pintar();
-  }
-
-  /* Os cursos daquele cliente: quais ele tem, quais faltam e quem do time
-     dele pode assistir. Espelha a página de cursos, mas fechada nele. */
-  function abrirCursosCliente(cid) {
-    S.rota = "cursos-cliente"; S.cid = cid;
-    Promise.all([
-      api("/api/admin/cursos"),
-      api("/api/admin/cliente-painel/" + cid),
-      api("/api/admin/acessos-pessoa?cliente=" + encodeURIComponent(cid))
-    ]).then(function (r) {
-      shell(telaCursosCliente(cid, r[0], r[1], r[2].acessos || []));
-    });
-  }
-
-  function telaCursosCliente(cid, d, painel, acessos) {
-    var c = painel.cliente || { id: cid, empresa: "Cliente" };
-    var cursos = d.cursos || [];
-    var meus = cursos.filter(function (x) { return (x.clientes || []).indexOf(cid) >= 0; });
-    var outros = cursos.filter(function (x) { return (x.clientes || []).indexOf(cid) < 0; });
-    var wrap = document.createElement("div");
-
-    var topo = el('<div class="painel-topo"><div>' +
-      '<div class="eyebrow">Cursos do cliente</div>' +
-      '<h1 class="serif">O que <em class="grifo">' + esc(c.empresa) + '</em> pode assistir</h1>' +
-      '<p class="muted small" style="margin-top:6px">Só os cursos liberados aqui aparecem ' +
-      'no acompanhamento dele. Nada de outro cliente chega junto.</p></div>' +
-      '<div style="display:flex;gap:10px"></div></div>');
-    var volta = el('<button class="btn btn-fantasma btn-sm">← Voltar para o cliente</button>');
-    volta.onclick = function () { abrirCliente(cid, S.ciclo); };
-    topo.lastChild.appendChild(volta);
-    wrap.appendChild(topo);
-
-    var corpo = el('<div class="ws"></div>');
-
-    /* menu da esquerda: acrescentar e remover curso */
-    var lado = el('<div class="ws-lado"><div class="eyebrow">Cursos</div></div>');
-    var listaL = el('<div class="ws-paginas"></div>');
-    if (!meus.length) {
-      listaL.appendChild(el('<p class="small muted" style="padding:8px 2px">' +
-        'Nenhum curso liberado ainda.</p>'));
-    }
-    meus.forEach(function (x) {
-      var it = el('<div class="ws-pg at"><span class="ws-pg-t">' + esc(x.titulo) + '</span>' +
-        '<button class="ws-pg-x" title="Remover deste cliente">×</button></div>');
-      it.querySelector("button").onclick = function (e) {
-        e.stopPropagation();
-        if (!confirm("Remover " + x.titulo + " do acesso de " + c.empresa + "?")) return;
-        var novos = (x.clientes || []).filter(function (y) { return y !== cid; });
-        api("/api/admin/curso-acesso", { curso_id: x.id, clientes: novos })
-          .then(function () { toast("Curso removido"); abrirCursosCliente(cid); });
-      };
-      listaL.appendChild(it);
-    });
-    lado.appendChild(listaL);
-
-    var bAdd = el('<button class="btn btn-linha btn-sm" style="width:100%;margin-top:12px">' +
-      '+ Acrescentar curso</button>');
-    bAdd.onclick = function () {
-      if (!outros.length) return toast("Este cliente já tem todos os cursos.");
-      var cx = el('<div><p style="margin-top:0">Escolha o que liberar para ' +
-        esc(c.empresa) + '.</p><div id="ac_lista"></div></div>');
-      var lst = cx.querySelector("#ac_lista");
-      outros.forEach(function (x) {
-        var l = el('<label class="ws-vis" style="margin:6px 0"><input type="checkbox" value="' +
-          esc(x.id) + '"> <span>' + esc(x.titulo) +
-          (x.trilha ? ' <span class="small muted">· ' + esc(x.trilha) + '</span>' : '') +
-          '</span></label>');
-        lst.appendChild(l);
-      });
-      var bs = el('<button class="btn btn-ouro">Liberar</button>');
-      var f = modal("Acrescentar curso", "Acesso do cliente", cx, [bs]);
-      bs.onclick = function () {
-        var ids = [].slice.call(lst.querySelectorAll("input:checked"))
-          .map(function (i) { return i.value; });
-        if (!ids.length) return toast("Escolha ao menos um curso.");
-        Promise.all(ids.map(function (id) {
-          var cur = cursos.filter(function (y) { return y.id === id; })[0];
-          return api("/api/admin/curso-acesso",
-                     { curso_id: id, clientes: (cur.clientes || []).concat([cid]) });
-        })).then(function () {
-          f.remove(); toast("Liberado"); abrirCursosCliente(cid);
-        });
-      };
-    };
-    lado.appendChild(bAdd);
-    corpo.appendChild(lado);
-
-    /* corpo: cada curso liberado, com módulos e quem do time pode ver */
-    var col = el('<div class="ws-col"></div>');
-    if (!meus.length) {
-      col.appendChild(el('<div class="card card-pad"><p class="muted">' +
-        'Use o botão à esquerda para liberar o primeiro curso.</p></div>'));
-    }
-    var equipe = painel.equipe_lista || [];
-    meus.forEach(function (x) {
-      var fundo = x.capa_midia_id
-        ? "#241030 url(/api/midia/" + esc(x.capa_midia_id) + ") center/cover"
-        : (CAPA_CSS[x.capa] || "var(--creme-3)");
-      var card = el('<div class="card" style="margin-bottom:16px;overflow:hidden">' +
-        '<div style="height:110px;background:' + fundo + '"></div>' +
-        '<div class="card-pad"><h3 class="serif" style="font-size:23px;' +
-        'color:var(--ameixa-900);margin:0 0 4px">' + esc(x.titulo) + '</h3>' +
-        '<p class="small muted" style="margin:0 0 12px">' + x.aulas +
-        (x.aulas === 1 ? " aula" : " aulas") +
-        (x.trilha ? "  ·  " + esc(x.trilha) : "") + '</p></div>');
-      var pad = card.querySelector(".card-pad");
-
-      var bAb = el('<button class="btn btn-linha btn-sm">Abrir o curso</button>');
-      bAb.onclick = function () { abrirCurso(x.id); };
-      pad.appendChild(bAb);
-
-      /* quem do time dele pode assistir */
-      var doCurso = acessos.filter(function (a) {
-        return a.tipo === "curso" && a.alvo_id === x.id;
-      });
-      var pes = el('<div style="margin-top:16px;border-top:1px solid var(--linha-2);' +
-        'padding-top:12px"><div class="eyebrow">Quem do time dele pode assistir</div></div>');
-      if (!doCurso.length) {
-        pes.appendChild(el('<p class="small muted" style="margin:8px 0 0">' +
-          'Ninguém liberado individualmente. O curso aparece para a empresa toda.</p>'));
-      }
-      doCurso.forEach(function (a) {
-        var i = el('<div class="ind"><div><strong>' + esc(a.nome) + '</strong>' +
-          '<div class="small muted">' + esc(a.email) + '</div></div></div>');
-        var bx = el('<button class="btn btn-fantasma btn-sm">Tirar</button>');
-        bx.onclick = function () {
-          api("/api/admin/acesso-pessoa", { cliente_id: cid, tipo: "curso",
-            alvo_id: x.id, id: a.id, remover: true })
-            .then(function () { toast("Acesso retirado"); abrirCursosCliente(cid); });
-        };
-        i.appendChild(bx);
-        pes.appendChild(i);
-      });
-      var bLib = el('<button class="btn btn-ouro btn-sm" style="margin-top:10px">' +
-        '+ Liberar para alguém</button>');
-      bLib.onclick = function () {
-        modalLiberarPessoa(cid, "curso", x.id, x.titulo, equipe,
-                           function () { abrirCursosCliente(cid); });
-      };
-      pes.appendChild(bLib);
-      pad.appendChild(pes);
-      col.appendChild(card);
-    });
-    corpo.appendChild(col);
-    wrap.appendChild(corpo);
+    nova.appendChild(listaAx); nova.appendChild(linha);
+    caixa.appendChild(nova);
+    wrap.appendChild(caixa);
     return wrap;
   }
 
-  /* O acesso só sai com nome e email. É isso que impede o material de um
-     cliente de escorregar para outro. */
-  function modalLiberarPessoa(cid, tipo, alvoId, titulo, equipe, aoTerminar) {
-    var cx = el('<div><p style="margin-top:0">Liberar <strong>' + esc(titulo) +
-      '</strong> para uma pessoa. O acesso só vale com o nome e o email ' +
-      'confirmados.</p>' +
-      '<label class="small" style="color:var(--ameixa-700);margin:14px 0 5px;display:block">' +
-      'Pessoa do time</label><select id="lp_eq"><option value="">Escrever outro nome</option>' +
-      '</select>' +
-      campoTexto("lp_nome", "Nome completo", "Como está no contrato") +
-      campoTexto("lp_mail", "Email", "nome@empresa.com.br") + '</div>');
-    var sel = cx.querySelector("#lp_eq");
-    equipe.forEach(function (p) {
-      sel.appendChild(el('<option value="' + esc(p.nome) + '">' + esc(p.nome) +
-        (p.funcao ? " · " + esc(p.funcao) : "") + '</option>'));
-    });
-    sel.onchange = function () {
-      if (sel.value) cx.querySelector("#lp_nome").value = sel.value;
-    };
-    var bs = el('<button class="btn btn-ouro">Liberar acesso</button>');
-    var f = modal("Liberar acesso", "Time do cliente", cx, [bs]);
-    bs.onclick = function () {
-      api("/api/admin/acesso-pessoa", {
-        cliente_id: cid, tipo: tipo, alvo_id: alvoId,
-        nome: cx.querySelector("#lp_nome").value,
-        email: cx.querySelector("#lp_mail").value
-      }).then(function (r) {
-        if (r.erro) return toast(r.erro);
-        f.remove(); toast("Acesso liberado"); aoTerminar();
-      });
-    };
-  }
+  function cid_de(c) { return c && c.id; }
 
   function telaCliente(d) {
     var c = d.cliente;
@@ -2512,7 +2294,8 @@
       try { ajC = JSON.parse(c.capa_ajuste || "{}") || {}; } catch (e) { ajC = {}; }
       fundo = "url(/api/midia/" + esc(c.capa_midia_id) + ") " +
         (ajC.x == null ? 50 : ajC.x) + "% " + (ajC.y == null ? 50 : ajC.y) + "%/" +
-        (ajC.zoom || 100) + "% auto no-repeat, " + fundo;
+        (ajC.zoom && ajC.zoom !== 100 ? ajC.zoom + "% auto" : "cover") +
+        " no-repeat, " + fundo;
     }
     var capa = el('<div class="cli-capa" style="' +
       (c.capa_midia_id ? fundoImagem(c.capa_midia_id, c.capa_ajuste)
@@ -2571,7 +2354,8 @@
       function (r) {
         api("/api/admin/cliente-editar", { id: c.id, logo_midia_id: r.id,
           logo_ajuste: "" }).then(function () { abrirCliente(c.id, S.ciclo); });
-      }, "image/*", "logo_cliente");
+      }, "image/*");
+    envLogo.title = "Foto ou logo: 400 × 400 px, quadrada";
     acoesLogo.appendChild(envLogo);
     if (c.logo_midia_id) {
       var bAj = el('<button class="btn btn-linha btn-sm">Enquadrar</button>');
@@ -3226,7 +3010,8 @@
         try { aj = JSON.parse(c.capa_ajuste || "{}") || {}; } catch (e) { aj = {}; }
         capa = "url(/api/midia/" + esc(c.capa_midia_id) + ") " +
           (aj.x == null ? 50 : aj.x) + "% " + (aj.y == null ? 50 : aj.y) + "%/" +
-          (aj.zoom || 100) + "% auto no-repeat, " + capa;
+          (aj.zoom && aj.zoom !== 100 ? aj.zoom + "% auto" : "cover") +
+          " no-repeat, " + capa;
       }
       var cartao = el('<div class="cli-c">' +
         '<div class="cli-c-capa" style="background:' + capa + '"></div>' +

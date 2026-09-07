@@ -348,7 +348,8 @@
       try { ac = JSON.parse(d.capa_ajuste || "{}") || {}; } catch (e) { ac = {}; }
       fundo = "url(/api/midia/" + esc(d.capa_midia_id) + ") " +
         (ac.x == null ? 50 : ac.x) + "% " + (ac.y == null ? 50 : ac.y) + "%/" +
-        (ac.zoom || 100) + "% auto no-repeat, " + fundo;
+        (ac.zoom && ac.zoom !== 100 ? ac.zoom + "% auto" : "cover") +
+        " no-repeat, " + fundo;
     }
     var hero = el('<div class="p-topo-cli" style="background:' + fundo + '">' +
       '<div class="p-topo-veu"></div><div class="p-topo-in">' +
